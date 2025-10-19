@@ -1,6 +1,8 @@
 import os
 from langchain_mistralai import ChatMistralAI
 from langchain_google_genai import ChatGoogleGenerativeAI
+from src.prompts import rewrite_content_prompt, rewrite_latex_prompt
+from src.schema import ResumeState
 
 
 def match_jd(state: ResumeState) -> dict:
