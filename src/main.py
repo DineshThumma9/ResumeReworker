@@ -1,8 +1,18 @@
 import os
+
+from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_groq import ChatGroq
 from langchain_mistralai import ChatMistralAI
 from langchain_google_genai import ChatGoogleGenerativeAI
-from src.prompts import rewrite_content_prompt, rewrite_latex_prompt
-from src.schema import ResumeState
+from langgraph.constants import START, END
+from langgraph.graph import StateGraph
+
+from prompts import rewrite_content_prompt, rewrite_latex_prompt, resume_analysis_prompt, jakes_template_reference
+from schema import ResumeState, RewriteResume, ResumeAnalysis
+from dotenv import load_dotenv
+
+
+load_dotenv()
 
 
 def match_jd(state: ResumeState) -> dict:
@@ -20,7 +30,7 @@ def match_jd(state: ResumeState) -> dict:
         HumanMessage(content=f"Job Description:\n{jd}\n\nResume:\n{resume}")
     ]
 
-    llm = ChatGroq(model="llama-3.3-70b-versatile", api_key=secret_value_1)
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash",api_key=os.getenv("GEMINI_API_KEY"))
     llm_with_structure = llm.with_structured_output(ResumeAnalysis)
 
     try:
@@ -30,6 +40,20 @@ def match_jd(state: ResumeState) -> dict:
     except Exception as e:
         print(f"❌ Error in match_jd: {e}")
         raise
+
+
+
+ # FIXED: Serialize Pydantic object to string for LLM
+    analysis_text = f"""
+Analysis Results:
+- Score: {analysis.score}/100
+- Match: {analysis.match}
+- Missing Keywords: {', '.join(analysis.missing_keywords)}
+- Negative Points:
+{chr(10).join(f"  - {point}" for point in analysis.negative_points)}
+- Improvements Needed:
+{chr(10).join(f"  - {imp}" for imp in analysis.potential_improvements)}
+"""
 
 
 def rewrite_resume(state: ResumeState) -> dict:
@@ -43,38 +67,29 @@ def rewrite_resume(state: ResumeState) -> dict:
     resume = state["resume"]
     analysis = state["analysis"]  # FIXED: correct key name
 
-    # FIXED: Serialize Pydantic object to string for LLM
-    analysis_text = f"""
-Analysis Results:
-- Score: {analysis.score}/100
-- Match: {analysis.match}
-- Missing Keywords: {', '.join(analysis.missing_keywords)}
-- Negative Points:
-{chr(10).join(f"  - {point}" for point in analysis.negative_points)}
-- Improvements Needed:
-{chr(10).join(f"  - {imp}" for imp in analysis.potential_improvements)}
-"""
-
     messages = [
         SystemMessage(content=rewrite_content_prompt),
         HumanMessage(content=f"""
-Job Description:
-{jd}
+    Job Description:
+    {jd}
 
-Original Resume:
-{resume}
+    Original Resume:
+    {resume}
 
-{analysis_text}
+    {analysis}
 
-Please rewrite the resume to better match the job description based on this analysis.
-""")
+    Please rewrite the resume to better match the job description based on this analysis.
+    """)
     ]
 
-    llm = ChatGroq(model="openai/gpt-oss-20b", api_key=secret_value_1)
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash",api_key=os.getenv("GEMINI_API_KEY"))
     llm_with_structure = llm.with_structured_output(RewriteResume)
+
+    import streamlit as st
 
     try:
         rewritten = llm_with_structure.invoke(messages)
+        st.markdown(rewritten)
         print(f"✅ Resume rewritten with {len(rewritten.projects)} projects")
         return {"changes_content": rewritten}
     except Exception as e:
@@ -135,7 +150,7 @@ Generate complete, compilable LaTeX code using Jake's Resume Template.
     # FIXED: Correct model name for Google
     llm = ChatGoogleGenerativeAI(
         model="gemini-2.5-pro",  # or "gemini-2.0-flash-exp"
-        api_key=secret_value_0
+        api_key=os.getenv("GEMINI_API_KEY")
     )
 
     try:
@@ -148,6 +163,8 @@ Generate complete, compilable LaTeX code using Jake's Resume Template.
         elif latex_code.startswith("```"):
             latex_code = latex_code.split("```")[1].split("```")[0].strip()
 
+        import streamlit as st
+        st.markdown(latex_code)
         print(f"✅ LaTeX code generated ({len(latex_code)} characters)")
         return {"latex_code": latex_code}  # FIXED: correct key name
     except Exception as e:
@@ -167,7 +184,7 @@ def generate_pdf(state: ResumeState) -> dict:
     print("📄 Generating PDF from LaTeX...")
 
     latex_code = state["latex_code"]  # FIXED: correct key name
-    output_pdf = state.get("output_pdf_path", "output_resume.pdf")  # FIXED: get from state
+    output_pdf = state.get("output_path")  # FIXED: get from state
 
     with tempfile.TemporaryDirectory() as tmpdir:
         # FIXED: Correct indentation
@@ -235,4 +252,4 @@ def create_workflow() -> StateGraph:
     graph.add_edge("rewrite_latex", "generate_pdf")
     graph.add_edge("generate_pdf", END)
 
-    return graph.compile()
+    return graph

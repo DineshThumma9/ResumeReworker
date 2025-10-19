@@ -1,6 +1,9 @@
 import pymupdf
 import streamlit as st
+from pyarrow import output_stream
 
+from main import create_workflow
+from schema import ResumeState
 
 
 st.title('Resume Review And ReWriter WorkFlow')
@@ -17,11 +20,18 @@ if resume:
     resume_content = "".join([pg.get_text() for pg in pdf_doc])
 
 
-if resume_content and jd:
-    inital_state = {
-        "jd":jd,
-        "resume_content":resume_content
-    }
+if st.button('Generate ReWritten Resume'):
+    state = ResumeState(
+        jd=jd,
+        resume=resume_content,
+        output_path="./output"
+    )
+    workflow = create_workflow()
+    resume_workflow = workflow.compile()
+    resume_workflow.invoke(state)
+
+
+
 st.markdown(resume_content)
 st.markdown(jd)
 

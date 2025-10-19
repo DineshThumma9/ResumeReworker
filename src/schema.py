@@ -1,5 +1,5 @@
 
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel,Field
 
 class ResumeAnalysis(BaseModel):
@@ -104,4 +104,4 @@ class ResumeState(TypedDict):
     analysis: ResumeAnalysis  # Analysis results (FIXED TYPO)
     changes_content: RewriteResume  # Rewritten resume content
     latex_code: str  # Generated LaTeX code for resume
-    output_path :str ="/kaggle/working/"
+    output_path :str ="/output"
