@@ -35,6 +35,11 @@ class ResumeAnalysis(BaseModel):
         default_factory=list
     )
 
+    resume_quality: str = Field(
+        description="Overall quality of the resume in terms of structure, readability, and ATS-friendliness",
+        default=""  
+    )
+
     urgency: Optional[str] = Field(
         description="If deadline is mentioned, urgency to submit from current date and time",
         default=None

@@ -1,6 +1,7 @@
 """
 Improved prompts for resume processing system with proper structure and alignment to Pydantic models
 """
+from jakes_template import jakes_template_reference
 
 # =============================================================================
 # PROMPT 1: RESUME ANALYSIS
@@ -10,62 +11,67 @@ resume_analysis_prompt = """
 You are an expert ATS (Applicant Tracking System) specialist and career consultant.
 
 ## YOUR TASK:
-Analyze the candidate's resume against the provided job description and provide a comprehensive evaluation.
+Analyze the candidate's resume against the provided job description and deliver a detailed, evidence-based evaluation.
 
-## ANALYSIS CRITERIA:
+## ANALYSIS CRITERIA
 
 ### 1. KEYWORD MATCHING
-- Extract all critical keywords from the job description (skills, tools, technologies, qualifications)
-- Identify which keywords are present in the resume
-- List missing keywords that could improve ATS score
+- Extract essential keywords from the job description, including technical skills, tools, qualifications, and soft skills.
+- Compare with the resume content to identify which are present or missing.
+- Highlight missing or weakly represented keywords that could meaningfully improve ATS matching.
+- Briefly note keyword density and whether the terms are used in relevant contexts.
 
-### 2. ALIGNMENT SCORE (0-100)
-- Calculate how well the resume aligns with job requirements
-- Consider: skills match, experience relevance, qualification fit
-- Provide specific score with justification
+### 2. ALIGNMENT SCORE (0–100)
+- Provide a clear numeric score reflecting how well the resume aligns with job requirements.
+- Consider skill relevance, experience alignment, and qualification match.
+- Justify the score logically (don’t guess) — explain what raised or lowered it.
 
 ### 3. QUALIFICATION ASSESSMENT
-- Does the candidate meet the required qualifications?
-- Does the candidate meet preferred qualifications?
-- Identify any gaps in required skills or experience
+- Check if the candidate meets **required** and **preferred** qualifications.
+- Identify key experience or education gaps.
+- Note if the candidate exceeds expectations in any area.
 
 ### 4. RESUME QUALITY
-- Structure and formatting (clarity, organization, sections)
-- Content quality (quantifiable achievements, impact statements)
-- ATS compatibility issues (formatting problems, missing sections)
+- Evaluate structure, readability, and logical flow.
+- Identify any ATS-unfriendly elements (tables, images, icons, non-standard formatting).
+- Assess content quality: clarity, quantifiable impact, and strength of phrasing.
+- Evaluate tone and professionalism (concise, results-driven vs vague or generic).
 
 ### 5. NEGATIVE POINTS
-- What's holding the resume back?
-- Red flags or areas of concern
-- Weak or generic statements
+- List clear weaknesses or red flags (e.g., lack of metrics, poor keyword placement, irrelevant experience, inconsistent formatting).
+- Avoid generic criticism — tie each point to how it affects ATS or recruiter perception.
 
 ### 6. IMPROVEMENT RECOMMENDATIONS
-- Specific, actionable suggestions to improve ATS score
-- Content additions or modifications needed
-- Keywords to incorporate naturally
+- Provide **specific, actionable** suggestions.
+- Mention exactly what to add, change, or rephrase.
+- Suggest missing keywords or phrases to integrate naturally.
+- Highlight how to improve ATS parsing (section headers, plain text formatting, etc.).
+- Optionally include examples of improved line rewrites.
 
 ### 7. URGENCY ASSESSMENT (if applicable)
-- If job posting mentions a deadline, note urgency level
-- Calculate days remaining from current date
+- If the job description includes a deadline or limited application window, estimate urgency level.
+- Include number of days remaining and how that impacts resume submission timing.
 
-## OUTPUT FORMAT:
-Provide your analysis as a structured JSON matching this schema:
-{
-    "score": <integer 0-100>,
-    "match": <boolean>,
-    "missing_keywords": [<list of strings>],
-    "negative_points": [<list of strings>],
-    "potential_improvements": [<list of strings>],
-    "urgency": "<string or null>"
-}
+---
 
-## IMPORTANT GUIDELINES:
-- Be objective and constructive in your feedback
-- Base recommendations on actual job requirements
-- Focus on ATS optimization while maintaining human readability
-- Do not suggest fabricating information or lying about qualifications
+## EVALUATION STYLE
+- Be **objective and data-driven**, not subjective.
+- Use **clear reasoning** for every conclusion.
+- Focus on **ATS optimization and recruiter readability** equally.
+- Never fabricate skills or qualifications — suggest only realistic improvements.
+- When uncertain, state your assumption explicitly (e.g., “Assuming candidate has 3+ years in X…”).
+
+---
+
+## YOUR GOAL:
+Deliver a thorough, recruiter-level evaluation that helps the candidate:
+1. Understand exactly why their resume might underperform.
+2. Know what to fix and how.
+3. Improve their chances of passing ATS filters and impressing a hiring manager.
+
+
+
 """
-
 
 # =============================================================================
 # PROMPT 2: CONTENT REWRITING
@@ -97,32 +103,18 @@ Rewrite the candidate's resume content to improve ATS score and better align wit
 - Change education details, GPAs, dates, or institution names
 - Modify hackathons or certificates section
 - Exaggerate skill levels or responsibilities
+ 
 
-## OUTPUT FORMAT:
-Return a JSON object matching this exact structure:
-
-{
-    "profile_summary": "<string: 2-3 sentences optimized for ATS>",
-    "education": ["<list of strings: one entry per degree/certification>"],
-    "technical_skills": ["<list of strings: categorized skills (e.g., 'Languages: Python, Java')>"],
-    "projects": [
-        {
-            "name": "<string: project name>",
-            "description": "<string: optimized description>",
-            "technologies": ["<list of strings: tech stack>"],
-            "highlights": ["<list of strings: bullet points with achievements>"]
-        }
-    ],
-    "coursework": ["<list of strings: relevant courses>"],
-    "hackathons_and_certificates": ["<list of strings: exact copy from original>"]
-}
 
 ## KEYWORD OPTIMIZATION GUIDELINES:
 - Use action verbs: developed, implemented, designed, architected, optimized
-- Include metrics where available: "improved performance by 40%", "serving 10K+ users"
+- Include metrics where available: "improved performance by 40%", "serving 10K+ users" if possiable
 - Mirror job description language while keeping your authentic voice
 - Prioritize keywords that appear multiple times in job description
 - Integrate keywords naturally - avoid keyword stuffing
+
+
+## You will be given an analysis report highlighting missing keywords and improvement areas. Use this to guide your rewrites.
 
 ## EXAMPLE TRANSFORMATIONS:
 
@@ -200,6 +192,11 @@ Before outputting, verify:
 - [ ] No syntax errors or missing brackets
 - [ ] Maintains professional appearance
 - [ ] ATS-compatible (no complex tables or graphics)
+
+
+You will be provided with the candidate's resume content and the specific changes to apply.
+
+
 
 Generate the complete LaTeX code now:
 """

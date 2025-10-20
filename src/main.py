@@ -1,255 +1,160 @@
-import os
 
-from langchain_core.messages import SystemMessage, HumanMessage
-from langchain_groq import ChatGroq
-from langchain_mistralai import ChatMistralAI
+
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langgraph.constants import START, END
+from schema import ResumeState
+from  prompts import resume_analysis_prompt,rewrite_content_prompt,rewrite_latex_prompt
+from schema import ResumeAnalysis
 from langgraph.graph import StateGraph
-
-from prompts import rewrite_content_prompt, rewrite_latex_prompt, resume_analysis_prompt, jakes_template_reference
-from schema import ResumeState, RewriteResume, ResumeAnalysis
+from langgraph.constants import START, END
+import streamlit as st
+import pymupdf
 from dotenv import load_dotenv
+import os
+import pymupdf
+import streamlit as st
+from pyarrow import output_stream
+from schema import ResumeState,RewriteResume,Project
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_google_genai import ChatGoogleGenerativeAI
+from pydantic import BaseModel, Field
+from typing import List, Optional
+import streamlit as st
+from st_circular_progress import CircularProgress
+from jakes_template import jakes_template_reference
 
 
 load_dotenv()
 
 
-def match_jd(state: ResumeState) -> dict:
-    """
-    Analyze resume against job description
-    Returns: {"analysis": ResumeAnalysis}
-    """
-    print("📊 Analyzing resume against job description...")
 
-    jd = state["jd"]
-    resume = state["resume"]
 
+def iterate_nested_dict(d, parent_key=""):
+    for key, value in d.items():
+        full_key = f"{parent_key}.{key}" if parent_key else key
+        
+        if isinstance(value, dict):
+            # Recursively go deeper
+            yield from iterate_nested_dict(value, full_key)
+        else:
+            # Base case — print or yield the final key-value pair
+            yield full_key, value
+
+
+
+def match_jd(state:ResumeState):
+
+    jd = state['jd']
+    resume = state['resume']
+
+
+
+    
     messages = [
-        SystemMessage(content=resume_analysis_prompt),  # FIXED: correct prompt name
-        HumanMessage(content=f"Job Description:\n{jd}\n\nResume:\n{resume}")
+        SystemMessage(content=resume_analysis_prompt),
+        HumanMessage(content=f"Job Description:\n{jd}\n\nCandidate Resume:\n{resume}"),
     ]
 
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash",api_key=os.getenv("GEMINI_API_KEY"))
-    llm_with_structure = llm.with_structured_output(ResumeAnalysis)
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0,api_key=os.getenv("GEMINI_API_KEY"))
+    llm = llm.with_structured_output(ResumeAnalysis)
+    response = llm.invoke(messages)
+    analysis = response.model_dump()
+    st.markdown("### Analysis of Job Description and Resume")
+    st.markdown(f"Peercentage Match Scpre: {analysis['score']}%")
+    my_circular_progress = CircularProgress(value=analysis['score'], label="Match Score")
+    my_circular_progress.st_circular_progress()
+    st.markdown("### Explaination")
+    st.write(analysis['match_explanation'])
+    st.markdown("### Missing Keywords")
+    for kw in analysis['missing_keywords']:
+        st.write(f"- {kw}")
+    st.markdown("### Negative Points")
+    for np in analysis['negative_points']:
+        st.write(f"- {np}")
+    st.markdown("### Potential Improvements")
+    for pi in analysis['potential_improvements']:
+        st.write(f"- {pi}")
+    st.markdown("### Urgency")
+    st.write(analysis['urgency'] if analysis['urgency'] else "No urgency")
+    st.markdown("### Resume Quality")
+    st.write(analysis['resume_quality'] if analysis['resume_quality'] else "No information on resume quality")
 
-    try:
-        analysis = llm_with_structure.invoke(messages)
-        print(f"✅ Analysis complete. Score: {analysis.score}/100")
-        return {"analysis": analysis}  # FIXED: correct key name
-    except Exception as e:
-        print(f"❌ Error in match_jd: {e}")
-        raise
 
 
+    return {
+        **state,
+        "analysis": response
+    }
 
- # FIXED: Serialize Pydantic object to string for LLM
-    analysis_text = f"""
-Analysis Results:
-- Score: {analysis.score}/100
-- Match: {analysis.match}
-- Missing Keywords: {', '.join(analysis.missing_keywords)}
-- Negative Points:
-{chr(10).join(f"  - {point}" for point in analysis.negative_points)}
-- Improvements Needed:
-{chr(10).join(f"  - {imp}" for imp in analysis.potential_improvements)}
-"""
+    
 
 
-def rewrite_resume(state: ResumeState) -> dict:
-    """
-    Rewrite resume content based on analysis
-    Returns: {"changes_content": RewriteResume}
-    """
-    print("✍️  Rewriting resume content...")
-
-    jd = state["jd"]
-    resume = state["resume"]
-    analysis = state["analysis"]  # FIXED: correct key name
-
+def rewrite_resume(state:ResumeState):
+    resume = state['resume']
+    jd = state['jd']
+    analysis = state['analysis'].model_dump()
+    
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0,api_key=os.getenv("GEMINI_API_KEY"))
+    llm = llm.with_structured_output(RewriteResume)
     messages = [
         SystemMessage(content=rewrite_content_prompt),
-        HumanMessage(content=f"""
-    Job Description:
-    {jd}
+        HumanMessage(content=f"Job Description:\n{jd}\n\nCandidate Resume:\n{resume}\n\nAnalysis Report:\n{analysis}"),
 
-    Original Resume:
-    {resume}
-
-    {analysis}
-
-    Please rewrite the resume to better match the job description based on this analysis.
-    """)
     ]
+    response = llm.invoke(messages)
+    content = response.model_dump()
+    st.markdown("### ReWritten Resume Content")
+    for key,val in iterate_nested_dict(content):
+        st.markdown(f"## {key.title().replace('_',' ')}\n  {val}")
+    
 
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash",api_key=os.getenv("GEMINI_API_KEY"))
-    llm_with_structure = llm.with_structured_output(RewriteResume)
-
-    import streamlit as st
-
-    try:
-        rewritten = llm_with_structure.invoke(messages)
-        st.markdown(rewritten)
-        print(f"✅ Resume rewritten with {len(rewritten.projects)} projects")
-        return {"changes_content": rewritten}
-    except Exception as e:
-        print(f"❌ Error in rewrite_resume: {e}")
-        raise
+    
+    return {
+        **state,
+        "changes_content": response
+    } 
 
 
-def rewrite_latex(state: ResumeState) -> dict:
-    """
-    Convert rewritten content to LaTeX
-    Returns: {"latex_code": str}
-    """
-    print("📝 Generating LaTeX code...")
 
-    content = state["changes_content"]
-
-    # FIXED: Serialize Pydantic object to readable format
-    content_text = f"""
-Profile Summary:
-{content.profile_summary}
-
-Education:
-{chr(10).join(f"- {edu}" for edu in content.education)}
-
-Technical Skills:
-{chr(10).join(f"- {skill}" for skill in content.technical_skills)}
-
-Projects:
-{chr(10).join(f'''
-Project: {proj.name}
-Description: {proj.description}
-Technologies: {", ".join(proj.technologies)}
-Highlights:
-{chr(10).join(f"  - {h}" for h in proj.highlights)}
-''' for proj in content.projects)}
-
-Coursework:
-{chr(10).join(f"- {course}" for course in content.coursework)}
-
-Hackathons & Certificates:
-{chr(10).join(f"- {cert}" for cert in content.hackathons_and_certificates)}
-"""
-
-    # FIXED: Include Jake's template reference
-    prompt_with_template = rewrite_latex_prompt.replace("{jakes_template}", jakes_template_reference)
-
+def rewrite_latex(state:ResumeState):
+    jd = state['jd']
+    initial_resume = state['resume']
+    suggesting_changes = state['changes_content']
+    
+    
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0,api_key=os.getenv("GEMINI_API_KEY"))
     messages = [
-        SystemMessage(content=prompt_with_template),
-        HumanMessage(content=f"""
-Here is the resume content to convert to LaTeX:
-
-{content_text}
-
-Generate complete, compilable LaTeX code using Jake's Resume Template.
-""")
+        SystemMessage(content=rewrite_latex_prompt.format(jakes_template=jakes_template_reference)),
+        HumanMessage(content=f"Job Description:\n{jd}\n\nInitial Resume:\n{initial_resume}\n\nSuggested Changes:\n{suggesting_changes}"),
     ]
+    resume_latex = llm.invoke(messages)
+    st.markdown("### Generated LaTeX Code for ReWritten Resume")
+    st.code(resume_latex,language="latex")
+    return {
+        **state,
+        "latex_code": resume_latex
+    }
 
-    # FIXED: Correct model name for Google
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-pro",  # or "gemini-2.0-flash-exp"
-        api_key=os.getenv("GEMINI_API_KEY")
-    )
-
-    try:
-        response = llm.invoke(messages)
-        latex_code = response.content
-
-        # Clean up response (remove markdown code blocks if present)
-        if latex_code.startswith("```latex"):
-            latex_code = latex_code.split("```latex")[1].split("```")[0].strip()
-        elif latex_code.startswith("```"):
-            latex_code = latex_code.split("```")[1].split("```")[0].strip()
-
-        import streamlit as st
-        st.markdown(latex_code)
-        print(f"✅ LaTeX code generated ({len(latex_code)} characters)")
-        return {"latex_code": latex_code}  # FIXED: correct key name
-    except Exception as e:
-        print(f"❌ Error in rewrite_latex: {e}")
-        raise
+def generate_pdf():
+    pass
 
 
-import tempfile
-import subprocess
 
-
-def generate_pdf(state: ResumeState) -> dict:
-    """
-    Compile LaTeX to PDF
-    Returns: {"output_pdf_path": str}
-    """
-    print("📄 Generating PDF from LaTeX...")
-
-    latex_code = state["latex_code"]  # FIXED: correct key name
-    output_pdf = state.get("output_path")  # FIXED: get from state
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        # FIXED: Correct indentation
-        tex_file = os.path.join(tmpdir, "resume.tex")
-
-        # Save LaTeX code to .tex file
-        with open(tex_file, "w", encoding="utf-8") as f:
-            f.write(latex_code)
-
-        try:
-            # Run pdflatex
-            result = subprocess.run(
-                ["pdflatex", "-interaction=nonstopmode", tex_file],
-                check=True,
-                cwd=tmpdir,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                timeout=30
-            )
-
-            # Move the generated PDF to the desired location
-            generated_pdf = os.path.join(tmpdir, "resume.pdf")
-
-            if os.path.exists(generated_pdf):
-                # Ensure output directory exists
-                os.makedirs(os.path.dirname(os.path.abspath(output_pdf)), exist_ok=True)
-                os.replace(generated_pdf, output_pdf)
-                print(f"✅ PDF generated successfully: {output_pdf}")
-                return {"output_pdf_path": output_pdf}
-            else:
-                raise FileNotFoundError("PDF was not generated")
-
-        except subprocess.CalledProcessError as e:
-            print("❌ Error compiling LaTeX!")
-            print("STDOUT:", e.stdout.decode())
-            print("STDERR:", e.stderr.decode())
-            raise
-        except subprocess.TimeoutExpired:
-            print("❌ LaTeX compilation timed out")
-            raise
-        except Exception as e:
-            print(f"❌ Unexpected error in generate_pdf: {e}")
-            raise
-
-
-# =============================================================================
-# WORKFLOW SETUP
-# =============================================================================
-
-def create_workflow() -> StateGraph:
-    """Create and configure the resume processing workflow"""
-
+def analyze_resume_workflow():
+    
     graph = StateGraph(ResumeState)
 
-    # Add nodes
     graph.add_node("match_jd", match_jd)
     graph.add_node("rewrite_resume", rewrite_resume)
     graph.add_node("rewrite_latex", rewrite_latex)
-    graph.add_node("generate_pdf", generate_pdf)
-
-    # Define edges
-    graph.add_edge(START, "match_jd")
-    graph.add_edge("match_jd", "rewrite_resume")
-    graph.add_edge("rewrite_resume", "rewrite_latex")
-    graph.add_edge("rewrite_latex", "generate_pdf")
-    graph.add_edge("generate_pdf", END)
+    graph.add_edge(START,"match_jd")
+    graph.add_edge("match_jd","rewrite_resume")
+    graph.add_edge("rewrite_resume","rewrite_latex")
+    graph.add_edge("rewrite_latex",END)
 
     return graph
+    
+
+
+def create_workflow():
+    pass
