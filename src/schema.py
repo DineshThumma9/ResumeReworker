@@ -1,6 +1,9 @@
 
-from typing import Optional, List
+from typing import Dict, Optional, List
+
+from pyasn1.type.namedtype import OptionalNamedType
 from pydantic import BaseModel,Field
+
 
 class ResumeAnalysis(BaseModel):
     """Model for analyzing resume against job description"""
@@ -66,19 +69,74 @@ class Project(BaseModel):
     )
 
 
+
+class Education(BaseModel):
+    institution: str = Field("Institution", description="Institution name")
+    year:Optional[str] = Field("Year", description="Year of education")
+    gpa:Optional[str] = Field("GPA", description="GPA of education")
+    course:str = Field("Course", description="Course name")
+
+
+class Skill(BaseModel):
+    skill: str = Field("Skill", description="Skill name")
+    skill_set:List[str] = Field("Skill set", description="Skill set name")
+
+
+
+class Details(BaseModel):
+    name: str = Field(description="Full name of the candidate")
+    profile_summary: Optional[str] = Field(
+        description="Professional summary/objective statement for the resume keep it short and simple and don't go overboard and write paragraphs",   
+    )
+    contact:Optional[str] = Field(
+        description="Contact information as a single string (phone)",
+    )
+    email:Optional[str] = Field(
+        description="Email address",
+    )
+    linkedin:Optional[str] = Field(
+        description="LinkedIn profile URL",
+    )
+    leetcode:Optional[str] = Field(
+        description="LeetCode profile URL",
+    )
+    codechef:Optional[str] = Field(
+        description="CodeChef profile URL",
+    )
+    location:Optional[str] = Field(
+        description="Location of the candidate",   
+    )
+    github:Optional[str] = Field(
+        description="GitHub profile URL",
+    )
+    portfolio:Optional[str] = Field(
+        description="Portfolio website URL",
+    )
+    profile_links: Dict[str, str] = Field(
+        description="""Extract ALL personal contact details and professional profile links with their COMPLETE URLs as values and platform names as keys. 
+        Expected keys: phone, email, github, linkedin, leetcode, portfolio, website.
+        For URLs, include the full link (e.g., 'https://github.com/username', 'https://linkedin.com/in/username').
+        For email, include the full email address.
+        For phone, include the complete phone number.
+        Example: {"phone": "+1234567890", "email": "user@email.com", "github": "https://github.com/username", "linkedin": "https://linkedin.com/in/username"}""",  
+        default_factory=dict
+    )
+    
+
 class RewriteResume(BaseModel):
     """Structured content for rewritten resume"""
 
-    profile_summary: str = Field(
-        description="Professional summary/objective statement for the resume"
+    details: Details = Field(
+        description="Personal details and profile summary"
     )
+    
 
-    education: List[str] = Field(
+    education: List[Education] = Field(
         description="Education entries (degree, institution, year, GPA if applicable)",
         default_factory=list
     )
 
-    technical_skills: List[str] = Field(
+    technical_skills: List[Skill] = Field(
         description="Technical skills categorized (e.g., 'Languages: Python, Java')",
         default_factory=list
     )
@@ -88,15 +146,24 @@ class RewriteResume(BaseModel):
         default_factory=list
     )
 
-    coursework: List[str] = Field(
+    coursework: Optional[List[str]] = Field(
         description="Relevant coursework or academic projects",
         default_factory=list
     )
+    
+    achivements: Optional[List[str]] = Field(
+        description="Achievements, awards, and certifications",
+        default_factory=list
+    )
+    
 
-    hackathons_and_certificates: List[str] = Field(
+    hackathons_and_certificates: Optional[List[str]] = Field(
         description="Hackathon participations, awards, and certifications",
         default_factory=list
     )
+
+
+
 
 
 

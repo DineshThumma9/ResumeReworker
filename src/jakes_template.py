@@ -115,13 +115,7 @@ jakes_template_reference = r"""
 
 \begin{document}
 
-%----------HEADING----------
-\begin{center}
-    {\Huge \scshape Dinesh Thumma} \\ \vspace{1pt}
-    +91 9393519918 $|$ \href{mailto:dineshthumma15@gmail.com}{\underline{dineshthumma15@gmail.com}} $|$ 
-    \href{https://github.com/xxxx}{\underline{GitHub}} $|$
-    \href{https://leetcode.com/u/dineshthummax975/}{\underline{LeetCode}} $|$
-\end{center}
+ {Headings}
 
 %-----------PROFESSIONAL SUMMARY-----------
 \section{Professional Summary}

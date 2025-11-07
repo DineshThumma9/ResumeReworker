@@ -1,7 +1,6 @@
 """
 Improved prompts for resume processing system with proper structure and alignment to Pydantic models
 """
-from jakes_template import jakes_template_reference
 
 # =============================================================================
 # PROMPT 1: RESUME ANALYSIS
@@ -91,11 +90,22 @@ Rewrite the candidate's resume content to improve ATS score and better align wit
 3. **Optimize Keywords**: Naturally incorporate relevant keywords from job description
 4. **Stay Authentic**: Only use technologies, languages, and skills the candidate actually has
 5. **Preserve Facts**: Keep education details, certificates, and hackathons exactly as provided
+6. **Extract Details Carefully**: IMPORTANT - Extract ALL personal details and links from the original resume:
+   - Full name
+   - Phone number
+   - Email address
+   - GitHub profile URL (look for github.com links)
+   - LinkedIn profile URL (look for linkedin.com links)
+   - LeetCode profile URL (look for leetcode.com links)
+   - Portfolio website URLs
+   - Any other professional profile links
+   - Present these in the "details" section under "details" field as key-value pairs where key is the platform name and value is the URL
 
 ### 🎯 FOCUS AREAS (High Impact):
-1. **Profile Summary**: Rewrite to highlight relevant skills and match job requirements
-2. **Projects**: Rephrase descriptions to include job-relevant keywords naturally
-3. **Technical Skills**: Reorganize and emphasize skills matching job description (do NOT add new skills)
+1. **Personal Details**: Extract name and ALL contact information including links
+2. **Profile Summary**: Rewrite to highlight relevant skills and match job requirements
+3. **Projects**: Rephrase descriptions to include job-relevant keywords naturally
+4. **Technical Skills**: Reorganize and emphasize skills matching job description (do NOT add new skills)
 
 ### ❌ DO NOT:
 - Add technologies or programming languages not mentioned in original resume
@@ -103,16 +113,33 @@ Rewrite the candidate's resume content to improve ATS score and better align wit
 - Change education details, GPAs, dates, or institution names
 - Modify hackathons or certificates section
 - Exaggerate skill levels or responsibilities
- 
+- Miss any contact details or profile links from the original resume
 
+## IMPORTANT - LINK EXTRACTION:
+When extracting contact details, pay special attention to:
+- GitHub URLs: github.com/username or github.com/username/repo
+- LinkedIn URLs: linkedin.com/in/username
+- LeetCode URLs: leetcode.com/u/username or leetcode.com/username
+- Email addresses: any @domain.com format
+- Phone numbers: any numeric format
+- Portfolio websites: any personal website URLs
+
+Store these in the details.details field as:
+{
+  "phone": "phone_number",
+  "email": "email_address", 
+  "github": "github_url",
+  "linkedin": "linkedin_url",
+  "leetcode": "leetcode_url",
+  "portfolio": "portfolio_url"
+}
 
 ## KEYWORD OPTIMIZATION GUIDELINES:
 - Use action verbs: developed, implemented, designed, architected, optimized
-- Include metrics where available: "improved performance by 40%", "serving 10K+ users" if possiable
+- Include metrics where available: "improved performance by 40%", "serving 10K+ users" if possible
 - Mirror job description language while keeping your authentic voice
 - Prioritize keywords that appear multiple times in job description
 - Integrate keywords naturally - avoid keyword stuffing
-
 
 ## You will be given an analysis report highlighting missing keywords and improvement areas. Use this to guide your rewrites.
 
@@ -139,7 +166,7 @@ You are a LaTeX expert specializing in Jake's Resume Template for creating profe
 Generate clean, properly formatted LaTeX code using Jake's Resume Template with the content changes provided.
 
 ## JAKE'S TEMPLATE REFERENCE:
-{jakes_template}
+{jakes_template_reference}
 
 ## STRICT RULES:
 

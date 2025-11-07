@@ -22,7 +22,8 @@ from typing import List, Optional
 import streamlit as st
 from st_circular_progress import CircularProgress
 from jakes_template import jakes_template_reference
-
+from res import create_resume_from_schema
+from schema import ResumeAnalysis,Details,Education,Skill,Project,RewriteResume,ResumeState
 
 load_dotenv()
 
@@ -102,12 +103,27 @@ def rewrite_resume(state:ResumeState):
 
     ]
     response = llm.invoke(messages)
+    
+    st.write(response)
     content = response.model_dump()
     st.markdown("### ReWritten Resume Content")
+
+    
+    
+    # Debug: Show extracted details
+    if response.details and response.details.profile_links:
+        st.markdown("### 🔍 Extracted Contact Details")
+        for key, value in response.details.details.items():
+            st.write(f"**{key}**: {value}")
+    else:
+        st.warning("⚠️ No contact details were extracted!")
+    
     for key,val in iterate_nested_dict(content):
         st.markdown(f"## {key.title().replace('_',' ')}\n  {val}")
     
 
+    
+    
     
     return {
         **state,
@@ -121,19 +137,48 @@ def rewrite_latex(state:ResumeState):
     initial_resume = state['resume']
     suggesting_changes = state['changes_content']
     
-    
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0,api_key=os.getenv("GEMINI_API_KEY"))
-    messages = [
-        SystemMessage(content=rewrite_latex_prompt.format(jakes_template=jakes_template_reference)),
-        HumanMessage(content=f"Job Description:\n{jd}\n\nInitial Resume:\n{initial_resume}\n\nSuggested Changes:\n{suggesting_changes}"),
-    ]
-    resume_latex = llm.invoke(messages)
-    st.markdown("### Generated LaTeX Code for ReWritten Resume")
-    st.code(resume_latex,language="latex")
-    return {
-        **state,
-        "latex_code": resume_latex
-    }
+    try:
+        doc = create_resume_from_schema(
+            resume_content=suggesting_changes,
+            output_filename=f"{suggesting_changes.details.name.replace(' ','_')}_output"
+        )
+        
+        # Generate both PDF and tex files
+        try:
+            pdf_filename = f"{suggesting_changes.details.name.replace(' ','_')}_output"
+            doc.generate_pdf(pdf_filename, clean_tex=False, compiler='pdflatex')
+            st.success("✅ Resume PDF generated successfully!")
+            
+            # Create download button for PDF - use the same filename that was generated
+            pdf_file_path = f"{pdf_filename}.pdf"
+            with open(pdf_file_path, "rb") as pdf_file:
+                st.download_button(
+                    label="Download Resume PDF",
+                    data=pdf_file,
+                    file_name=f"{suggesting_changes.details.name.replace(' ','_')}_resume.pdf",
+                    mime="application/pdf"
+                )
+        except Exception as e:
+            st.error(f"Error generating PDF: {str(e)}")
+            st.warning("Make sure you have LaTeX (MiKTeX) installed on your system.")
+        
+        # Get the LaTeX source code
+        latex_source = doc.dumps()  # Get the LaTeX source code as string
+        
+        st.markdown("### Generated LaTeX Code")
+        st.code(latex_source, language="latex")
+        
+        return {
+            **state,
+            "latex_code": latex_source
+        }
+        
+    except Exception as e:
+        st.error(f"Error creating resume: {str(e)}")
+        return {
+            **state,
+            "latex_code": f"Error: {str(e)}"
+        }
 
 def generate_pdf():
     pass
@@ -158,3 +203,18 @@ def analyze_resume_workflow():
 
 def create_workflow():
     pass
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
