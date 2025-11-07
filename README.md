@@ -162,9 +162,7 @@ Key packages in `requirements.txt`:
 - Check console for LaTeX compilation errors
 - Ensure output directory has write permissions
 
-## 📄 License
 
-[Your License Here]
 
 ## 🤝 Contributing
 
