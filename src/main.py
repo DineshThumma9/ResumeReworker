@@ -9,7 +9,6 @@ from langgraph.graph import StateGraph
 from langgraph.constants import START, END
 import streamlit as st
 import pymupdf
-from dotenv import load_dotenv
 import os
 import pymupdf
 import streamlit as st
@@ -24,9 +23,6 @@ from st_circular_progress import CircularProgress
 from jakes_template import jakes_template_reference
 from res import create_resume_from_schema
 from schema import ResumeAnalysis,Details,Education,Skill,Project,RewriteResume,ResumeState
-
-load_dotenv()
-
 
 
 
