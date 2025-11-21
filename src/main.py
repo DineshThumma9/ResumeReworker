@@ -1,5 +1,6 @@
 import os
 
+import requests
 import streamlit as st
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -11,9 +12,15 @@ from st_circular_progress import CircularProgress
 from prompts import resume_analysis_prompt, rewrite_content_prompt
 from res import create_resume_from_schema
 from schema import ResumeAnalysis, RewriteResume, ResumeState
+import cloudconvert
+import requests
+import os
+
+
+
 
 load_dotenv()
-
+cloudconvert.default()
 
 def iterate_nested_dict(d, parent_key=""):
     for key, value in d.items():
@@ -96,56 +103,130 @@ def rewrite_resume(state:ResumeState):
     return {
         **state,
         "changes_content": response
-    } 
+    }
 
 
 
-def rewrite_latex(state:ResumeState):
-    suggesting_changes = state['changes_content']
-    
-    try:
-        doc = create_resume_from_schema(
-            resume_content=suggesting_changes,
-            output_filename=f"{suggesting_changes.details.name.replace(' ','_')}_output"
-        )
-        
-        # Generate both PDF and tex files
-        try:
-            pdf_filename = f"{suggesting_changes.details.name.replace(' ','_')}_output"
-            doc.generate_pdf(pdf_filename, clean_tex=False, compiler='pdflatex')
-            st.success("✅ Resume PDF generated successfully!")
-            
-            # Create download button for PDF - use the same filename that was generated
-            pdf_file_path = f"{pdf_filename}.pdf"
-            with open(pdf_file_path, "rb") as pdf_file:
-                st.download_button(
-                    label="Download Resume PDF",
-                    data=pdf_file,
-                    file_name=f"{suggesting_changes.details.name.replace(' ','_')}_resume.pdf",
-                    mime="application/pdf"
-                )
-        except Exception as e:
-            st.error(f"Error generating PDF: {str(e)}")
-            st.warning("Make sure you have LaTeX (MiKTeX) installed on your system.")
-        
-        # Get the LaTeX source code
-        latex_source = doc.dumps()  # Get the LaTeX source code as string
-        
-        st.markdown("### Generated LaTeX Code")
-        st.code(latex_source, language="latex")
-        
-        return {
-            **state,
-            "latex_code": latex_source
+def latex_to_pdf(latex_string: str) -> bytes:
+    """
+    Takes LaTeX code as a string,
+    sends it to CloudConvert,
+    waits for conversion,
+    downloads the PDF,
+    returns PDF bytes.
+    """
+
+    # 1) Create cloudconvert job
+    job = cloudconvert.Job.create(payload={
+        "tasks": {
+            "upload-latex": {
+                "operation": "import/raw"
+            },
+            "convert-to-pdf": {
+                "operation": "convert",
+                "input": "upload-latex",
+                "input_format": "tex",
+                "output_format": "pdf"
+            },
+            "export-pdf": {
+                "operation": "export/url",
+                "input": "convert-to-pdf"
+            }
         }
-        
+    })
+
+    # 2) Upload .tex data
+    upload_task = cloudconvert.Job.tasks.get(job["tasks"]["upload-latex"]["id"])
+    upload_url = upload_task["result"]["form"]["url"]
+
+    files = {"file": ("resume.tex", latex_string)}
+    requests.post(upload_url, files=files)
+
+    # 3) Wait for conversion to finish
+    job = cloudconvert.Job.wait(job["id"])
+
+    # 4) Get PDF download URL
+    export_task = job["tasks"]["export-pdf"]
+    file_url = export_task["result"]["files"][0]["url"]
+
+    # 5) Download PDF bytes
+    pdf_bytes = requests.get(file_url).content
+
+    return pdf_bytes  # <---- EASY TO USE ANYWHERE
+
+
+
+
+def rewrite_latex(state: ResumeState):
+    suggesting_changes = state["changes_content"]
+
+    try:
+        # 1) Create LaTeX document using PyLaTeX
+        doc = create_resume_from_schema(resume_content=suggesting_changes)
+        latex_code = doc.dumps()
+
+        # 2) Convert LaTeX to PDF using CloudConvert
+        try:
+            st.info("Generating PDF via CloudConvert… please wait")
+
+            pdf_bytes = latex_to_pdf(latex_code)
+
+            st.success("✅ Resume PDF generated successfully!")
+
+            # 3) Streamlit download button
+            filename = f"{suggesting_changes.details.name.replace(' ', '_')}_resume.pdf"
+
+            st.download_button(
+                label="Download Resume PDF",
+                data=pdf_bytes,
+                file_name=filename,
+                mime="application/pdf"
+            )
+
+        except Exception as e:
+            st.error(f"PDF generation failed: {str(e)}")
+            st.stop()
+
+        # 4) Show LaTeX code to user
+        st.markdown("### Generated LaTeX Code")
+        st.code(latex_code, language="latex")
+
+        return {**state, "latex_code": latex_code}
+
     except Exception as e:
         st.error(f"Error creating resume: {str(e)}")
-        return {
-            **state,
-            "latex_code": f"Error: {str(e)}"
-        }
+        return {**state, "latex_code": f"Error: {str(e)}"}
 
+
+
+
+
+
+# def get_pdf(content:str):
+#     job = cloudconvert.Job.create(payload={
+#         "tasks": {
+#             "import-my-file": {
+#                 "operation": "import/raw",
+#                 "file": "resume.tex"
+#             },
+#             "convert": {
+#                 "operation": "convert",
+#                 "input": "import-my-file",
+#                 "output_format": "pdf"
+#             },
+#             "export-my-file": {
+#                 "operation": "export/url",
+#                 "input": "convert"
+#             }
+#         }
+#     })
+#
+#     result = job["tasks"]["export-my-file"]["result"]["files"][0]
+#     pdf_url = result["url"]
+#
+#     # Download the PDF
+#     pdf_data = requests.get(pdf_url).content
+#     open("resume.pdf", "wb").write(pdf_data)
 
 
 

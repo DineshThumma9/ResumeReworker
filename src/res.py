@@ -35,8 +35,7 @@ def escape_latex(text: str) -> str:
 
 
 def create_resume_from_schema(
-        resume_content: RewriteResume,
-        output_filename: str = 'resume_output'
+        resume_content: RewriteResume
 ) -> Document:
     """
     Create a one-page resume PDF using PyLaTeX with Jake's template styling.
