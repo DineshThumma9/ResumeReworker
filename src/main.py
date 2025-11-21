@@ -20,7 +20,9 @@ import os
 
 
 load_dotenv()
-cloudconvert.default()
+cloudconvert.configure(api_key=os.getenv("CLOUDCONVERT_API_KEY"))
+
+
 
 def iterate_nested_dict(d, parent_key=""):
     for key, value in d.items():
