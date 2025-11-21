@@ -1,8 +1,7 @@
 
 from typing import Dict, Optional, List
 
-from pyasn1.type.namedtype import OptionalNamedType
-from pydantic import BaseModel,Field
+from pydantic import BaseModel, Field
 
 
 class ResumeAnalysis(BaseModel):

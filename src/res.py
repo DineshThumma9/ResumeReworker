@@ -1,8 +1,7 @@
-from pylatex import Document, Command, Section, NoEscape
-from pylatex.package import Package
-from typing import List, Optional
-from pydantic import BaseModel, Field
-from schema import RewriteResume,Details,Education,Skill,Project,ResumeState,ResumeAnalysis,RewriteResume
+from pylatex import Document, NoEscape
+
+from schema import RewriteResume
+
 
 # ============= RESUME GENERATOR WITH OPTIMIZED SPACING =============
 

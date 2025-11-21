@@ -1,29 +1,18 @@
-
-
-from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_google_genai import ChatGoogleGenerativeAI
-from schema import ResumeState
-from  prompts import resume_analysis_prompt,rewrite_content_prompt,rewrite_latex_prompt
-from schema import ResumeAnalysis
-from langgraph.graph import StateGraph
-from langgraph.constants import START, END
-import streamlit as st
-import pymupdf
 import os
-import pymupdf
+
 import streamlit as st
-from pyarrow import output_stream
-from schema import ResumeState,RewriteResume,Project
+from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
-from pydantic import BaseModel, Field
-from typing import List, Optional
-import streamlit as st
+from langgraph.constants import START, END
+from langgraph.graph import StateGraph
 from st_circular_progress import CircularProgress
-from jakes_template import jakes_template_reference
-from res import create_resume_from_schema
-from schema import ResumeAnalysis,Details,Education,Skill,Project,RewriteResume,ResumeState
 
+from prompts import resume_analysis_prompt, rewrite_content_prompt
+from res import create_resume_from_schema
+from schema import ResumeAnalysis, RewriteResume, ResumeState
+
+load_dotenv()
 
 
 def iterate_nested_dict(d, parent_key=""):
@@ -100,23 +89,6 @@ def rewrite_resume(state:ResumeState):
     ]
     response = llm.invoke(messages)
     
-    st.write(response)
-    content = response.model_dump()
-    st.markdown("### ReWritten Resume Content")
-
-    
-    
-    # Debug: Show extracted details
-    if response.details and response.details.profile_links:
-        st.markdown("### 🔍 Extracted Contact Details")
-        for key, value in response.details.details.items():
-            st.write(f"**{key}**: {value}")
-    else:
-        st.warning("⚠️ No contact details were extracted!")
-    
-    for key,val in iterate_nested_dict(content):
-        st.markdown(f"## {key.title().replace('_',' ')}\n  {val}")
-    
 
     
     
@@ -129,8 +101,6 @@ def rewrite_resume(state:ResumeState):
 
 
 def rewrite_latex(state:ResumeState):
-    jd = state['jd']
-    initial_resume = state['resume']
     suggesting_changes = state['changes_content']
     
     try:
@@ -176,8 +146,7 @@ def rewrite_latex(state:ResumeState):
             "latex_code": f"Error: {str(e)}"
         }
 
-def generate_pdf():
-    pass
+
 
 
 
@@ -195,11 +164,6 @@ def analyze_resume_workflow():
 
     return graph
     
-
-
-def create_workflow():
-    pass
-
 
 
 
