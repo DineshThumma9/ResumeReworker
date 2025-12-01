@@ -1,11 +1,3 @@
-"""
-Improved prompts for resume processing system with proper structure and alignment to Pydantic models
-"""
-
-# =============================================================================
-# PROMPT 1: RESUME ANALYSIS
-# =============================================================================
-
 resume_analysis_prompt = """
 You are an expert ATS (Applicant Tracking System) specialist and career consultant.
 
@@ -71,10 +63,6 @@ Deliver a thorough, recruiter-level evaluation that helps the candidate:
 
 
 """
-
-# =============================================================================
-# PROMPT 2: CONTENT REWRITING
-# =============================================================================
 
 rewrite_content_prompt = """
 You are a professional resume writer specializing in ATS-optimized resumes.
@@ -154,11 +142,6 @@ Store these in the details.details field as:
 Remember: Quality over quantity. Every word should add value and support the candidate's qualifications for THIS specific job.
 """
 
-
-# =============================================================================
-# PROMPT 3: LATEX GENERATION
-# =============================================================================
-
 rewrite_latex_prompt = """
 You are a LaTeX expert specializing in Jake's Resume Template for creating professional, ATS-compatible resumes.
 
@@ -228,11 +211,6 @@ You will be provided with the candidate's resume content and the specific change
 Generate the complete LaTeX code now:
 """
 
-
-# =============================================================================
-# TEMPLATE REFERENCE (to be inserted in {jakes_template})
-# =============================================================================
-
 jakes_template_reference = r"""
 % Jake's Resume Template Reference:
 % - Document class: \documentclass[letterpaper,11pt]{article}
@@ -242,9 +220,4 @@ jakes_template_reference = r"""
 % - Bullet points: \resumeItemListStart \resumeItem{text} \resumeItemListEnd
 % - Skills: \textbf{Category}{: Skill1, Skill2, Skill3}
 """
-
-
-# =============================================================================
-# USAGE EXAMPLE
-# =============================================================================
 

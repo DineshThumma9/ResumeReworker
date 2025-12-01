@@ -1,59 +1,23 @@
 
-from typing import Dict, Optional, List
-
 from pydantic import BaseModel, Field
-
-
-class ResumeAnalysis(BaseModel):
-    """Model for analyzing resume against job description"""
-
-    score: int = Field(
-        description="How well resume scores against job description (0-100)",
-        ge=0,
-        le=100
-    )
-
-    match: bool = Field(
-        description="Does user's skill set justify or align with the job description domain"
-    )
-
-    match_explanation: str = Field(
-        description="Detailed explanation of how the resume matches the job description",
-        default=""
-    )
-
-    missing_keywords: List[str] = Field(
-        description="Keywords included in job description but not mentioned in resume",
-        default_factory=list
-    )
-
-    negative_points: List[str] = Field(
-        description="Things which are holding the resume back",
-        default_factory=list
-    )
-
-    potential_improvements: List[str] = Field(
-        description="What can be done to improve this resume",
-        default_factory=list
-    )
-
-    resume_quality: str = Field(
-        description="Overall quality of the resume in terms of structure, readability, and ATS-friendliness",
-        default=""  
-    )
-
-    urgency: Optional[str] = Field(
-        description="If deadline is mentioned, urgency to submit from current date and time",
-        default=None
-    )
-
-
-
-from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import Dict, List, Optional
 from typing_extensions import TypedDict
 
-# Supporting model for better structure
+class ResumeAnalysis(BaseModel):
+    score: int = Field(description="How well resume scores against job description (0-100)", ge=0, le=100)
+    match: bool = Field(description="Does user's skill set justify or align with the job description domain")
+    match_explanation: str = Field(description="Detailed explanation of how the resume matches the job description", default="")
+    missing_keywords: List[str] = Field(description="Keywords included in job description but not mentioned in resume", default_factory=list)
+    negative_points: List[str] = Field(description="Things which are holding the resume back", default_factory=list)
+    potential_improvements: List[str] = Field(description="What can be done to improve this resume", default_factory=list)
+    resume_quality: str = Field(description="Overall quality of the resume in terms of structure, readability, and ATS-friendliness", default="")
+    urgency: Optional[str] = Field(description="If deadline is mentioned, urgency to submit from current date and time", default=None)
+
+
+
+
+
+
 class Project(BaseModel):
     """Individual project details"""
     name: str = Field(description="Project name/title")
@@ -76,9 +40,19 @@ class Education(BaseModel):
     course:str = Field("Course", description="Course name")
 
 
+
+class Experience(BaseModel):
+    company: str = Field("Company", description="Company name")
+    role: str = Field("Role", description="Role/Position held")
+    duration: str = Field("Duration", description="Duration of employment")
+    responsibilities: List[str] = Field(
+        description="Key responsibilities and achievements",
+        default_factory=list
+    )
+
 class Skill(BaseModel):
     skill: str = Field("Skill", description="Skill name")
-    skill_set:List[str] = Field("Skill set", description="Skill set name")
+    skill_set:List[str] = Field(description="Skill set name")
 
 
 
@@ -132,6 +106,11 @@ class RewriteResume(BaseModel):
 
     education: List[Education] = Field(
         description="Education entries (degree, institution, year, GPA if applicable)",
+        default_factory=list
+    )
+    
+    experience:Optional[List[Experience]] = Field(
+        description="Experience (startups,companies etc..)",
         default_factory=list
     )
 
