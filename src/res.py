@@ -27,15 +27,16 @@ def escape_latex(text: str) -> str:
     }
     
     result = text
-    # Process backslash first to avoid double escaping
     for char, escaped in special_chars.items():
         result = result.replace(char, escaped)
     
     return result
 
+from typing import Dict
 
 def create_resume_from_schema(
-        resume_content: RewriteResume
+        resume_content: RewriteResume,
+        exclude_sections: Dict[str, bool]
 ) -> Document:
     """
     Create a one-page resume PDF using PyLaTeX with Jake's template styling.
@@ -184,14 +185,14 @@ def create_resume_from_schema(
     doc.append(NoEscape(r'\end{center}'))  # Aggressive space reduction
 
     # ============= PROFESSIONAL SUMMARY =============
-    if resume_content.details.profile_summary:
+    if resume_content.details.profile_summary and not exclude_sections['Professional Summary']:
         doc.append(NoEscape(r'\section{Professional Summary}'))
         doc.append(NoEscape(r'\resumeSubHeadingListStart'))
         doc.append(NoEscape(r'\resumeItem{' + escape_latex(resume_content.details.profile_summary) + r'}'))
         doc.append(NoEscape(r'\resumeSubHeadingListEnd'))
 
     # ============= EDUCATION =============
-    if resume_content.education:
+    if resume_content.education and not exclude_sections['Education']:
         doc.append(NoEscape(r'\section{Education}'))
         doc.append(NoEscape(r'\resumeSubHeadingListStart')) 
         for edu in resume_content.education:
@@ -255,9 +256,29 @@ def create_resume_from_schema(
                 doc.append(NoEscape(r'\resumeItemListEnd'))
 
         doc.append(NoEscape(r'\resumeSubHeadingListEnd'))
+        
+    if resume_content.experience and not exclude_sections['Experience']:
+        doc.append(NoEscape(r'\section{Experience}'))
+        doc.append(NoEscape(r'\resumeSubHeadingListStart'))
+
+        for exp in resume_content.experience:
+            doc.append(NoEscape(
+                r'\resumeSubheading{' + escape_latex(exp.company) + r'}{' +
+                escape_latex(exp.duration) + r'}{' +
+                escape_latex(exp.role) + r'}{}'
+            ))
+
+            if exp.responsibilities:
+                doc.append(NoEscape(r'\resumeItemListStart'))
+                for resp in exp.responsibilities:
+                    doc.append(NoEscape(r'\resumeItem{' + escape_latex(resp.strip()) + r'}'))
+                doc.append(NoEscape(r'\resumeItemListEnd'))
+
+        doc.append(NoEscape(r'\resumeSubHeadingListEnd'))
+    
 
     # ============= RELEVANT COURSEWORK =============
-    if resume_content.coursework:
+    if resume_content.coursework and not exclude_sections['Coursework']:
         doc.append(NoEscape(r'\section{Relevant Coursework}'))
         doc.append(NoEscape(r'\begin{multicols}{4}'))
         doc.append(NoEscape(r'\begin{itemize}[itemsep=-5pt, parsep=3pt]'))  # Adjusted spacing to match Jake's template
@@ -270,7 +291,7 @@ def create_resume_from_schema(
         doc.append(NoEscape(r'\vspace*{2.0\multicolsep}'))  # Proper spacing after coursework section
      
      
-    if resume_content.achivements:
+    if resume_content.achivements  and not exclude_sections['Achievements']:
         doc.append(NoEscape(r'\section{Achievements}'))
         doc.append(NoEscape(r'\begin{itemize}[itemsep=-5pt, parsep=3pt]'))  # Adjusted spacing to match Jake's template
 
@@ -282,7 +303,7 @@ def create_resume_from_schema(
         
     
     # ============= HACKATHONS & CERTIFICATIONS =============
-    if resume_content.hackathons_and_certificates:
+    if resume_content.hackathons_and_certificates and not exclude_sections['Hackathons and Certificates']:
         doc.append(NoEscape(r'\section{Hackathons \& Certifications}'))
         doc.append(NoEscape(r'\resumeSubHeadingListStart'))
         

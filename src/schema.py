@@ -155,5 +155,5 @@ class ResumeState(TypedDict):
     changes_content: RewriteResume  # Rewritten resume content
     latex_code: str  # Generated LaTeX code for resume
     tone:str
-    exclude_sections:List[str]
+    exclude_sections:Dict[str, bool]
     output_path :str ="/output"
