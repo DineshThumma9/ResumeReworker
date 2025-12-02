@@ -1,8 +1,24 @@
+# Generated resume files
+*.pdf
+*.tex
+*_output.*
+*_debug.*
+*_resume_local.*
+temp_resume.*
+
+# Python environment and cache
 .venv
 .env
 .idea
-.gitignore
-.env
 __pycache__/
 *.pyc
 src/__pycache__/
+.pytest_cache/
+.mypy_cache/
+
+# IDE files
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db

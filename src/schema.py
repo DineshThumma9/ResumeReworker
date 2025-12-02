@@ -154,4 +154,6 @@ class ResumeState(TypedDict):
     analysis: ResumeAnalysis  # Analysis results (FIXED TYPO)
     changes_content: RewriteResume  # Rewritten resume content
     latex_code: str  # Generated LaTeX code for resume
+    tone:str
+    exclude_sections:List[str]
     output_path :str ="/output"
