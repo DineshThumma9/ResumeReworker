@@ -84,7 +84,8 @@ def match_jd(state:ResumeState):
         st.write(f"- {np}")
         
     st.markdown("### Potential Improvements")
-    st.write(f"- {analysis['potential_improvements']}")
+    for improvement in analysis['potential_improvements']:  
+        st.write(f"- {improvement}")
         
     st.markdown("### Urgency")
     st.write(analysis['urgency'] if analysis['urgency'] else "No urgency")

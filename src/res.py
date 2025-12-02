@@ -202,21 +202,23 @@ def create_resume_from_schema(
                 r'\resumeSubheading{' + escape_latex(edu.institution) + r'}{' +
                 escape_latex(year_str) + r'}{' +
                 escape_latex(edu.course) + r'}{' +
-                escape_latex(gpa_str) + r'}'
+                (escape_latex(gpa_str) if gpa_str else '') + r'}'
             ))
         doc.append(NoEscape(r'\resumeSubHeadingListEnd'))
 
     # ============= TECHNICAL SKILLS =============
-    if resume_content.technical_skills:
+    if resume_content.technical_skills and not exclude_sections.get('Technical Skills', False):
         doc.append(NoEscape(r'\section{Technical Skills}'))
         doc.append(NoEscape(r'\begin{itemize}[leftmargin=0.15in, label={}]'))
         doc.append(NoEscape(r'\small{\item{'))
 
         for i, skill_obj in enumerate(resume_content.technical_skills):
-            skill_list = ', '.join([escape_latex(s) for s in skill_obj.skill_set])
+            
+            
+            skill_list = ', '.join([escape_latex(s) for s in skill_obj.items])
             end_char = r' \\' if i < len(resume_content.technical_skills) - 1 else ''
             doc.append(NoEscape(
-                r'\textbf{' + escape_latex(skill_obj.skill) + r'}{: ' + skill_list + r'}' + end_char
+                r'\textbf{' + escape_latex(skill_obj.category) + r'}{: ' + skill_list + r'}' + end_char
             ))
 
         doc.append(NoEscape(r'}}'))

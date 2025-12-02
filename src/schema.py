@@ -51,8 +51,8 @@ class Experience(BaseModel):
     )
 
 class Skill(BaseModel):
-    skill: str = Field("Skill", description="Skill name")
-    skill_set:List[str] = Field(description="Skill set name")
+    category: str = Field(description="Skill category name (e.g., 'Programming Languages', 'Frameworks', 'Tools')")
+    items: List[str] = Field(description="List of specific skills in this category (e.g., ['Python', 'Java', 'C++'])")
 
 
 

@@ -94,6 +94,11 @@ Rewrite the candidate's resume content to improve ATS score and better align wit
 2. **Profile Summary**: Rewrite to highlight relevant skills and match job requirements
 3. **Projects**: Rephrase descriptions to include job-relevant keywords naturally
 4. **Technical Skills**: Reorganize and emphasize skills matching job description (do NOT add new skills)
+   - Format as: category → list of specific skills
+   - Example: "Programming Languages" → ["Python", "Java", "JavaScript"]
+   - Example: "Frameworks" → ["React", "Django", "Spring Boot"]  
+   - Example: "Tools" → ["Git", "Docker", "AWS"]
+   - Use the 'category' field for skill category names and 'items' field for the list of skills
 
 ### ❌ DO NOT:
 - Add technologies or programming languages not mentioned in original resume
