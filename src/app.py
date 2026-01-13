@@ -47,7 +47,6 @@ for ex in exclude_sections:
 
 
 
-
 if st.button('Generate ReWritten Resume'):
     # Validate inputs
     if not jd.strip():

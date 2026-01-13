@@ -1,9 +1,9 @@
+from langchain_groq import ChatGroq
 import os
 import requests
 import streamlit as st
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_google_genai import ChatGoogleGenerativeAI
 from typing import Any
 from langgraph.constants import START, END
 from langgraph.graph import StateGraph
@@ -20,6 +20,7 @@ load_dotenv()
 
 cloudconvert.configure(api_key=os.getenv("CLOUDCONVERT_API_KEY"))
 
+MODEL = "qwen/qwen3-32b"
 
 def iterate_nested_dict(d, parent_key=""):
     for key, value in d.items():
@@ -44,7 +45,7 @@ def match_jd(state:ResumeState):
     ]
 
     try:
-        llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0,api_key=os.getenv("GEMINI_API_KEY"))
+        llm = ChatGroq(model=MODEL, temperature=0,api_key=os.getenv("GROQ_API_KEY"))  # ty:ignore[unknown-argument]
         structured_llm = llm.with_structured_output(ResumeAnalysis)
         
         st.info("📡 Sending request to AI model...")
@@ -120,7 +121,7 @@ def rewrite_resume(state:ResumeState):
         else:
             analysis = state['analysis']
         
-        llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0,api_key=os.getenv("GEMINI_API_KEY"))
+        llm = ChatGroq(model=MODEL, temperature=0,api_key=os.getenv("GROQ_API_KEY"))  # ty:ignore[unknown-argument]
         structured_llm = llm.with_structured_output(RewriteResume)
         messages = [
             SystemMessage(content=rewrite_content_prompt),
@@ -342,10 +343,6 @@ def analyze_resume_workflow():
     graph.add_edge("rewrite_resume","rewrite_latex")
     graph.add_edge("rewrite_latex",END)
     return graph
-
-
-
-
 
 
 

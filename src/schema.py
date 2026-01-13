@@ -1,3 +1,4 @@
+from click import Option
 
 from pydantic import BaseModel, Field
 from typing import Dict, List, Optional
@@ -59,33 +60,42 @@ class Skill(BaseModel):
 class Details(BaseModel):
     name: str = Field(description="Full name of the candidate")
     profile_summary: Optional[str] = Field(
+        default=None,
         description="Professional summary/objective statement for the resume keep it short and simple and don't go overboard and write paragraphs",   
     )
     contact:Optional[str] = Field(
+        default=None,
         description="Contact information as a single string (phone)",
     )
     email:Optional[str] = Field(
+        default=None,
         description="Email address",
     )
     linkedin:Optional[str] = Field(
+        default=None,
         description="LinkedIn profile URL",
     )
     leetcode:Optional[str] = Field(
+        default=None,
         description="LeetCode profile URL",
     )
     codechef:Optional[str] = Field(
+        default=None,
         description="CodeChef profile URL",
     )
     location:Optional[str] = Field(
+        default=None,
         description="Location of the candidate",   
     )
     github:Optional[str] = Field(
+        default=None,
         description="GitHub profile URL",
     )
     portfolio:Optional[str] = Field(
+        default=None,
         description="Portfolio website URL",
     )
-    profile_links: Dict[str, str] = Field(
+    profile_links: Dict[str, Optional[str]] = Field(
         description="""Extract ALL personal contact details and professional profile links with their COMPLETE URLs as values and platform names as keys. 
         Expected keys: phone, email, github, linkedin, leetcode, portfolio, website.
         For URLs, include the full link (e.g., 'https://github.com/username', 'https://linkedin.com/in/username').
