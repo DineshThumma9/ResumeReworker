@@ -1,0 +1,17 @@
+/* All styling lives in App.css (shadcn + Tailwind v4 setup).
+   This file only handles the bare minimum for the HTML shell. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}

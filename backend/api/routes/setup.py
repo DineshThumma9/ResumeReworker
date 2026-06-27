@@ -1,0 +1,231 @@
+
+import json
+from typing import Dict, List, Tuple
+
+import httpx
+from dotenv import load_dotenv
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from loguru import logger
+from sqlalchemy import delete, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from core.database import get_session
+from models.models import APIKEYS, User, UserLLMConfig
+from schemas.schema import API_KEY_REQUEST, API_KEY_RESPONSE
+from services.resume_service import CurrentUser
+from services.auth_service import AuthService, CryptoService
+from utils.constants import _VALIDATION_URLS, VALID_PROVIDERS
+
+load_dotenv()
+router = APIRouter(prefix="/setup", tags=["setup"])
+crypto = CryptoService()
+
+# Global httpx client with connection pooling
+_http_client: httpx.AsyncClient | None = None
+
+
+def get_http_client() -> httpx.AsyncClient:
+    """Get or create a shared httpx async client with connection pooling."""
+    global _http_client
+    if _http_client is None:
+        _http_client = httpx.AsyncClient(
+            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+            timeout=5.0,  # 5 second timeout (was 8)
+        )
+    return _http_client
+
+
+async def close_http_client():
+    """Close the shared httpx client (call on app shutdown)."""
+    global _http_client
+    if _http_client:
+        await _http_client.aclose()
+        _http_client = None
+
+
+async def _validate_api_key(provider: str, api_key: str) -> Tuple[bool, str]:
+    """Returns (is_valid, error_message)."""
+    url = _VALIDATION_URLS.get(provider)
+    if not url:
+        return True, ""  # Unknown provider — don't block
+
+    client = get_http_client()
+    try:
+        if provider == "google_genai":
+            r = await client.get(f"{url}?key={api_key}")
+        elif provider == "anthropic":
+            r = await client.get(
+                url,
+                headers={"x-api-key": api_key, "anthropic-version": "2023-06-01"},
+            )
+        else:
+            r = await client.get(url, headers={"Authorization": f"Bearer {api_key}"})
+    except httpx.TimeoutException:
+        logger.warning(f"Key validation timeout for {provider} (5s)")
+        return True, ""  # Timeout — don't block, assume valid
+    except Exception as e:
+        logger.warning(f"Key validation network error for {provider}: {e}")
+        return True, ""  # Network issue — don't block saving
+
+    if r.status_code in (401, 403):
+        return False, f"API key rejected by {provider} (HTTP {r.status_code})"
+    return True, ""
+
+
+@router.post("/init")
+async def set_api_provider(
+    req: API_KEY_REQUEST,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_session),
+):
+    api_provider = req.api_provider.strip().lower().replace(" ", "_")
+    api_key = req.api_key.strip()
+
+    if api_provider not in VALID_PROVIDERS:
+        raise HTTPException(status_code=404, detail="api provider doesnt exists")
+
+    is_valid, err_msg = await _validate_api_key(api_provider, api_key)
+    if not is_valid:
+        logger.warning(f"Invalid API key rejected for {api_provider}: {err_msg}")
+        raise HTTPException(
+            status_code=422,
+            detail={"error_type": "invalid_api_key", "message": err_msg},
+        )
+
+    encrypted_key = crypto.encrypt(api_key)
+
+    existing = await db.execute(
+        select(APIKEYS).where(
+            APIKEYS.user_id == current_user.id, APIKEYS.provider == api_provider
+        )
+    )
+
+    existing = existing.scalars().first()
+
+    if existing:
+        existing.encrypted_key = encrypted_key
+    else:
+        new_key = APIKEYS(
+            user_id=current_user.id,
+            provider=api_provider,
+            encrypted_key=encrypted_key,
+        )
+        db.add(new_key)
+        logger.info(f"Added new key for {api_provider}")
+    await db.commit()
+    return {"message": "Successfully key added", "status_code": 200}
+
+
+@router.post("/providers")
+async def choose_llm_provider(
+    current_user: CurrentUser,
+    body: Dict = Body(...),
+    db: AsyncSession = Depends(get_session),
+):
+    provider = body.get("provider")
+
+    logger.info(f"provider is {provider}")
+    if not provider:
+        raise HTTPException(status_code=400, detail="Provider is required")
+
+    provider = provider.strip().lower()
+    if not provider:
+        raise HTTPException(status_code=400, detail="Provider cannot be empty")
+
+    if provider not in VALID_PROVIDERS:
+        raise HTTPException(status_code=404, detail="Provider not supported")
+
+    # PostgreSQL UPSERT — atomic, handles both insert and update correctly.
+    stmt = (
+        pg_insert(UserLLMConfig)
+        .values(
+            user_id=current_user.id,
+            provider=provider,
+            model="",
+        )
+        .on_conflict_do_update(
+            index_elements=["user_id"],
+            set_={
+                "provider": provider,
+                "model": "",
+            },  # Reset model when switching providers
+        )
+    )
+    await db.execute(stmt)
+    await db.commit()
+    return {"message": f"Provider set to {provider}"}
+
+
+@router.post("/models")
+async def choose_llm_model(
+    request: Request,
+    current_user: CurrentUser,
+    body: dict = Body(...),
+    db: AsyncSession = Depends(get_session),
+):
+    model = body.get("model")
+    provider = body.get("provider")
+    logger.info(f"model is {model}, provider is {provider}")
+
+    if not model:
+        raise HTTPException(status_code=400, detail="Model is required")
+    if not provider:
+        raise HTTPException(status_code=400, detail="Provider is required")
+
+    model = model.strip()
+    provider = provider.strip().lower()
+
+    if not model:
+        raise HTTPException(status_code=400, detail="Model cannot be empty")
+    if provider not in VALID_PROVIDERS:
+        raise HTTPException(status_code=404, detail="Provider not supported")
+
+    # UPSERT: update the single user config row
+    stmt = (
+        pg_insert(UserLLMConfig)
+        .values(
+            user_id=current_user.id,
+            provider=provider,
+            model=model,
+        )
+        .on_conflict_do_update(
+            index_elements=["user_id"],
+            set_={"provider": provider, "model": model},
+        )
+    )
+    await db.execute(stmt)
+    await db.commit()
+    return {"message": f"Model set to {model} for {provider}"}
+
+
+@router.get("/api-config", response_model=List[API_KEY_RESPONSE])
+async def api_config(
+    current_user: CurrentUser, db: AsyncSession = Depends(get_session)
+):
+    api_configs = await db.execute(
+        select(APIKEYS).where(APIKEYS.user_id == current_user.id)
+    )
+    api_configs = api_configs.scalars().all()
+    return api_configs
+
+
+@router.get("/api-models")
+async def valid_models(
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_session),
+):
+    return await AuthService(db).get_valid_models(current_user)
+
+@router.get("/current-model")
+async def current_model(
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_session),
+):
+    result = await db.execute(select(UserLLMConfig).where(UserLLMConfig.user_id == current_user.id))
+    config = result.scalars().first()
+    if config:
+        return {"provider": config.provider, "model": config.model}
+    return {"provider": "", "model": ""}
+
+

@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: resumereworker
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  web:
+    build:backend/.
+    dockerfile:Dockerfile 
+  container_name: resumereworker
+  expose:
+    - "8000"
+  environment:
+    - ENV_FILE=.env 
+  depends_on:
+    - postgres 
+  
+  redis:
+    image:redis: 6.2-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data 
+  caddy:
+    image: caddy:latest
+    container_name: caddy
+    restart: unless-stopped
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data: /data
+      - caddy_config: /caddy_config
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+
+volumes:
+  pgdata:
+  redis_data:
+  caddy_data:
+  caddy_config:

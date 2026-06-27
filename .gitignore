@@ -1,6 +1,7 @@
 # Generated resume files
 *.pdf
 *.tex
+!backend/templates/**/*.tex
 *_output.*
 *_debug.*
 *_resume_local.*
@@ -22,3 +23,6 @@ src/__pycache__/
 # OS files
 .DS_Store
 Thumbs.db
+*.ruff_cache
+node_modules/
+BUGS.md

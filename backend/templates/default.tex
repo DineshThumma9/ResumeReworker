@@ -1,0 +1,68 @@
+\documentclass[letterpaper,11pt]{article}
+
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjust margins
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+
+\urlstyle{same}
+
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% Sections formatting
+\titleformat{\section}{
+  \vspace{-4pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+
+\begin{document}
+
+\begin{center}
+    \textbf{\Huge \scshape [[ details.name | escape_latex ]] } \\ \vspace{1pt}
+    
+    [% if details.contact %] [[ details.contact | escape_latex ]] $|$ [% endif %]
+    [% if details.email %] \href{mailto:[[ details.email ]]}{\underline{[[ details.email | escape_latex ]]}} $|$ [% endif %]
+    [% if details.linkedin %] \href{[[ details.linkedin ]]} {\underline{LinkedIn}} [% endif %]
+\end{center}
+
+[% if experience %]
+\section{Experience}
+  \begin{itemize}[leftmargin=0.15in, label={}]
+    [% for exp in experience %]
+      \item
+        \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+          \textbf{[[ exp.company | escape_latex ]]} & [[ exp.duration | escape_latex ]] \\
+          \textit{\small [[ exp.role | escape_latex ]]} & \\
+        \end{tabular*}\vspace{-7pt}
+        [% if exp.responsibilities %]
+        \begin{itemize}
+            [% for resp in exp.responsibilities %]
+            \item\small{[[ resp | escape_latex ]]}
+            [% endfor %]
+        \end{itemize}
+        [% endif %]
+    [% endfor %]
+  \end{itemize}
+[% endif %]
+
+\end{document}
