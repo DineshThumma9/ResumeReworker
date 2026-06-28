@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { FileText, Maximize2, Loader2, Download } from "lucide-react";
 import { Button } from "../ui/button";
 
@@ -7,6 +8,38 @@ interface PdfPreviewPanelProps {
 }
 
 export function PdfPreviewPanel({ pdfUrl, isCompiling }: PdfPreviewPanelProps) {
+  const [iframeUrl, setIframeUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!pdfUrl) {
+      setIframeUrl(null);
+      return;
+    }
+
+    if (pdfUrl.startsWith("data:application/pdf;base64,")) {
+      try {
+        const base64Data = pdfUrl.split(",")[1];
+        const binaryString = atob(base64Data);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        setIframeUrl(`${url}#toolbar=0&navpanes=0`);
+
+        return () => {
+          URL.revokeObjectURL(url);
+        };
+      } catch (e) {
+        console.error("Failed to parse base64 PDF:", e);
+        setIframeUrl(pdfUrl);
+      }
+    } else {
+      setIframeUrl(`${pdfUrl}#toolbar=0&navpanes=0`);
+    }
+  }, [pdfUrl]);
   return (
     <div className="w-full h-full bg-[#525659] flex flex-col relative">
       {/* Chrome-like PDF Toolbar */}
@@ -63,9 +96,9 @@ export function PdfPreviewPanel({ pdfUrl, isCompiling }: PdfPreviewPanelProps) {
           </div>
         )}
 
-        {pdfUrl ? (
+        {iframeUrl ? (
           <iframe
-            src={`${pdfUrl}#toolbar=0&navpanes=0`}
+            src={iframeUrl}
             className="w-full h-full border-none"
             title="PDF Preview"
           />

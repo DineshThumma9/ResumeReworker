@@ -52,17 +52,24 @@ async def get_current_user(
 async def mask_resume(resume_content, mask_details: MaskDetails):
     resume_content = RewriteResume.model_validate(resume_content)
     if mask_details.project_name:
-        for project in resume_content.projects:
-            project.name = "[PROJECT NAME]"
+        if resume_content.projects:
+            for project in resume_content.projects:
+                project.name = "[PROJECT NAME]"
 
     if mask_details.company_name:
-        for project in resume_content.projects:
-            project.company = "[COMPANY NAME]"
+        if resume_content.experience:
+            for exp in resume_content.experience:
+                exp.company = "[COMPANY NAME]"
+        if resume_content.internships:
+            for internship in resume_content.internships:
+                internship.company = "[COMPANY NAME]"
 
+    if mask_details.name:
+        resume_content.details.name = "[NAME]"
     if mask_details.email:
         resume_content.details.email = "[EMAIL_ADDRESS]"
     if mask_details.phone:
-        resume_content.details.phone = "[PHONE_NUMBER]"
+        resume_content.details.contact = "[PHONE_NUMBER]"
     if mask_details.location:
         resume_content.details.location = "[LOCATION]"
     if mask_details.github:
@@ -73,6 +80,21 @@ async def mask_resume(resume_content, mask_details: MaskDetails):
         resume_content.details.leetcode = "[LEETCODE_USERNAME]"
     if mask_details.portfolio:
         resume_content.details.portfolio = "[PORTFOLIO_URL]"
+
+    if resume_content.details.profile_links:
+        for k in list(resume_content.details.profile_links.keys()):
+            if k == "phone" and mask_details.phone:
+                resume_content.details.profile_links[k] = "[PHONE_NUMBER]"
+            elif k == "email" and mask_details.email:
+                resume_content.details.profile_links[k] = "[EMAIL_ADDRESS]"
+            elif k == "github" and mask_details.github:
+                resume_content.details.profile_links[k] = "[GITHUB_USERNAME]"
+            elif k == "linkedin" and mask_details.linkedin:
+                resume_content.details.profile_links[k] = "[LINKEDIN_USERNAME]"
+            elif k == "leetcode" and mask_details.leetcode:
+                resume_content.details.profile_links[k] = "[LEETCODE_USERNAME]"
+            elif k in ("portfolio", "website") and mask_details.portfolio:
+                resume_content.details.profile_links[k] = "[PORTFOLIO_URL]"
 
     return resume_content.model_dump_json()
 

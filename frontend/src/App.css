@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -11,9 +11,9 @@
 
 :root {
   /* Backgrounds */
-  --background: #ffffff;
+  --background: #f5f5f5;
   --foreground: #09090b;
-  --card: #ffffff;
+  --card: #f7f7f7;
   --card-foreground: #09090b;
   --popover: #ffffff;
   --popover-foreground: #09090b;
@@ -23,7 +23,7 @@
   --primary-foreground: #ffffff;
 
   /* Secondary & Muted */
-  --secondary: #f4f4f5;
+  --secondary: #232323;
   --secondary-foreground: #18181b;
   --muted: #f4f4f5;
   --muted-foreground: #71717a;
@@ -58,9 +58,9 @@
 
 .dark {
   /* Backgrounds */
-  --background: #09090b;
+  --background: #141414;
   --foreground: #fafafa;
-  --card: #09090b;
+  --card: #111111;
   --card-foreground: #fafafa;
   --popover: #09090b;
   --popover-foreground: #fafafa;
@@ -105,7 +105,7 @@
 /* ─── Theme Mapping to Tailwind ───────────────────────────────────────────── */
 
 @theme inline {
-  --font-sans: "Nunito Sans Variable", sans-serif;
+  --font-sans: "Instrument Sans", sans-serif;
   --font-heading: "Instrument Serif", serif;
   --font-brand: "Instrument Sans", sans-serif;
 

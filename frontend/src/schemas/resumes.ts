@@ -6,6 +6,7 @@ export const ResumeSchema = z.object({
   label: z.string(),
   jd_snippet: z.string().nullable(),
   template_id: z.number().nullable(),
+  tex_source: z.string().nullable().optional(),
   pdf_url: z.string().nullable(),
   preview_url: z.string().nullable().optional(),
   created_at: z.string(), // ISO datetime string from FastAPI

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTheme } from "next-themes";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Sparkles, Folder, Palette, Sun, Moon, LogOut, Key, Menu, X } from "lucide-react";
+import { Sparkles, Folder, Palette, Sun, Moon, LogOut, Key, Menu, X, User } from "lucide-react";
 import { authApi } from "../apis/auth";
 import { useAuthStore } from "../store/authStore";
 import { AnalyzeView } from "../views/AnalyzeView";
@@ -41,7 +41,7 @@ export function AppLayout() {
 
       {/* ── Sidebar ──────────────────────────────────────────────────────── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-60 bg-background border-r border-border flex flex-col transition-transform duration-300 ease-in-out md:static md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 w-60 bg-background flex flex-col transition-transform duration-300 ease-in-out md:static md:translate-x-0 ${
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -78,6 +78,9 @@ export function AppLayout() {
           </NavItem>
           <NavItem to="/apikeys" icon={<Key size={16} />} onClick={closeSidebar}>
             API Keys
+          </NavItem>
+          <NavItem to="/profile" icon={<User size={16} />} onClick={closeSidebar}>
+            My Profile
           </NavItem>
         </nav>
 

@@ -49,7 +49,7 @@ export function AnalysisForm({
   const [tone, setTone] = useState("Professional");
   const [file, setFile] = useState<File | null>(null);
 
-  const canSubmit = !!file && jd.trim().length > 0 && label.trim().length > 0;
+  const canSubmit = jd.trim().length > 0;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,10 +59,12 @@ export function AnalysisForm({
     fd.append("jd", jd);
     fd.append("label", label);
     fd.append("tone", tone);
-    fd.append("template_id", templateId || "jake");
+    fd.append("template_id", templateId || "");
     fd.append("provider", provider);
     fd.append("model", model);
-    fd.append("resume_file", file);
+    if (file) {
+      fd.append("resume_file", file);
+    }
     fd.append("exclude_sections", "{}");
     
     onSubmit(fd);
@@ -79,7 +81,7 @@ export function AnalysisForm({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="flex flex-col gap-3">
             <Label className="text-sm font-semibold text-foreground">
-              Resume Label <span className="text-destructive">*</span>
+              Resume Label
             </Label>
             <Input
               placeholder="e.g. Software_Engineer_Google"
@@ -100,7 +102,7 @@ export function AnalysisForm({
           <div className="flex flex-col gap-3">
             <Label className="text-sm font-semibold text-foreground">Tone</Label>
             <Select value={tone} onValueChange={(val) => setTone(val)}>
-              <SelectTrigger className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base shadow-sm">
+              <SelectTrigger className="flex h-11! w-full rounded-md border border-input bg-background px-4! py-3! text-base shadow-sm text-foreground">
                 <SelectValue placeholder="Select tone" />
               </SelectTrigger>
               <SelectContent side="bottom">
@@ -117,12 +119,12 @@ export function AnalysisForm({
               Template
             </Label>
             <Select value={templateId} onValueChange={(val) => setResumeState({ templateId: val })}>
-              <SelectTrigger className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base shadow-sm">
+              <SelectTrigger className="flex h-11! w-full rounded-md border border-input bg-background px-4! py-3! text-base shadow-sm text-foreground">
                 <SelectValue placeholder="Select template" />
               </SelectTrigger>
               <SelectContent side="bottom">
                 {templates.length === 0 ? (
-                  <SelectItem value="jake">Jake's Resume (default)</SelectItem>
+                  <SelectItem value="default">Default Template</SelectItem>
                 ) : (
                   templates.map((t) => (
                     <SelectItem key={t.id} value={String(t.id)}>
@@ -141,7 +143,7 @@ export function AnalysisForm({
               Provider
             </Label>
             <Select value={provider} onValueChange={(val) => onProviderChange(val)}>
-              <SelectTrigger className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base shadow-sm">
+              <SelectTrigger className="flex h-11! w-full rounded-md border border-input bg-background px-4! py-3! text-base shadow-sm text-foreground">
                 <SelectValue placeholder="Select provider" />
               </SelectTrigger>
               <SelectContent side="bottom">
@@ -158,7 +160,7 @@ export function AnalysisForm({
               Model
             </Label>
             <Select value={model} onValueChange={(val) => onModelChange(val)}>
-              <SelectTrigger className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base shadow-sm">
+              <SelectTrigger className="flex h-11! w-full rounded-md border border-input bg-background px-4! py-3! text-base shadow-sm text-foreground">
                 <SelectValue placeholder="Select model" />
               </SelectTrigger>
               <SelectContent side="bottom">

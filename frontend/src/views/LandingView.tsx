@@ -1,8 +1,8 @@
-
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { AuthForm } from "../components/AuthForm";
+import { useAuthStore } from "../store/authStore";
 import { BrandLogo } from "../components/BrandLogo";
 import { ResumeCard, type CardData } from "../components/HeroResumeCard";
 
@@ -85,14 +85,62 @@ const CARDS: CardData[] = [
   },
 ];
 
-
-/* ── main landing ─────────────────────────────────────────────────── */
-export function LandingView() {
-  const [expanded, setExpanded] = useState(false);
+export function LandingView({ startMode }: { startMode?: "signin" | "signup" }) {
+  const [expanded, setExpanded] = useState(!!startMode);
+  const [authMode, setAuthMode] = useState<"signin" | "signup">(startMode || "signup");
   const navigate = useNavigate();
+  const [notification, setNotification] = useState<{ title: string; message: string } | null>(null);
 
-  const expand = useCallback(() => setExpanded(true), []);
-  const collapse = useCallback(() => setExpanded(false), []);
+  // Sync state if URL changes directly
+  useEffect(() => {
+    if (startMode) {
+      setExpanded(true);
+      setAuthMode(startMode);
+    } else {
+      setExpanded(false);
+    }
+  }, [startMode]);
+
+  // Extract OAuth token on callback redirection
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+    const isNew = params.get("new");
+    if (token) {
+      useAuthStore.getState().setToken(token);
+      if (isNew === "true") {
+        setNotification({
+          title: "Account Created",
+          message: "Welcome! Your account has been successfully created via Google.",
+        });
+      } else {
+        setNotification({
+          title: "Welcome Back",
+          message: "You have been successfully logged in via Google.",
+        });
+      }
+    }
+  }, [navigate]);
+
+  const handleNotificationDismiss = () => {
+    setNotification(null);
+    navigate("/analyze", { replace: true });
+  };
+
+  const expand = useCallback((mode: "signin" | "signup" = "signup") => {
+    setAuthMode(mode);
+    setExpanded(true);
+    if (mode === "signin") {
+      navigate("/login", { replace: true });
+    } else {
+      navigate("/", { replace: true });
+    }
+  }, [navigate]);
+
+  const collapse = useCallback(() => {
+    setExpanded(false);
+    navigate("/", { replace: true });
+  }, [navigate]);
 
   return (
     <div className="relative w-full min-h-screen overflow-hidden bg-[#607456] flex flex-col">
@@ -100,38 +148,41 @@ export function LandingView() {
       <div className="pointer-events-none absolute top-[-12%] right-[-6%] w-[44vw] h-[44vw] rounded-full bg-white/6 z-0" />
       <div className="pointer-events-none absolute bottom-[-16%] right-[14%] w-[26vw] h-[26vw] rounded-full bg-white/4 z-0" />
 
-      {/* ── NAVBAR ── single brand, top left ─────────────────────────── */}
+      {/* ── NAVBAR ── */}
       <nav className="relative z-50 flex items-center justify-between px-10 pt-8 pb-2 shrink-0">
-        <div className="flex items-center h-8">
-          {expanded ? (
+        <div className="flex items-center gap-3 h-8 shrink-0">
+          {expanded && (
             <button
               onClick={collapse}
-              className="text-white/60 hover:text-white transition-colors bg-transparent border-none cursor-pointer flex items-center p-1 -ml-1"
+              className="text-white/60 hover:text-white transition-colors bg-transparent border-none cursor-pointer flex items-center p-1 shrink-0"
               aria-label="Go back"
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M19 12H5M12 19l-7-7 7-7"/>
               </svg>
             </button>
-          ) : (
-            <BrandLogo />
           )}
+          <BrandLogo />
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate("/login")}
-            className="font-sans text-[13px] font-medium text-white/60 hover:text-white
-              bg-transparent border-none cursor-pointer transition-colors"
-          >
-            Sign in
-          </button>
-          <button
-            onClick={expand}
-            className="font-sans text-[13px] font-semibold text-[#607456] bg-white rounded-full
-              px-5 py-2 cursor-pointer hover:bg-white/90 transition-all duration-150"
-          >
-            Get started
-          </button>
+        <div className="flex items-center gap-3 shrink-0">
+          {!expanded && (
+            <>
+              <button
+                onClick={() => expand("signin")}
+                className="font-sans text-[13px] font-medium text-white/60 hover:text-white
+                  bg-transparent border-none cursor-pointer transition-colors"
+              >
+                Sign in
+              </button>
+              <button
+                onClick={() => expand("signup")}
+                className="font-sans text-[13px] font-semibold text-[#607456] bg-white rounded-full
+                  px-5 py-2 cursor-pointer hover:bg-white/90 transition-all duration-150"
+              >
+                Get started
+              </button>
+            </>
+          )}
         </div>
       </nav>
 
@@ -142,8 +193,8 @@ export function LandingView() {
         className={`relative z-10 flex-1 flex items-center transition-all duration-300 ease-in-out
           ${expanded ? "opacity-0 pointer-events-none" : "opacity-100"}`}
       >
-        {/* Hero — left column */}
-        <div className="pl-10 pr-4 w-[40%] flex flex-col justify-center">
+        {/* Hero — left column (moved more to center with pl-24 xl:pl-40) */}
+        <div className="pl-24 xl:pl-40 pr-4 w-[50%] flex flex-col justify-center">
           <h1 className="font-heading text-[clamp(3rem,5.8vw,5.2rem)] leading-[1.02] text-white mb-4">
             Your résumé,
             <br />
@@ -156,7 +207,7 @@ export function LandingView() {
             under 30 seconds.
           </p>
           <button
-            onClick={expand}
+            onClick={() => expand("signup")}
             className="self-start font-sans text-[14px] font-semibold text-white
               bg-white/15 border border-white/30 rounded-full px-8 py-3
               cursor-pointer hover:bg-white/25 transition-all duration-200"
@@ -177,9 +228,9 @@ export function LandingView() {
           OPEN STATE
       ════════════════════════════════════════════════════════════════ */}
 
-      {/* Editorial left — open state, NO extra brand logo here */}
+      {/* Editorial left — open state */}
       <div
-        className={`absolute inset-y-0 left-0 flex flex-col justify-center px-12 z-10
+        className={`absolute inset-y-0 left-0 flex flex-col justify-center px-16 xl:px-28 z-10
           w-[54%] transition-opacity duration-350 ease-in-out
           ${expanded ? "opacity-100 pointer-events-auto delay-300" : "opacity-0 pointer-events-none"}`}
       >
@@ -220,22 +271,49 @@ export function LandingView() {
         </p>
       </div>
 
-      {/* Auth panel */}
+      {/* Auth panel (wider for proper real estate utilization) */}
       <div
         className={`absolute inset-y-0 right-0 z-30 flex items-center justify-center
           bg-[#2d3b28] transition-[width] duration-650 ease-in-out
           ${expanded ? "w-[46%]" : "w-0"} overflow-hidden`}
       >
         <div
-          className={`w-[min(400px,88%)] bg-white rounded-xl shadow-2xl px-9 py-8 flex flex-col
+          className={`w-[min(480px,95%)] bg-white rounded-xl shadow-2xl px-10 py-9 flex flex-col
             transition-opacity duration-300 ${expanded ? "delay-500 opacity-100" : "opacity-0"}`}
         >
           <AuthForm
-            onSuccess={() => navigate("/library")}
-            onSignInClick={() => navigate("/login")}
+            key={authMode}
+            initialMode={authMode}
+            onSuccess={(mode) => {
+              if (mode === "signup") {
+                navigate("/profile?onboarding=true");
+              } else {
+                navigate("/library");
+              }
+            }}
           />
         </div>
       </div>
+
+      {/* OAUTH NOTIFICATION MODAL */}
+      {notification && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 animate-in fade-in zoom-in-95 duration-200 text-center">
+            <h3 className="font-['EB_Garamond'] text-2xl font-semibold text-[#1a1a1a] mb-2">{notification.title}</h3>
+            <p className="text-xs text-[#666] mb-6">
+              {notification.message}
+            </p>
+            <div className="flex justify-center">
+              <button
+                className="bg-[#2d3b28] hover:bg-[#202a1c] text-white font-['EB_Garamond'] text-[13px] font-medium tracking-wider uppercase rounded px-6 py-2 cursor-pointer transition-colors"
+                onClick={handleNotificationDismiss}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { fetchJSON, parse, ResumeSchema, type Resume, type AnalyzeEvent } from "./api";
+import { useAuthStore } from "../store/authStore";
 
 export const resumeApi = {
   list: async (): Promise<Resume[]> => {
@@ -12,16 +13,23 @@ export const resumeApi = {
   delete: async (id: number): Promise<void> => {
     await fetchJSON(`/resumes/${id}`, { method: "DELETE" });
   },
-  compile: async (latexCode: string): Promise<{ pdfUrl: string }> => {
+  compile: async (latexCode: string, resumeId?: number | null): Promise<{ pdfUrl: string }> => {
     const raw = await fetchJSON("/resumes/compile", {
       method: "POST",
-      body: JSON.stringify({ latex_code: latexCode })
+      body: JSON.stringify({ latex_code: latexCode, id: resumeId })
     });
     return { pdfUrl: raw.pdf_url || raw.pdfUrl };
   },
   create: async (label: string, latexCode: string): Promise<Resume> => {
     const raw = await fetchJSON("/resumes", {
       method: "POST",
+      body: JSON.stringify({ label, tex_source: latexCode })
+    });
+    return parse(ResumeSchema, raw);
+  },
+  update: async (id: number, label: string, latexCode: string): Promise<Resume> => {
+    const raw = await fetchJSON(`/resumes/${id}`, {
+      method: "PUT",
       body: JSON.stringify({ label, tex_source: latexCode })
     });
     return parse(ResumeSchema, raw);
@@ -38,25 +46,61 @@ export const analyzeResume = async (
   formData: FormData,
   onEvent: (event: AnalyzeEvent) => void
 ) => {
+  const token = useAuthStore.getState().token;
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const res = await fetch("http://localhost:8000/api/resumes/analyze", {
     method: "POST",
     body: formData,
+    headers,
   });
+  if (!res.ok) {
+    let msg = res.statusText;
+    try {
+      const errData = await res.json();
+      if (errData.detail) {
+        msg = typeof errData.detail === "string" ? errData.detail : JSON.stringify(errData.detail);
+      }
+    } catch (e) {}
+    throw new Error(msg || `Request failed with status ${res.status}`);
+  }
   if (!res.body) throw new Error("No body returned");
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
+  let buffer = "";
+
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    const chunk = decoder.decode(value);
-    const lines = chunk.split("\n");
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    // Preserve the last (potentially incomplete) line in the buffer
+    buffer = lines.pop() || "";
+
     for (const line of lines) {
-      if (line.trim().startsWith("data: ")) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("data: ")) {
         try {
-          const data = JSON.parse(line.trim().slice(6));
+          const data = JSON.parse(trimmed.slice(6));
           onEvent(data);
-        } catch (e) {}
+        } catch (e) {
+          console.error("Error parsing SSE line:", e);
+        }
       }
+    }
+  }
+
+  // Parse remaining content in the buffer if it exists after stream closes
+  const remaining = buffer.trim();
+  if (remaining.startsWith("data: ")) {
+    try {
+      const data = JSON.parse(remaining.slice(6));
+      onEvent(data);
+    } catch (e) {
+      console.error("Error parsing final SSE chunk:", e);
     }
   }
 };

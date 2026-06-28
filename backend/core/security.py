@@ -2,25 +2,27 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 from jose import JWTError, jwt
-from passlib.context import CryptContext
-
-from core.config import settings
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
-def get_truncated_password(plain: str) -> str:
-    # Bcrypt strictly limits inputs to 72 *bytes*, not characters.
-    # We must encode, slice, and decode safely.
-    return plain.encode("utf-8")[:72].decode("utf-8", "ignore")
+import bcrypt
+from .config import  settings
 
 
 def hash_password(plain: str) -> str:
-    return pwd_context.hash(get_truncated_password(plain))
+    password_bytes = plain.encode("utf-8")
+    # Truncate if it exceeds bcrypt's maximum input size of 72 bytes
+    if len(password_bytes) > 72:
+        password_bytes = password_bytes[:72]
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password_bytes, salt).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(get_truncated_password(plain), hashed)
+    try:
+        password_bytes = plain.encode("utf-8")
+        if len(password_bytes) > 72:
+            password_bytes = password_bytes[:72]
+        return bcrypt.checkpw(password_bytes, hashed.encode("utf-8"))
+    except Exception:
+        return False
 
 
 def create_access_token(user_id: int) -> str:

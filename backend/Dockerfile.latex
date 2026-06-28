@@ -1,0 +1,20 @@
+FROM alpine:3.19
+
+# Install LaTeX engines and necessary package collections
+RUN apk add --no-cache \
+    texlive \
+    texmf-dist \
+    texmf-dist-latexextra \
+    texmf-dist-fontsextra \
+    ghostscript \
+    coreutils
+
+# Create work directory
+WORKDIR /app
+
+# Copy the compilation wrapper script
+COPY compile.sh /app/compile.sh
+RUN chmod +x /app/compile.sh
+
+# Set the entrypoint to the wrapper script
+ENTRYPOINT ["/app/compile.sh"]

@@ -1,0 +1,169 @@
+%-------------------------
+% Resume in Latex
+% Author : Sourabh Bajaj
+% Website: https://github.com/sb2nov/resume
+% License : MIT
+%------------------------
+
+\documentclass[letterpaper,11pt]{article}
+
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[pdftex]{hyperref}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjust margins
+\addtolength{\oddsidemargin}{-0.375in}
+\addtolength{\evensidemargin}{-0.375in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-0.5in}
+\addtolength{\textheight}{1.0in}
+
+\urlstyle{same}
+
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% Sections formatting
+\titleformat{\section}{
+  \vspace{-4pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+
+%-------------------------
+% Custom commands
+\newcommand{\resumeItem}[2]{
+  \item\small{
+    \textbf{#1}{: #2 \vspace{-2pt}}
+  }
+}
+
+\newcommand{\resumeItemPlain}[1]{
+  \item\small{#1 \vspace{-2pt}}
+}
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-1pt}\item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-5pt}
+}
+
+\newcommand{\resumeProjectHeading}[2]{
+  \vspace{-1pt}\item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & \textit{\small #2} \\
+    \end{tabular*}\vspace{-5pt}
+}
+
+\newcommand{\resumeSubItem}[2]{\resumeItem{#1}{#2}\vspace{-4pt}}
+
+\renewcommand{\labelitemii}{$\circ$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=*]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+%-------------------------------------------
+%%%%%%  CV STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\begin{document}
+
+%----------HEADING-----------------
+\begin{tabular*}{\textwidth}{l@{\extracolsep{\fill}}r}
+  \textbf{\Large Dinesh Thumma} & Email: \href{mailto:dineshthumma15@gmail.com}{dineshthumma15@gmail.com} \\
+  \href{https://github.com/DineshThumma9}{https://github.com/DineshThumma9} & Mobile: +91 9393519918 \\
+\end{tabular*}
+
+
+%-----------EDUCATION-----------------
+\section{Education}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {CVR College of Engineering}{Hyderabad, India}
+      {Bachelor of Technology in Artificial Intelligence and Data Science}{2023 -- 2027}
+    \resumeSubheading
+      {Narayana Junior College}{Hyderabad, India}
+      {Intermediate (MPC)}{}
+  \resumeSubHeadingListEnd
+
+
+%--------TECHNICAL SKILLS------------
+\section{Technical Skills}
+ \begin{itemize}[leftmargin=0.15in, label={}]
+    \small{\item{
+     \textbf{Languages}{: Python, Java, TypeScript, SQL, HTML/CSS} \\
+     \textbf{Backend Frameworks}{: Spring Boot, Flask, FastAPI} \\
+     \textbf{Frontend Frameworks}{: React, Zustand, Axios, Tailwind CSS, Chakra UI} \\
+     \textbf{Databases}{: PostgreSQL, MongoDB, Redis, Neo4j, ChromaDB} \\
+     \textbf{DevOps \& Tools}{: Docker, Azure, Render, Nginx, Git, Linux, Postman} \\
+     \textbf{AI/ML}{: Google ADK, LlamaIndex, LangChain, LangGraph, Spring AI}
+    }}
+ \end{itemize}
+ \vspace{-16pt}
+
+
+%-----------OPEN SOURCE CONTRIBUTIONS-----------------
+\section{Open Source Contributions}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {Google ADK, LlamaIndex, LangChain \& Spring AI}{Dec 2025 -- Present}
+      {Python, Java, RAG Internals}{}
+      \resumeItemListStart
+        \resumeItemPlain{Merged 5+ PRs into major open-source ecosystems including \textbf{\href{https://github.com/run-llama/llama_index}{LlamaIndex}} and \textbf{\href{https://github.com/spring-projects/spring-ai/pull/5163}{Spring AI}}. Resolved critical schema validation bugs (MySQL) and type-handling edge cases, improving library stability for production RAG pipelines.}
+        \resumeItemPlain{Authored feature extension for Spring AI (Java) to support configurable \texttt{DistanceType} in Chroma VectorStore, enabling custom similarity metrics for vector search.}
+      \resumeItemListEnd
+  \resumeSubHeadingListEnd
+
+
+%-----------PROJECTS-----------------
+\section{Projects}
+  \resumeSubHeadingListStart
+
+    \resumeProjectHeading
+      {\textbf{\href{https://github.com/DineshThumma9/centralGPT-backend}{CentralGPT}}
+        $|$ \small\emph{React, FastAPI, PostgreSQL, ChromaDB, Redis, Celery, Neo4j}}{}
+      \resumeItemListStart
+        \resumeItemPlain{Architected a distributed, modular monolithic backend deployed on an AWS EC2 instance using Gunicorn and uvloop, decoupling the main API from asynchronous background workers to maximize event-loop performance and support 400+ concurrent active user sessions at 1000+ RPS.}
+        \resumeItemPlain{Engineered a concurrent, multi-threaded ingestion pipeline utilizing \texttt{ThreadPoolExecutor} for parallel AST parsing across dynamic language grammars via Tree-sitter.}
+        \resumeItemPlain{Implemented synchronization barriers for parallel Neo4j and Qdrant database writes, guaranteeing an end-to-end processing time of under 30 seconds per repository.}
+        \resumeItemPlain{Designed dual RAG pipelines synthesizing structural codebase dependency graphs with semantic vector spaces to handle complex reasoning loops.}
+      \resumeItemListEnd
+
+    \resumeProjectHeading
+      {\textbf{\href{https://github.com/DineshThumma9/devconnect-backend}{DevConnect}}
+        $|$ \small\emph{React, Spring Boot, Neo4j, MongoDB, Redis, WebSockets}}{}
+      \resumeItemListStart
+        \resumeItemPlain{Developed a social networking and collaboration platform tailored for developers to connect, share projects, and collaborate.}
+        \resumeItemPlain{Built the frontend using React with Zustand for global state management and Chakra UI for component styling, communicating with the backend via Axios.}
+        \resumeItemPlain{Modeled social relationships (follows, likes) in Neo4j for a graph-traversal recommendation engine, and layered Redis caching over MongoDB to minimize redundant database reads.}
+        \resumeItemPlain{Architected a dual-protocol communication layer utilizing WebSockets for real-time live feeds/notifications and REST APIs for standard CRUD operations.}
+      \resumeItemListEnd
+
+    \resumeProjectHeading
+      {\textbf{\href{https://github.com/DineshThumma9/ResumeReworker}{Resume Reworker}}
+        $|$ \small\emph{Streamlit, LangGraph, Groq, CloudConvert}}{}
+      \resumeItemListStart
+        \resumeItemPlain{Created an AI-driven automated resume analysis and enhancement tool for job-fit scoring and tailored feedback.}
+        \resumeItemPlain{Built a multi-stage evaluation pipeline using LangGraph state machines and Groq to perform semantic matching against job descriptions.}
+        \resumeItemPlain{Automated the export process through LaTeX-based document generation integrated with CloudConvert for seamless PDF conversion, deploying the complete pipeline on Render.}
+      \resumeItemListEnd
+
+  \resumeSubHeadingListEnd
+
+%-------------------------------------------
+\end{document}

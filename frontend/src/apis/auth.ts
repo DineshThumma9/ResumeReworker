@@ -25,4 +25,26 @@ export const authApi = {
   googleLoginUrl: () => {
     return "http://localhost:8000/api/auth/google";
   },
+  getProfile: async (): Promise<UserProfile> => {
+    return await fetchJSON("/auth/profile");
+  },
+  updateProfile: async (profile: Omit<UserProfile, "id" | "username">): Promise<UserProfile> => {
+    return await fetchJSON("/auth/profile", {
+      method: "PUT",
+      body: JSON.stringify(profile),
+    });
+  },
 };
+
+export interface UserProfile {
+  id: number;
+  username: string;
+  name: string;
+  email: string;
+  github?: string | null;
+  linkedin?: string | null;
+  website?: string | null;
+  location?: string | null;
+  phone?: string | null;
+  raw_resume?: string | null;
+}

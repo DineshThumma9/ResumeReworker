@@ -1,5 +1,7 @@
 import { FileText, Calendar, Trash2 } from "lucide-react";
 import type { Resume } from "../schemas";
+import { useNavigate } from "react-router-dom";
+import { useResumeStore } from "../store/resumeStore";
 
 export function LibraryResumeCard({
   resume,
@@ -8,6 +10,9 @@ export function LibraryResumeCard({
   resume: Resume;
   onDelete: (id: number) => void;
 }) {
+  const navigate = useNavigate();
+  const setResumeState = useResumeStore((s) => s.setResumeState);
+
   return (
     <div className="flex flex-col gap-4 p-5 rounded-2xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow relative group">
       {/* Thumbnail */}
@@ -62,10 +67,23 @@ export function LibraryResumeCard({
             View PDF
           </a>
         )}
-        <button className="flex-1 inline-flex items-center justify-center px-3 py-2 text-sm font-medium rounded-lg border border-border bg-background hover:bg-muted text-foreground transition-colors">
+        <button
+          onClick={() => {
+            setResumeState({
+              resumeId: resume.id,
+              latexCode: resume.tex_source || "",
+              pdfUrl: resume.pdf_url || null,
+              templateId: resume.template_id ? String(resume.template_id) : "",
+              label: resume.label,
+            });
+            navigate("/analyze", { state: { tab: "editor" } });
+          }}
+          className="flex-1 inline-flex items-center justify-center px-3 py-2 text-sm font-medium rounded-lg border border-border bg-background hover:bg-muted text-foreground transition-colors"
+        >
           Edit
         </button>
       </div>
     </div>
   );
 }
+

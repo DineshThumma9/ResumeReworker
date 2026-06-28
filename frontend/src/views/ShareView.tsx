@@ -8,6 +8,39 @@ export function ShareView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showLatex, setShowLatex] = useState(false);
+  const [iframeUrl, setIframeUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!resume || !resume.pdf_url) {
+      setIframeUrl(null);
+      return;
+    }
+
+    const pdfUrl = resume.pdf_url;
+    if (pdfUrl.startsWith("data:application/pdf;base64,")) {
+      try {
+        const base64Data = pdfUrl.split(",")[1];
+        const binaryString = atob(base64Data);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        setIframeUrl(`${url}#toolbar=0`);
+
+        return () => {
+          URL.revokeObjectURL(url);
+        };
+      } catch (e) {
+        console.error("Failed to parse base64 PDF in ShareView:", e);
+        setIframeUrl(pdfUrl);
+      }
+    } else {
+      setIframeUrl(`${pdfUrl}#toolbar=0`);
+    }
+  }, [resume]);
 
   useEffect(() => {
     if (!token) return;
@@ -54,9 +87,9 @@ export function ShareView() {
           </div>
         )}
         <div className={`flex-1 bg-gray-200 overflow-hidden ${!showLatex && "w-full"}`}>
-          {resume.pdf_url ? (
+          {iframeUrl ? (
             <iframe
-              src={`${resume.pdf_url}#toolbar=0`}
+              src={iframeUrl}
               className="w-full h-full"
               title="Resume Preview"
             />

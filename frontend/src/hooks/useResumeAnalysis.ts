@@ -19,6 +19,8 @@ export function useResumeAnalysis() {
   const [running, setRunning] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [compileError, setCompileError] = useState<string | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const [provider, setProvider] = useState("");
   const [model, setModel] = useState("");
@@ -46,8 +48,11 @@ export function useResumeAnalysis() {
           setProvider(firstProvider);
           const firstModel = modelsData[firstProvider][0] || "";
           setModel(firstModel);
-          if (firstModel) {
-            modelSelection(firstModel, firstProvider).catch(console.error);
+          if (firstModel && firstProvider) {
+            modelSelection(firstModel, firstProvider).catch((err) => {
+              console.error(err);
+              setApiError(err instanceof Error ? err.message : String(err));
+            });
           }
         }
       }
@@ -66,17 +71,25 @@ export function useResumeAnalysis() {
   }, []);
 
   const handleProviderChange = (p: string) => {
+    if (!p) return;
     setProvider(p);
     const m = availableModels[p]?.[0] || "";
     setModel(m);
     if (m) {
-      modelSelection(m, p).catch(console.error);
+      modelSelection(m, p).catch((err) => {
+        console.error(err);
+        setApiError(err instanceof Error ? err.message : String(err));
+      });
     }
   };
 
   const handleModelChange = (m: string) => {
+    if (!m || !provider) return;
     setModel(m);
-    modelSelection(m, provider).catch(console.error);
+    modelSelection(m, provider).catch((err) => {
+      console.error(err);
+      setApiError(err instanceof Error ? err.message : String(err));
+    });
   };
 
   const addLine = (line: StreamLine) => {
@@ -100,12 +113,20 @@ export function useResumeAnalysis() {
         if (ev.step === "match_jd") {
           setLines((prev) => {
             const n = [...prev];
-            if (n.length > 0)
-              n[0] = {
+            const idx = n.findIndex(l => l.text.includes("Analyzing") || l.type === "progress");
+            if (idx >= 0) {
+              n[idx] = {
                 type: "success",
                 text: "JD analysis complete.",
                 analysis: ev.analysis,
               };
+            } else {
+              n.push({
+                type: "success",
+                text: "JD analysis complete.",
+                analysis: ev.analysis,
+              });
+            }
             return [
               ...n,
               {
@@ -117,13 +138,19 @@ export function useResumeAnalysis() {
         } else if (ev.step === "rewrite_resume") {
           setLines((prev) => {
             const n = [...prev];
-            const last = n.length - 1;
-            if (last >= 0)
-              n[last] = {
-                ...n[last],
+            const lastIdx = n.map(l => l.type).lastIndexOf("progress");
+            if (lastIdx >= 0) {
+              n[lastIdx] = {
+                ...n[lastIdx],
                 type: "success",
                 text: "Resume rewritten successfully.",
               };
+            } else {
+              n.push({
+                type: "success",
+                text: "Resume rewritten successfully.",
+              });
+            }
             return [
               ...n,
               { type: "progress", text: "Compiling LaTeX document..." },
@@ -140,26 +167,33 @@ export function useResumeAnalysis() {
       if (ev.event === "complete") {
         setRunning(false);
         const latex = ev.latexCode ?? "";
-        const isError = latex.startsWith("Error:");
+        const compileErr = ev.error;
+        const isError = !!compileErr || latex.startsWith("Error:");
+        
         setResumeState({
           latexCode: latex || "% No LaTeX was generated.",
-          pdfUrl: ev.pdfUrl || pdfUrl,
+          pdfUrl: isError ? null : (ev.pdfUrl || pdfUrl),
           resumeId: ev.resumeId || resumeId,
         });
+
+        if (compileErr) {
+          setCompileError(compileErr);
+        }
+
         setLines((prev) => {
           const n = [...prev];
           const last = n.length - 1;
           if (last >= 0 && n[last].type === "progress")
             n[last] = {
               ...n[last],
-              type: "success",
-              text: "LaTeX compilation successful.",
+              type: isError ? "error" : "success",
+              text: isError ? "LaTeX compilation failed." : "LaTeX compilation successful.",
             };
           return [
             ...n,
             {
               type: isError ? "error" : "success",
-              text: isError ? latex : "Done! Resume generated.",
+              text: isError ? (compileErr || latex) : "Done! Resume generated.",
             },
           ];
         });
@@ -169,16 +203,21 @@ export function useResumeAnalysis() {
         addLine({ type: "error", text: ev.message });
         setRunning(false);
       }
+    }).catch((err) => {
+      console.error("Analysis failed:", err);
+      addLine({ type: "error", text: err.message || String(err) });
+      setRunning(false);
     });
   };
 
   const handleCompile = async () => {
     try {
       setIsCompiling(true);
-      const res = await resumeApi.compile(latexCode);
+      setCompileError(null);
+      const res = await resumeApi.compile(latexCode, resumeId);
       setResumeState({ pdfUrl: res.pdfUrl });
     } catch (e: unknown) {
-      alert("Compilation failed: " + (e instanceof Error ? e.message : String(e)));
+      setCompileError(e instanceof Error ? e.message : String(e));
     } finally {
       setIsCompiling(false);
     }
@@ -197,5 +236,9 @@ export function useResumeAnalysis() {
     availableModels,
     submitAnalysis,
     handleCompile,
+    compileError,
+    setCompileError,
+    apiError,
+    setApiError
   };
 }

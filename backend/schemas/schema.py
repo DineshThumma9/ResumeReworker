@@ -35,6 +35,10 @@ class ResumeAnalysis(BaseModel):
         description="If deadline is mentioned, urgency to submit from current date and time",
         default=None,
     )
+    company_name: Optional[str] = Field(
+        description="Extract the target company name from the job description if present, otherwise default to 'Company'",
+        default="Company",
+    )
 
 
 class Project(BaseModel):
@@ -209,7 +213,7 @@ class AnalyzeRequest(BaseModel):
     tone: str = Field(default="Professional")
     exclude_sections: Dict[str, bool] = Field(default_factory=dict)
     template_id: str = Field(default="jake")
-    label: str
+    label: Optional[str] = None
 
 
 class ResumeOut(BaseModel):
@@ -217,6 +221,7 @@ class ResumeOut(BaseModel):
     label: str
     jd_snippet: Optional[str] = None
     template_id: Optional[int] = None
+    tex_source: Optional[str] = None
     pdf_url: Optional[str] = None
     preview_url: Optional[str] = None
     created_at: datetime = Field(default=datetime.now())
@@ -248,7 +253,9 @@ class ResumeState(TypedDict, total=False):
     exclude_sections: Dict[str, bool]
     output_path: str
     pdf_base64: str
+    pdf_base64: str
     template_source: str
+    template_id: Optional[int]
 
 
 class PaginatedResume(BaseModel):
@@ -307,3 +314,33 @@ class API_KEY_REQUEST(BaseModel):
 class API_KEY_RESPONSE(BaseModel):
     provider: str
     encrypted_key: str
+
+
+class ProfileUpdate(BaseModel):
+    name: str
+    email: str
+    github: Optional[str] = None
+    linkedin: Optional[str] = None
+    website: Optional[str] = None
+    location: Optional[str] = None
+    phone: Optional[str] = None
+    raw_resume: Optional[str] = None
+
+
+class ProfileOut(BaseModel):
+    id: int
+    username: str
+    name: str
+    email: str
+    github: Optional[str] = None
+    linkedin: Optional[str] = None
+    website: Optional[str] = None
+    location: Optional[str] = None
+    phone: Optional[str] = None
+    raw_resume: Optional[str] = None
+
+
+class ResumeUpdate(BaseModel):
+    label: Optional[str] = None
+    tex_source: Optional[str] = None
+    pdf_url: Optional[str] = None

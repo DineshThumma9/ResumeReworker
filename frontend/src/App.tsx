@@ -4,7 +4,7 @@ import { AppLayout } from "./components/AppLayout";
 import { LibraryView } from "./views/LibraryView";
 import { TemplatesView } from "./views/TemplatesView";
 import { LandingView } from "./views/LandingView";
-import { AuthView } from "./views/AuthView";
+import { ProfileView } from "./views/ProfileView";
 import { ShareView } from "./views/ShareView";
 import ApiKeysPage from "./views/ApiKeyPage";
 
@@ -14,7 +14,7 @@ export default function App() {
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<LandingView />} />
-        <Route path="/login" element={<AuthView />} />
+        <Route path="/login" element={<LandingView startMode="signin" />} />
         <Route path="/share/:token" element={<ShareView />} />
 
         {/* App shell (authenticated) */}
@@ -23,6 +23,7 @@ export default function App() {
           <Route path="/library" element={<LibraryView />} />
           <Route path="/templates" element={<TemplatesView />} />
           <Route path="/apikeys" element={<ApiKeysPage />} />
+          <Route path="/profile" element={<ProfileView />} />
         </Route>
       </Routes>
     </BrowserRouter>

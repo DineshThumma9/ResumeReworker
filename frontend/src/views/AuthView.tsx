@@ -59,6 +59,9 @@ export function AuthView() {
   ];
   const fields = mode === "signup" ? signupFields : signinFields;
 
+  const displayName = mode === "signup" ? (name.trim() || "John Doe") : "Welcome Back";
+  const displayEmail = email.trim() || "john.doe@email.com";
+
   return (
     <div className="min-h-screen w-full flex flex-col md:flex-row">
       {/* ── LEFT — editorial green, left-aligned like LandingView ────── */}
@@ -116,13 +119,13 @@ export function AuthView() {
 
       {/* ── RIGHT — dark auth panel ───────────────────────────────────── */}
       <div className="w-full md:w-[480px] lg:w-[520px] xl:w-[560px] bg-[#2d3b28] flex items-center justify-center px-10 py-16 md:py-0">
-        <div className="w-full max-w-[420px] bg-white rounded-xl shadow-2xl px-10 py-9 flex flex-col">
+        <div className="w-full max-w-[480px] bg-white rounded-xl shadow-2xl px-10 py-9 flex flex-col">
           {/* Resume-style header */}
           <div className="font-['EB_Garamond'] text-[22px] font-semibold tracking-wider uppercase text-[#1a1a1a] text-center">
-            {mode === "signup" ? "New Member" : "Welcome Back"}
+            {displayName}
           </div>
           <div className="font-sans text-[10px] text-[#999] text-center mt-1.5 mb-4">
-            resume-reworker.ai
+            {displayEmail}
             <span className="text-[#ccc] mx-2">|</span>
             {mode === "signup" ? "Create your account" : "Sign in to continue"}
           </div>

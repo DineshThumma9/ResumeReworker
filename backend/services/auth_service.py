@@ -53,7 +53,7 @@ class AuthService:
         }
 
     async def get_valid_models(self, user: User) -> Dict[str, List[str]]:
-        """Return available models based on central settings."""
+        """Return available models by fetching them dynamically from provider endpoints."""
         valid_models: Dict[str, List[str]] = defaultdict(list)
         
         STATIC_MODELS = {
@@ -66,7 +66,7 @@ class AuthService:
             "huggingface": ["meta-llama/Meta-Llama-3-70B-Instruct", "mistralai/Mixtral-8x7B-Instruct-v0.1"],
         }
 
-        # Check which providers have API keys set in the centralized config
+        # Check centralized environment keys
         provider_keys = {
             "openai": settings.openai_api_key,
             "anthropic": settings.anthropic_api_key,
@@ -76,14 +76,52 @@ class AuthService:
             "openrouter": settings.openrouter_api_key,
             "huggingface": settings.huggingface_api_key,
         }
+
+        # Retrieve user configured database keys
+        user_keys = await self.get_all_api_keys(user)
         
-        for provider, key in provider_keys.items():
-            if key and provider in STATIC_MODELS:
-                valid_models[provider] = STATIC_MODELS[provider]
-        
-        # Fallback if no keys are set (so UI isn't completely empty for testing)
+        async with httpx.AsyncClient(timeout=4.0) as client:
+            for provider in STATIC_MODELS:
+                key = provider_keys.get(provider) or user_keys.get(provider)
+                if not key:
+                    continue
+
+                url = _VALIDATION_URLS.get(provider)
+                if not url:
+                    valid_models[provider] = STATIC_MODELS[provider]
+                    continue
+
+                try:
+                    if provider == "google_genai":
+                        r = await client.get(f"{url}?key={key}")
+                        if r.status_code == 200:
+                            data = r.json()
+                            models_list = [m["name"].split("/")[-1] for m in data.get("models", [])]
+                            if models_list:
+                                valid_models[provider] = [m for m in models_list if "gemini" in m.lower()]
+                            else:
+                                valid_models[provider] = STATIC_MODELS[provider]
+                        else:
+                            valid_models[provider] = STATIC_MODELS[provider]
+                    elif provider == "anthropic":
+                        valid_models[provider] = STATIC_MODELS[provider]
+                    else:
+                        headers = {"Authorization": f"Bearer {key}"}
+                        r = await client.get(url, headers=headers)
+                        if r.status_code == 200:
+                            data = r.json()
+                            models_list = [m["id"] for m in data.get("data", [])]
+                            if models_list:
+                                valid_models[provider] = models_list[:15]  # Cap list size
+                            else:
+                                valid_models[provider] = STATIC_MODELS[provider]
+                        else:
+                            valid_models[provider] = STATIC_MODELS[provider]
+                except Exception as e:
+                    logger.warning(f"Failed to dynamically fetch models for {provider}: {e}")
+                    valid_models[provider] = STATIC_MODELS[provider]
+
         if not valid_models:
-            # Just return Google GenAI as a dummy option if no keys are found
             valid_models["google_genai"] = STATIC_MODELS["google_genai"]
-            
+
         return dict(valid_models)

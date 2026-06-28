@@ -8,6 +8,10 @@ from utils.prompts import resume_analysis_prompt, rewrite_content_prompt
 from schemas.schema import ResumeAnalysis, RewriteResume, ResumeState
 import cloudconvert
 from core.config import settings
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class ResumeWorkflowService:
     def __init__(self, cloudconvert_api_key: str | None = None):
@@ -55,11 +59,11 @@ class ResumeWorkflowService:
                 "openrouter": settings.openrouter_api_key,
                 "huggingface": settings.huggingface_api_key,
             }
-            api_key = provider_keys.get(provider)
+            api_key = state.get('api_key') or provider_keys.get(provider)
             llm_kwargs = {}
             if api_key:
                 llm_kwargs["api_key"] = api_key
-            llm = init_chat_model(f"{provider}/{state['model']}", **llm_kwargs)
+            llm = init_chat_model(state['model'], model_provider=provider, **llm_kwargs)
             structured_llm = llm.with_structured_output(ResumeAnalysis)
             
             response = await structured_llm.ainvoke(messages)
@@ -68,7 +72,8 @@ class ResumeWorkflowService:
                 return {**state, "analysis": None}
             
             analysis = response.model_dump()
-        except Exception:
+        except Exception as e:
+            logger.exception(f"Error in match_jd node: {e}")
             return {**state, "analysis": None}
 
         return {
@@ -100,11 +105,11 @@ class ResumeWorkflowService:
                 "openrouter": settings.openrouter_api_key,
                 "huggingface": settings.huggingface_api_key,
             }
-            api_key = provider_keys.get(provider)
+            api_key = state.get('api_key') or provider_keys.get(provider)
             llm_kwargs = {}
             if api_key:
                 llm_kwargs["api_key"] = api_key
-            llm = init_chat_model(f"{provider}/{state['model']}", **llm_kwargs)
+            llm = init_chat_model(state['model'], model_provider=provider, **llm_kwargs)
             structured_llm = llm.with_structured_output(RewriteResume)
             messages = [
                 SystemMessage(content=rewrite_content_prompt),
@@ -120,100 +125,173 @@ class ResumeWorkflowService:
                 **state,
                 "changes_content": response
             }
-        except Exception:
+        except Exception as e:
+            logger.exception(f"Error in rewrite_resume node: {e}")
             return {**state, "changes_content": None}
+
+    # =========================================================================
+    # OPTIONAL LOCAL COMPILATION ENGINES (Commented out)
+    # =========================================================================
+    #
+    # 1. LOCAL DOCKER-BASED COMPILATION (Requires Docker)
+    # To use: Build the image with: `docker build -t latex-compiler -f Dockerfile.latex .`
+    #
+    # async def latex_to_pdf_local_docker(self, latex_string: str) -> bytes:
+    #     import subprocess
+    #     try:
+    #         process = subprocess.Popen(
+    #             ["docker", "run", "-i", "--rm", "latex-compiler"],
+    #             stdin=subprocess.PIPE,
+    #             stdout=subprocess.PIPE,
+    #             stderr=subprocess.PIPE
+    #         )
+    #         pdf_bytes, stderr = process.communicate(input=latex_string.encode('utf-8'))
+    #         if process.returncode != 0:
+    #             raise Exception(f"Docker compilation error: {stderr.decode('utf-8', errors='ignore')}")
+    #         return pdf_bytes
+    #     except Exception as e:
+    #         raise Exception(f"Local Docker compilation failed: {e}")
+    #
+    # 2. LOCAL HOST-BASED COMPILATION (Requires local TeX Live/pdfTeX installed)
+    # To use: Swap `latex_to_pdf` logic to run this function.
+    #
+    # async def latex_to_pdf_local_host(self, latex_string: str) -> bytes:
+    #     import tempfile
+    #     import os
+    #     import subprocess
+    #     with tempfile.TemporaryDirectory() as tmpdir:
+    #         tex_path = os.path.join(tmpdir, "resume.tex")
+    #         with open(tex_path, "w", encoding="utf-8") as f:
+    #             f.write(latex_string)
+    #         
+    #         # Run pdflatex command locally
+    #         result = subprocess.run(
+    #             ["pdflatex", "-interaction=nonstopmode", "-output-directory", tmpdir, tex_path],
+    #             capture_output=True
+    #         )
+    #         
+    #         pdf_path = os.path.join(tmpdir, "resume.pdf")
+    #         if not os.path.exists(pdf_path):
+    #             raise Exception(f"Local compilation failed: {result.stderr.decode('utf-8', errors='ignore')}")
+    #         
+    #         with open(pdf_path, "rb") as f:
+    #             return f.read()
+
+    # COMMENTED OUT CLOUDCONVERT COMPILATION ENGINE
+    # async def latex_to_pdf_cloudconvert(self, latex_string: str, filename: str) -> bytes:
+    #     try:
+    #         job = cloudconvert.Job.create(payload={
+    #             "tasks": {
+    #                 "upload-my-file": {
+    #                     "operation": "import/upload"
+    #                 },
+    #                 "convert-to-pdf": {
+    #                     "operation": "convert",
+    #                     "input": "upload-my-file",
+    #                     "input_format": "tex",
+    #                     "output_format": "pdf",
+    #                     "engine": "texlive"
+    #                 },
+    #                 "export-file": {
+    #                     "operation": "export/url",
+    #                     "input": "convert-to-pdf"
+    #                 }
+    #             }
+    #         })
+    #
+    #         upload_task_id = job["tasks"][0]["id"]
+    #         upload_task = cloudconvert.Task.find(id=upload_task_id)
+    #
+    #         with open("temp_resume.tex", "w", encoding="utf-8") as f:
+    #             f.write(latex_string)
+    #
+    #         cloudconvert.Task.upload(
+    #             file_name="temp_resume.tex",
+    #             task=upload_task
+    #         )
+    #
+    #         job = cloudconvert.Job.wait(id=job["id"])
+    #
+    #         export_task = None
+    #         for task in job.get("tasks", []):
+    #             if task.get("operation") == "export/url" and task.get("status") == "finished":
+    #                 export_task = task
+    #                 break
+    #         
+    #         if export_task is None:
+    #             failed_tasks = [task for task in job.get("tasks", []) if task.get("status") == "error"]
+    #             if failed_tasks:
+    #                 error_msg = f"LaTeX conversion failed: {failed_tasks[0].get('message', 'Unknown error')}"
+    #                 raise Exception(error_msg)
+    #             else:
+    #                 error_msg = "No export task found or conversion incomplete"
+    #                 raise Exception(error_msg)
+    #
+    #         if not export_task.get("result") or not export_task["result"].get("files"):
+    #             error_msg = "No files found in export task result"
+    #             raise Exception(error_msg)
+    #         
+    #         file_info = export_task["result"]["files"][0]
+    #         download_url = file_info["url"]
+    #         
+    #         try:
+    #             import httpx
+    #             client = httpx.AsyncClient()
+    #             response = await client.get(download_url, timeout=30)
+    #             response.raise_for_status()
+    #             pdf_bytes = response.content
+    #         except requests.exceptions.RequestException as e:
+    #             try:
+    #                 pdf_bytes = cloudconvert.download(
+    #                     filename=file_info["filename"],
+    #                     url=file_info["url"]
+    #                 )
+    #             except Exception as sdk_e:
+    #                 error_msg = f"Both download methods failed. HTTP: {str(e)}, SDK: {str(sdk_e)}"
+    #                 raise Exception(error_msg)
+    #
+    #         if not pdf_bytes or len(pdf_bytes) < 100:
+    #             raise Exception("Downloaded PDF is empty or too small")
+    #         
+    #         if not pdf_bytes.startswith(b'%PDF'):
+    #             raise Exception("Downloaded file is not a valid PDF")
+    #         
+    #         if not pdf_bytes.rstrip().endswith(b'%%EOF'):
+    #             raise Exception("Downloaded PDF is incomplete or missing EOF marker")
+    #         
+    #         return pdf_bytes
+    #
+    #     except Exception as e:
+    #         error_msg = f"PDF generation failed: {str(e)}"
+    #         raise Exception(error_msg)
 
     async def latex_to_pdf(self, latex_string: str, filename: str) -> bytes:
         """
-        Send LaTeX string to CloudConvert using proper import/upload,
-        wait for PDF, download it, return PDF bytes.
+        Compile LaTeX locally using a container compiler (tries Docker first, falls back to Podman).
         """
+        import subprocess
+        
+        cmd = ["docker", "run", "-i", "--rm", "latex-compiler"]
         try:
-            job = cloudconvert.Job.create(payload={
-                "tasks": {
-                    "upload-my-file": {
-                        "operation": "import/upload"
-                    },
-                    "convert-to-pdf": {
-                        "operation": "convert",
-                        "input": "upload-my-file",
-                        "input_format": "tex",
-                        "output_format": "pdf",
-                        "engine": "texlive",
-                        "engine_version": "2016"  
-                    },
-                    "export-file": {
-                        "operation": "export/url",
-                        "input": "convert-to-pdf"
-                    }
-                }
-            })
+            # Check if docker command is available
+            subprocess.run(["docker", "--version"], capture_output=True, check=True)
+        except Exception:
+            # Fallback to podman
+            cmd[0] = "podman"
 
-            upload_task_id = job["tasks"][0]["id"]
-            upload_task = cloudconvert.Task.find(id=upload_task_id)
-
-            with open("temp_resume.tex", "w", encoding="utf-8") as f:
-                f.write(latex_string)
-
-            cloudconvert.Task.upload(
-                file_name="temp_resume.tex",
-                task=upload_task
+        try:
+            process = subprocess.Popen(
+                cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
-
-            job = cloudconvert.Job.wait(id=job["id"])
-
-            export_task = None
-            for task in job.get("tasks", []):
-                if task.get("operation") == "export/url" and task.get("status") == "finished":
-                    export_task = task
-                    break
-            
-            if export_task is None:
-                failed_tasks = [task for task in job.get("tasks", []) if task.get("status") == "error"]
-                if failed_tasks:
-                    error_msg = f"LaTeX conversion failed: {failed_tasks[0].get('message', 'Unknown error')}"
-                    raise Exception(error_msg)
-                else:
-                    error_msg = "No export task found or conversion incomplete"
-                    raise Exception(error_msg)
-
-            if not export_task.get("result") or not export_task["result"].get("files"):
-                error_msg = "No files found in export task result"
-                raise Exception(error_msg)
-            
-            file_info = export_task["result"]["files"][0]
-            download_url = file_info["url"]
-            
-            try:
-                import httpx
-                client = httpx.AsyncClient()
-                response = await client.get(download_url, timeout=30)
-                response.raise_for_status()
-                pdf_bytes = response.content
-            except requests.exceptions.RequestException as e:
-                try:
-                    pdf_bytes = cloudconvert.download(
-                        filename=file_info["filename"],
-                        url=file_info["url"]
-                    )
-                except Exception as sdk_e:
-                    error_msg = f"Both download methods failed. HTTP: {str(e)}, SDK: {str(sdk_e)}"
-                    raise Exception(error_msg)
-
-            if not pdf_bytes or len(pdf_bytes) < 100:
-                raise Exception("Downloaded PDF is empty or too small")
-            
-            if not pdf_bytes.startswith(b'%PDF'):
-                raise Exception("Downloaded file is not a valid PDF")
-            
-            if not pdf_bytes.rstrip().endswith(b'%%EOF'):
-                raise Exception("Downloaded PDF is incomplete or missing EOF marker")
-            
+            pdf_bytes, stderr = process.communicate(input=latex_string.encode('utf-8'))
+            if process.returncode != 0:
+                raise Exception(f"Container compilation error: {stderr.decode('utf-8', errors='ignore')}")
             return pdf_bytes
-
         except Exception as e:
-            error_msg = f"PDF generation failed: {str(e)}"
-            raise Exception(error_msg)
+            raise Exception(f"Local container compilation failed: {e}")
 
     async def rewrite_latex(self, state: ResumeState):
         suggesting_changes = state.get("changes_content")
@@ -224,7 +302,7 @@ class ResumeWorkflowService:
 
         try:
             # IMPORTANT: Make sure services.renderer exists
-            from services.renderer import render_resume_template
+            from services.renderer import render_resume_template, render_resume_template_from_string
             
             # Convert schema to dict
             data_dict = suggesting_changes.model_dump()
@@ -235,7 +313,11 @@ class ResumeWorkflowService:
                     if section in data_dict:
                         data_dict[section] = None
                         
-            latex_code = render_resume_template("jakes_template.tex", data_dict)
+            template_source = state.get("template_source")
+            if template_source and template_source.strip():
+                latex_code = render_resume_template_from_string(template_source, data_dict)
+            else:
+                latex_code = render_resume_template("jakes1.tex", data_dict)
 
             try:
                 filename = f"{suggesting_changes.details.name.replace(' ', '_')}_resume.pdf"
@@ -249,18 +331,10 @@ class ResumeWorkflowService:
                 return {**state, "latex_code": latex_code, "pdf_base64": f"data:application/pdf;base64,{pdf_base64}"}
                 
             except Exception as pdf_error:
-                error_str = str(pdf_error).lower()
-                if "api" in error_str or "auth" in error_str:
-                    return {**state, "latex_code": f"Error: {str(pdf_error)}"}
-                elif "network" in error_str or "connection" in error_str:
-                    return {**state, "latex_code": f"Error: {str(pdf_error)}"}
-                elif "tex" in error_str or "latex" in error_str:
-                    return {**state, "latex_code": f"Error: {str(pdf_error)}"}
-                else:
-                    return {**state, "latex_code": f"Error: {str(pdf_error)}"}
+                return {**state, "latex_code": latex_code, "error": str(pdf_error)}
 
         except Exception as e:
-            return {**state, "latex_code": f"Error: {str(e)}"}
+            return {**state, "latex_code": "Error: Failed to generate LaTeX template", "error": str(e)}
 
 
 

@@ -19,6 +19,12 @@ class User(SQLModel, table=True):
     name: str
     email: str = Field(index=True, unique=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    github: Optional[str] = Field(default=None, sa_column=Column(Text))
+    linkedin: Optional[str] = Field(default=None, sa_column=Column(Text))
+    website: Optional[str] = Field(default=None, sa_column=Column(Text))
+    location: Optional[str] = Field(default=None, sa_column=Column(Text))
+    phone: Optional[str] = Field(default=None, sa_column=Column(Text))
+    raw_resume: Optional[str] = Field(default=None, sa_column=Column(Text))
 
 
 class Template(SQLModel, table=True):

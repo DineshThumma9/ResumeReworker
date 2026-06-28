@@ -15,7 +15,8 @@ from core.security import (
 from core.config import settings
 from core.database import get_session
 from models import User
-from schemas.schema import LoginBody, SignupBody
+from schemas.schema import LoginBody, SignupBody, ProfileUpdate, ProfileOut
+from services.resume_service import CurrentUser
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -78,7 +79,9 @@ async def google_callback(code: str, db: DB):
     result = await db.execute(select(User).where(User.email == profile["email"]))
     user = result.scalar_one_or_none()
 
+    is_new = False
     if not user:
+        is_new = True
         user = User(
             username=profile["email"].split("@")[0],
             name=profile["name"],
@@ -90,5 +93,28 @@ async def google_callback(code: str, db: DB):
         await db.refresh(user)
 
     token = create_access_token(user.id)
+    new_str = "true" if is_new else "false"
 
-    return RedirectResponse(url=f"{settings.frontend_url}/login?token={token}")
+    return RedirectResponse(url=f"{settings.frontend_url}/login?token={token}&new={new_str}")
+
+
+@router.get("/profile", response_model=ProfileOut)
+async def get_profile(user: CurrentUser):
+    return user
+
+
+@router.put("/profile", response_model=ProfileOut)
+async def update_profile(body: ProfileUpdate, user: CurrentUser, db: DB):
+    user.name = body.name
+    user.email = body.email
+    user.github = body.github
+    user.linkedin = body.linkedin
+    user.website = body.website
+    user.location = body.location
+    user.phone = body.phone
+    user.raw_resume = body.raw_resume
+    
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
