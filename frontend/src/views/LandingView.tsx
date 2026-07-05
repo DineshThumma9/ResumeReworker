@@ -85,11 +85,20 @@ const CARDS: CardData[] = [
   },
 ];
 
-export function LandingView({ startMode }: { startMode?: "signin" | "signup" }) {
+export function LandingView({
+  startMode,
+}: {
+  startMode?: "signin" | "signup";
+}) {
   const [expanded, setExpanded] = useState(!!startMode);
-  const [authMode, setAuthMode] = useState<"signin" | "signup">(startMode || "signup");
+  const [authMode, setAuthMode] = useState<"signin" | "signup">(
+    startMode || "signup",
+  );
   const navigate = useNavigate();
-  const [notification, setNotification] = useState<{ title: string; message: string } | null>(null);
+  const [notification, setNotification] = useState<{
+    title: string;
+    message: string;
+  } | null>(null);
 
   // Sync state if URL changes directly
   useEffect(() => {
@@ -111,7 +120,8 @@ export function LandingView({ startMode }: { startMode?: "signin" | "signup" }) 
       if (isNew === "true") {
         setNotification({
           title: "Account Created",
-          message: "Welcome! Your account has been successfully created via Google.",
+          message:
+            "Welcome! Your account has been successfully created via Google.",
         });
       } else {
         setNotification({
@@ -127,15 +137,18 @@ export function LandingView({ startMode }: { startMode?: "signin" | "signup" }) 
     navigate("/analyze", { replace: true });
   };
 
-  const expand = useCallback((mode: "signin" | "signup" = "signup") => {
-    setAuthMode(mode);
-    setExpanded(true);
-    if (mode === "signin") {
-      navigate("/login", { replace: true });
-    } else {
-      navigate("/", { replace: true });
-    }
-  }, [navigate]);
+  const expand = useCallback(
+    (mode: "signin" | "signup" = "signup") => {
+      setAuthMode(mode);
+      setExpanded(true);
+      if (mode === "signin") {
+        navigate("/login", { replace: true });
+      } else {
+        navigate("/", { replace: true });
+      }
+    },
+    [navigate],
+  );
 
   const collapse = useCallback(() => {
     setExpanded(false);
@@ -157,8 +170,17 @@ export function LandingView({ startMode }: { startMode?: "signin" | "signup" }) 
               className="text-white/60 hover:text-white transition-colors bg-transparent border-none cursor-pointer flex items-center p-1 shrink-0"
               aria-label="Go back"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M19 12H5M12 19l-7-7 7-7"/>
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M19 12H5M12 19l-7-7 7-7" />
               </svg>
             </button>
           )}
@@ -299,10 +321,10 @@ export function LandingView({ startMode }: { startMode?: "signin" | "signup" }) 
       {notification && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs animate-in fade-in duration-200">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 animate-in fade-in zoom-in-95 duration-200 text-center">
-            <h3 className="font-['EB_Garamond'] text-2xl font-semibold text-[#1a1a1a] mb-2">{notification.title}</h3>
-            <p className="text-xs text-[#666] mb-6">
-              {notification.message}
-            </p>
+            <h3 className="font-['EB_Garamond'] text-2xl font-semibold text-[#1a1a1a] mb-2">
+              {notification.title}
+            </h3>
+            <p className="text-xs text-[#666] mb-6">{notification.message}</p>
             <div className="flex justify-center">
               <button
                 className="bg-[#2d3b28] hover:bg-[#202a1c] text-white font-['EB_Garamond'] text-[13px] font-medium tracking-wider uppercase rounded px-6 py-2 cursor-pointer transition-colors"

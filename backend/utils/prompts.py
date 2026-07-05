@@ -59,98 +59,55 @@ Deliver a thorough, recruiter-level evaluation that helps the candidate:
 1. Understand exactly why their resume might underperform.
 2. Know what to fix and how.
 3. Improve their chances of passing ATS filters and impressing a hiring manager.
+"""
 
+extract_details_prompt = """
+You are a resume parser. Your ONLY job is to extract the candidate's personal details and contact information from the resume text provided.
 
+Extract the following and nothing else:
+- name: The candidate's full name (first line of the resume, or largest text)
+- profile_links: A dict with these exact keys: phone, email, github, linkedin, leetcode, codechef, portfolio, website, location
+  - Copy URLs verbatim (full https:// URL preferred)
+  - If a field is not present in the resume, set it to null
+  - Do NOT invent or guess values
 
+Do not summarize. Do not rewrite. Do not add a profile_summary. Just extract.
 """
 
 rewrite_content_prompt = """
-You are a professional resume writer specializing in ATS-optimized resumes.
+You are a professional resume writer optimizing a candidate's resume to match a job description.
 
-## YOUR TASK:
-Rewrite the candidate's resume content to improve ATS score and better align with the job description while maintaining complete honesty and professionalism.
+## ABSOLUTE RULES (never break these):
+1. **profile_links**: Populate ALL keys: phone, email, github, linkedin, leetcode, codechef, portfolio, website, location. Copy verbatim from resume. Set missing keys to null. Never leave this empty if the resume has contact info.
+2. **Project links**: If a project has a link, find the exact matching URL from the [HYPERLINKS FOUND IN RESUME] list and put it in the project's 'link' field.
+3. **Bullet count is sacred**: If a job/project has 4 bullets → return exactly 4. If it has 2 → return exactly 2. Never add or remove bullets.
+4. **No fabrication**: Only use technologies, companies, dates, and skills that appear in the original resume.
+5. **Education/certs/hackathons**: Copy verbatim. Never modify.
 
-## CRITICAL RULES:
+## WHAT TO DO WITH EACH BULLET:
+- If the bullet contains a missing keyword AND can be improved naturally → rewrite it
+- If the bullet is already strong → copy it word-for-word
+- If vague but no relevant keyword → rewrite for clarity and impact only
 
-### ✅ YOU MUST:
-1: **Less is More**: Change only whats need not more or less if you see a line can rewritten for better keyword matching or make it more ats friendly only then change that otherwise leave as it is
-2. **Preserve Truth**: Never fabricate skills, experience, or qualifications
-3. **Keep Structure**: Maintain all sections from the original resume
-4. **Optimize Keywords**: Naturally incorporate relevant keywords from job description
-5. **Stay Authentic**: Only use technologies, languages, and skills the candidate actually has
-6. **Preserve Facts**: Keep education details, certificates, and hackathons exactly as provided
-7. **Extract Details Carefully**: IMPORTANT - Extract ALL personal details and links from the original resume:
-   - Full name
-   - Phone number
-   - Email address
-   - GitHub profile URL (look for github.com links)
-   - LinkedIn profile URL (look for linkedin.com links)
-   - LeetCode profile URL (look for leetcode.com links)
-   - Portfolio website URLs
-   - Any other professional profile links
-   - Present these in the "details" section under "details" field as key-value pairs where key is the platform name and value is the URL
+## REWRITE GOALS (in priority order):
+1. Naturally weave in missing keywords from the analysis report
+2. Use strong action verbs: Architected, Engineered, Optimized, Reduced, Increased, Built
+3. Add metrics if the original has them; do NOT invent metrics if there are none
+4. Keep sentences concise — match or shorten the original word count per bullet
 
-### 🎯 FOCUS AREAS (High Impact):
-1. **Personal Details**: Extract name and ALL contact information including links
-2. **Profile Summary**: Rewrite to highlight relevant skills and match job requirements
-3. **Projects**: Rephrase descriptions to include job-relevant keywords naturally
-4. **Technical Skills**: Reorganize and emphasize skills matching job description (do NOT add new skills)
-   - Format as: category → list of specific skills
-   - Example: "Programming Languages" → ["Python", "Java", "JavaScript"]
-   - Example: "Frameworks" → ["React", "Django", "Spring Boot"]  
-   - Example: "Tools" → ["Git", "Docker", "AWS"]
-   - Use the 'category' field for skill category names and 'items' field for the list of skills
+## PROFILE SUMMARY:
+- ONLY include a summary if the original resume has one. If the original has NO summary, leave this field blank/null. Do NOT invent a summary.
+- If rewriting an existing summary, make it ATS-optimized and role-relevant
+- Must be shorter than or equal to the original word count
+- One paragraph only
 
-### ❌ DO NOT:
-- Add technologies or programming languages not mentioned in original resume
-- Fabricate projects, achievements, or experience
-- Change education details, GPAs, dates, or institution names
-- Modify hackathons or certificates section
-- Exaggerate skill levels or responsibilities
-- Miss any contact details or profile links from the original resume
+## TECHNICAL SKILLS:
+- Reorganize categories to match JD terminology
+- ABSOLUTELY DO NOT add any skills the candidate does not have. You can only re-categorize existing skills. Do NOT add skills just to match keywords.
+- Format: category name, flat list of skill strings
 
-### 📏 STRICT STRUCTURAL CONSTRAINTS (MUST FOLLOW):
-1. **Preserve Original Structure**: DO NOT add or delete bullet points. If a role has 4 bullet points in the original resume, you MUST return exactly 4 bullet points for that role.
-2. **Refactor, Don't Remove**: Keep what is there. Only reformat and refactor the existing content for better keyword matching, clarity, and impact.
-3. **Be Concise and Punchy**: While keeping the same number of lines/bullets, express the points more effectively and concisely to ensure the resume doesn't become overly long or overflow the page.
-4. **Summary**: If there is a profile summary in the original resume, rewrite it to be more impactful. Do not make it longer than the original.
-## IMPORTANT - LINK EXTRACTION:
-When extracting contact details, pay special attention to:
-- GitHub URLs: github.com/username or github.com/username/repo
-- LinkedIn URLs: linkedin.com/in/username
-- LeetCode URLs: leetcode.com/u/username or leetcode.com/username
-- Email addresses: any @domain.com format
-- Phone numbers: any numeric format
-- Portfolio websites: any personal website URLs
-
-Store these in the details.details field as:
-{
-  "phone": "phone_number",
-  "email": "email_address", 
-  "github": "github_url",
-  "linkedin": "linkedin_url",
-  "leetcode": "leetcode_url",
-  "portfolio": "portfolio_url"
-}
-
-## KEYWORD OPTIMIZATION GUIDELINES:
-- Use action verbs: developed, implemented, designed, architected, optimized
-- Include metrics where available: "improved performance by 40%", "serving 10K+ users" if possible
-- Mirror job description language while keeping your authentic voice
-- Prioritize keywords that appear multiple times in job description
-- Integrate keywords naturally - avoid keyword stuffing
-
-## You will be given an analysis report highlighting missing keywords and improvement areas. Use this to guide your rewrites.
-
-## EXAMPLE TRANSFORMATIONS:
-
-**Before:** "Made a website using React"
-**After:** "Developed a responsive web application using React.js, reducing load time by 35% and improving user engagement"
-
-**Before:** "Python project for data analysis"  
-**After:** "Built a data analytics pipeline using Python, Pandas, and scikit-learn to process 100K+ records and generate automated insights"
-
-Remember: Quality over quantity. Every word should add value and support the candidate's qualifications for THIS specific job.
+You will receive: the original resume, the job description, and the analysis report (missing keywords, negative points).
+Output the complete structured resume. Every field matters.
 """
 
 rewrite_latex_prompt = """
@@ -191,15 +148,15 @@ Generate clean, properly formatted LaTeX code using Jake's Resume Template with 
 
 ## SPECIAL CHARACTER HANDLING:
 Remember to escape these characters in LaTeX:
-- & → \&
-- % → \%
-- $ → \$
-- # → \#
-- _ → \_
-- { } → \{ \}
+- & → \\&
+- % → \\%
+- $ → \\$
+- # → \\#
+- _ → \\_
+- { } → \\{ \\}
 
 ## OUTPUT REQUIREMENTS:
-1. **Complete LaTeX document**: From `\documentclass` to `\end{document}`
+1. **Complete LaTeX document**: From `\\documentclass` to `\\end{document}`
 2. **Compilable code**: Must compile without errors in standard LaTeX compilers
 3. **No explanations**: Output ONLY the LaTeX code, no comments or explanations
 4. **No placeholders**: All content should be actual, usable text
@@ -230,4 +187,16 @@ jakes_template_reference = r"""
 % - Subsections: \resumeSubheading{Title}{Date}{Subtitle}{Location}
 % - Bullet points: \resumeItemListStart \resumeItem{text} \resumeItemListEnd
 % - Skills: \textbf{Category}{: Skill1, Skill2, Skill3}
+"""
+
+batched_rewrite_prompt = """
+You are a professional resume writer specializing in ATS-optimized resumes.
+Your task is to optimize the provided candidate resume content to better align with the job description and analysis report.
+
+## CRITICAL RULES:
+1. **Preserve Truth**: Never fabricate skills, experience, or qualifications.
+2. **Follow ID Mapping**: You must output the rewritten text for each bullet point using the exact matching 'id' provided in the input list.
+3. **Keyword Optimization**: Naturally incorporate missing keywords from the analysis report into the rewritten bullets where appropriate.
+4. **Skills Optimization**: Align the skills categorization and terminology with the job description. Do NOT add skills the candidate does not have.
+5. **Concise Phrasing**: Improve clarity and impact using strong action verbs (e.g., 'Architected', 'Optimized', 'Engineered').
 """

@@ -1,169 +1,121 @@
-# Resume Reworker 📄✨
+<div align="center">
+  <h1>Resume Reworker 📄✨</h1>
+  <p><strong>An AI-powered application to analyze, rewrite, and instantly generate ATS-friendly LaTeX resumes tailored to any job description.</strong></p>
+</div>
 
-An AI-powered resume optimization tool that analyzes your resume against job descriptions and generates professionally formatted, ATS-friendly PDF resumes.
+<br />
 
 ## 🎯 The Idea
 
-Upload your resume and a job description, and let AI:
-1. **Analyze** how well your resume matches the job requirements
-2. **Provide feedback** on what's missing and what needs improvement
-3. **Rewrite** your resume content to better align with the job description
-4. **Generate** a professional PDF using Jake's Resume Template
+The days of manually tweaking your resume for every job application are over. Resume Reworker is an intelligent agent that takes your base resume and a target job description, and handles the rest:
+
+1. **Analyzes** your resume against the job description to find missing keywords and weak points.
+2. **Rewrites** your bullet points to naturally incorporate keywords and highlight the most relevant skills—without hallucinating or fabricating experience.
+3. **Generates** a beautifully typeset, ATS-compliant PDF on the fly using a dedicated LaTeX compilation engine.
 
 ## ✨ Features
 
-- **Resume Analysis**: Get a match score (0-100), missing keywords, negative points, and improvement suggestions
-- **AI-Powered Rewriting**: Automatically restructure and optimize your resume content
-- **PDF Generation**: Create clean, one-page PDFs using Jake's popular LaTeX template
-- **Interactive UI**: Simple Streamlit interface for easy interaction
-- **Workflow Management**: LangGraph orchestrates the analysis → rewrite → PDF generation pipeline
+- **Smart ATS Analysis:** Get immediate feedback on what keywords you missed and how to improve.
+- **Agentic Rewriting:** Powered by **LangGraph**, the AI pipeline breaks down rewriting into robust, reliable steps that avoid data corruption (e.g., losing hyperlinks or contact info).
+- **Multi-Model Support:** Plug in your API keys for **Google Gemini, Mistral, Groq,** or **HuggingFace** models.
+- **Live PDF Preview:** See your LaTeX resume compile instantly as you tweak the results.
+- **Built-in Templates:** Choose from industry-standard LaTeX templates (like Jake's Resume Template).
+- **Interactive UI:** Built for speed with a modern React + Vite + Tailwind interface.
+
+---
 
 ## 🏗️ Architecture
 
+```mermaid
+graph TD
+    A[User UI - React/Vite] -->|Upload PDF & JD| B(FastAPI Backend)
+    B --> C{LangGraph Workflow}
+    
+    C -->|Step 1| D[Extract Details & Links]
+    C -->|Step 2| E[Analyze against JD]
+    C -->|Step 3| F[Rewrite Bullets & Skills]
+    
+    F --> B
+    B --> G[LaTeX Renderer]
+    G --> H[(Docker LaTeX Compiler)]
+    H -->|Compiled PDF| A
 ```
-User Input (Resume + JD)
-         ↓
-    Streamlit UI
-         ↓
-   LangGraph Workflow
-         ↓
-  Analysis (Gemini)
-         ↓
-  Rewrite (Gemini)
-         ↓
-  PyLaTeX Generator
-         ↓
-    PDF Output
-```
-
-**Sequential Workflow Steps:**
-1. User uploads resume and job description via Streamlit
-2. LangGraph orchestrates the sequential workflow
-3. **Step 1**: Gemini AI analyzes the resume against the JD
-4. **Step 2**: Gemini AI rewrites resume content using analysis results
-5. **Step 3**: PyLaTeX generates the final PDF with proper formatting
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: Streamlit (Interactive web interface)
-- **AI Model**: Google Gemini (Analysis and content generation)
-- **Workflow**: LangGraph (State management and orchestration)
-- **PDF Generation**: PyLaTeX (LaTeX template to PDF)
-- **Data Validation**: Pydantic (Schema validation)
+### Frontend
+- **Framework:** React 19 + Vite
+- **Styling:** Tailwind CSS v4 + Framer Motion
+- **State Management:** Zustand + SWR
+- **Components:** Shadcn UI & Radix Primitives
 
-## 📁 Project Structure
+### Backend
+- **API:** FastAPI (Python 3.14)
+- **Database:** PostgreSQL (SQLAlchemy + asyncpg)
+- **Caching & Rate Limiting:** Redis
+- **AI Orchestration:** LangGraph + LangChain
 
-```
-.
-├── .env                      # Environment variables (API keys)
-├── requirements.txt          # Python dependencies
-└── src/
-    ├── __init__.py
-    ├── app.py               # Streamlit UI
-    ├── jakes_template.py    # PyLaTeX resume generator
-    ├── main.py              # LangGraph workflow
-    ├── prompts.py           # AI prompts for analysis/rewriting
-    ├── res.py               # Helper functions/utilities
-    └── schema.py            # Pydantic models (ResumeAnalysis, RewriteResume, etc.)
-```
+### Infrastructure
+- **PDF Generation:** Custom isolated Docker container (`latex-compiler`)
+- **Containerization:** Docker Compose
 
-## 🚀 Setup
+---
+
+## 🚀 Setup & Installation
 
 ### Prerequisites
+1. **Docker & Docker Compose** (required for the database, Redis, and LaTeX compilation engine).
+2. **Node.js** (v20+ recommended) for the frontend.
+3. **Python 3.14+** for the backend.
 
-1. **Python 3.8+**
-2. **LaTeX Distribution** (for PDF generation):
-   ```bash
-   # Ubuntu/Debian
-   sudo apt-get install texlive-latex-extra texlive-fonts-recommended
-   
-   # macOS
-   brew install --cask mactex
-   
-   # Windows
-   # Download and install MiKTeX: https://miktex.org/download
-   ```
+### 1. Backend Setup
 
-### Installation
+```bash
+cd backend
+# Create a virtual environment
+python -m venv .venv
+source .venv/bin/activate
 
-1. **Clone the repository**
-   ```bash
-   git clone <your-repo-url>
-   cd resume-reworker
-   ```
+# Install dependencies
+pip install -r requirements.txt
 
-2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+# Start the infrastructure (PostgreSQL, Redis, LaTeX compiler)
+docker-compose up -d
 
-3. **Set up environment variables**
-   
-   Create a `.env` file in the root directory:
-   ```env
-   GEMINI_API_KEY=your_gemini_api_key_here
-   ```
-   
-   Get your Gemini API key from: https://makersuite.google.com/app/apikey
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your DB credentials and JWT secrets
 
-4. **Run the application**
-   ```bash
-   streamlit run src/app.py
-   ```
+# Run the backend
+./backend.sh
+```
 
-5. **Access the app**
-   
-   Open your browser and go to: `http://localhost:8501`
+### 2. Frontend Setup
 
-## 📝 Usage
+```bash
+cd frontend
+# Install dependencies
+npm install
 
-1. Open the Streamlit interface
-2. Upload your current resume (text or PDF)
-3. Paste the job description
-4. Click "Analyze & Rewrite"
-5. Review the analysis feedback
-6. Download your optimized resume PDF
+# Run the development server
+npm run dev
+# OR use the provided script
+./frontend.sh
+```
 
-## 🔧 Configuration
+### 3. Usage
+- Navigate to `http://localhost:5173`
+- Create an account or sign in with Google OAuth.
+- Navigate to the **Profile** section to input your API keys (e.g., Gemini, Groq).
+- Upload your current resume PDF and paste a Job Description to begin the AI workflow!
 
-### Adjusting the Workflow
+---
 
-Edit `src/main.py` to modify the LangGraph workflow steps or add custom logic.
+## 📝 Configuration
 
-### Customizing Prompts
-
-Modify `src/prompts.py` to change how the AI analyzes or rewrites resumes.
-
-### Template Modifications
-
-Edit `src/jakes_template.py` to adjust PDF formatting, spacing, or styling.
-
-## 📦 Dependencies
-
-Key packages in `requirements.txt`:
-- `streamlit` - Web interface
-- `langgraph` - Workflow orchestration
-- `google-generativeai` - Gemini AI integration
-- `pylatex` - LaTeX document generation
-- `pydantic` - Data validation
-- `python-dotenv` - Environment variable management
-
-## 🐛 Troubleshooting
-
-**LaTeX Errors:**
-- Ensure LaTeX is properly installed: `pdflatex --version`
-- Install missing packages: `tlmgr install <package-name>`
-
-**API Errors:**
-- Verify your `.env` file has the correct `GEMINI_API_KEY`
-- Check API quota limits
-
-**PDF Not Generating:**
-- Check console for LaTeX compilation errors
-- Ensure output directory has write permissions
-
-
+- **Prompt Engineering:** You can adjust the system prompts and strict extraction rules in `backend/utils/prompts.py`.
+- **LaTeX Templates:** The base LaTeX templates are stored as Jinja2 templates in `backend/templates/`. You can customize spacing, fonts, or colors here.
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please open an issue or submit a pull request.
+Contributions are welcome! Please open an issue or submit a pull request if you want to add new LaTeX templates or support for new LLM providers.

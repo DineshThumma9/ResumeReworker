@@ -89,9 +89,7 @@ export function PdfPreviewPanel({ pdfUrl, isCompiling }: PdfPreviewPanelProps) {
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px]">
             <div className="bg-zinc-900/90 border border-zinc-700 p-6 rounded-xl shadow-2xl flex flex-col items-center gap-4">
               <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
-              <p className="text-zinc-200 font-medium">
-                Compiling LaTeX...
-              </p>
+              <p className="text-zinc-200 font-medium">Compiling LaTeX...</p>
             </div>
           </div>
         )}

@@ -14,7 +14,8 @@ export type StreamLine = {
 };
 
 export function useResumeAnalysis() {
-  const { resumeId, pdfUrl, setResumeState, latexCode } = useResumeStore();
+  const { resumeId, pdfUrl, setResumeState, latexCode, label } =
+    useResumeStore();
   const [lines, setLines] = useState<StreamLine[]>([]);
   const [running, setRunning] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
@@ -24,14 +25,23 @@ export function useResumeAnalysis() {
 
   const [provider, setProvider] = useState("");
   const [model, setModel] = useState("");
-  const [availableModels, setAvailableModels] = useState<Record<string, string[]>>({});
+  const [availableModels, setAvailableModels] = useState<
+    Record<string, string[]>
+  >({});
 
-  const { data: modelsData } = useSWR<Record<string, string[]>>("/setup/api-models", () => getApiModels(), {
-    dedupingInterval: 24 * 60 * 60 * 1000,
-    revalidateOnFocus: false,
-  });
+  const { data: modelsData } = useSWR<Record<string, string[]>>(
+    "/setup/api-models",
+    () => getApiModels(),
+    {
+      dedupingInterval: 24 * 60 * 60 * 1000,
+      revalidateOnFocus: false,
+    },
+  );
 
-  const { data: currentModelData } = useSWR<{provider: string; model: string}>("/setup/current-model", () => getCurrentModel(), {
+  const { data: currentModelData } = useSWR<{
+    provider: string;
+    model: string;
+  }>("/setup/current-model", () => getCurrentModel(), {
     dedupingInterval: 24 * 60 * 60 * 1000,
     revalidateOnFocus: false,
   });
@@ -60,14 +70,20 @@ export function useResumeAnalysis() {
   }, [modelsData, currentModelData]);
 
   useEffect(() => {
-
     templateApi
       .list()
       .then((tpls) => {
         setTemplates(tpls);
-        if (tpls.length > 0) setResumeState({ templateId: String(tpls[0].id) });
+        if (tpls.length > 0) {
+          // Always default to the first template (jakes1); correct stale / empty selections
+          const currentId = useResumeStore.getState().templateId;
+          const validIds = new Set(tpls.map((t) => String(t.id)));
+          if (!currentId || !validIds.has(currentId)) {
+            setResumeState({ templateId: String(tpls[0].id) });
+          }
+        }
       })
-      .catch(() => setResumeState({ templateId: "jake" }));
+      .catch(console.error);
   }, []);
 
   const handleProviderChange = (p: string) => {
@@ -108,37 +124,108 @@ export function useResumeAnalysis() {
       },
     ]);
 
+    let accumulatedAnalysis: Partial<ResumeAnalysis> = {};
+
     analyzeResume(fd, (ev: AnalyzeEvent) => {
-      if (ev.event === "progress") {
-        if (ev.step === "match_jd") {
+      // ── Granular streaming analysis events (sent progressively by backend) ──
+      if (ev.event === "analysis_score") {
+        accumulatedAnalysis = {
+          ...accumulatedAnalysis,
+          score: ev.score,
+          match: ev.match,
+          urgency: ev.urgency,
+        };
+        setLines((prev) => {
+          const n = [...prev];
+          const idx = n.findIndex((l) => l.text.includes("Analyzing"));
+          if (idx >= 0) {
+            n[idx] = {
+              type: "progress",
+              text: "Analyzing job description and extracting key requirements...",
+              analysis: { ...accumulatedAnalysis } as ResumeAnalysis,
+            };
+          }
+          return n;
+        });
+      } else if (ev.event === "analysis_quality") {
+        accumulatedAnalysis = { ...accumulatedAnalysis, resume_quality: ev.text };
+        setLines((prev) => {
+          const n = [...prev];
+          const idx = n.findIndex((l) => l.text.includes("Analyzing"));
+          if (idx >= 0)
+            n[idx] = { ...n[idx], analysis: { ...accumulatedAnalysis } as ResumeAnalysis };
+          return n;
+        });
+      } else if (ev.event === "analysis_explanation") {
+        accumulatedAnalysis = { ...accumulatedAnalysis, match_explanation: ev.text };
+        setLines((prev) => {
+          const n = [...prev];
+          const idx = n.findIndex((l) => l.text.includes("Analyzing"));
+          if (idx >= 0)
+            n[idx] = { ...n[idx], analysis: { ...accumulatedAnalysis } as ResumeAnalysis };
+          return n;
+        });
+      } else if (ev.event === "analysis_keyword") {
+        accumulatedAnalysis = {
+          ...accumulatedAnalysis,
+          missing_keywords: [...(accumulatedAnalysis.missing_keywords || []), ev.keyword],
+        };
+        setLines((prev) => {
+          const n = [...prev];
+          const idx = n.findIndex((l) => l.text.includes("Analyzing"));
+          if (idx >= 0)
+            n[idx] = { ...n[idx], analysis: { ...accumulatedAnalysis } as ResumeAnalysis };
+          return n;
+        });
+      } else if (ev.event === "analysis_negative") {
+        accumulatedAnalysis = {
+          ...accumulatedAnalysis,
+          negative_points: [...(accumulatedAnalysis.negative_points || []), ev.text],
+        };
+        setLines((prev) => {
+          const n = [...prev];
+          const idx = n.findIndex((l) => l.text.includes("Analyzing"));
+          if (idx >= 0)
+            n[idx] = { ...n[idx], analysis: { ...accumulatedAnalysis } as ResumeAnalysis };
+          return n;
+        });
+      } else if (ev.event === "analysis_improvement") {
+        accumulatedAnalysis = {
+          ...accumulatedAnalysis,
+          potential_improvements: [
+            ...(accumulatedAnalysis.potential_improvements || []),
+            ev.text,
+          ],
+        };
+        setLines((prev) => {
+          const n = [...prev];
+          const idx = n.findIndex((l) => l.text.includes("Analyzing"));
+          if (idx >= 0)
+            n[idx] = { ...n[idx], analysis: { ...accumulatedAnalysis } as ResumeAnalysis };
+          return n;
+        });
+      } else if (ev.event === "analysis_done") {
+        // Mark the analysis step as complete and add next step
+        setLines((prev) => {
+          const n = [...prev];
+          const idx = n.findIndex((l) => l.text.includes("Analyzing"));
+          if (idx >= 0) {
+            n[idx] = {
+              type: "success",
+              text: "JD analysis complete.",
+              analysis: { ...accumulatedAnalysis } as ResumeAnalysis,
+            };
+          }
+          return [
+            ...n,
+            { type: "progress", text: "AI is rewriting your resume to match the JD..." },
+          ];
+        });
+      } else if (ev.event === "progress") {
+        if (ev.step === "rewrite_resume") {
           setLines((prev) => {
             const n = [...prev];
-            const idx = n.findIndex(l => l.text.includes("Analyzing") || l.type === "progress");
-            if (idx >= 0) {
-              n[idx] = {
-                type: "success",
-                text: "JD analysis complete.",
-                analysis: ev.analysis,
-              };
-            } else {
-              n.push({
-                type: "success",
-                text: "JD analysis complete.",
-                analysis: ev.analysis,
-              });
-            }
-            return [
-              ...n,
-              {
-                type: "progress",
-                text: "AI is rewriting your resume to match the JD...",
-              },
-            ];
-          });
-        } else if (ev.step === "rewrite_resume") {
-          setLines((prev) => {
-            const n = [...prev];
-            const lastIdx = n.map(l => l.type).lastIndexOf("progress");
+            const lastIdx = n.map((l) => l.type).lastIndexOf("progress");
             if (lastIdx >= 0) {
               n[lastIdx] = {
                 ...n[lastIdx],
@@ -160,24 +247,33 @@ export function useResumeAnalysis() {
           addLine({
             type: "progress",
             text: ev.message,
-            analysis: ev.analysis,
+            analysis: { ...accumulatedAnalysis } as ResumeAnalysis,
           });
         }
       }
       if (ev.event === "complete") {
         setRunning(false);
         const latex = ev.latexCode ?? "";
-        const compileErr = ev.error;
+        const compileErr = ev.error; // LaTeX compile error OR upstream LLM error in complete payload
         const isError = !!compileErr || latex.startsWith("Error:");
-        
+
         setResumeState({
           latexCode: latex || "% No LaTeX was generated.",
-          pdfUrl: isError ? null : (ev.pdfUrl || pdfUrl),
+          pdfUrl: isError ? null : ev.pdfUrl || pdfUrl,
           resumeId: ev.resumeId || resumeId,
+          label: ev.label || label,
         });
 
         if (compileErr) {
-          setCompileError(compileErr);
+          // LaTeX compile errors go to the compile error modal; LLM/API errors go to apiError modal
+          if (
+            compileErr.toLowerCase().includes("latex") ||
+            compileErr.toLowerCase().includes("compilation")
+          ) {
+            setCompileError(compileErr);
+          } else {
+            setApiError(compileErr);
+          }
         }
 
         setLines((prev) => {
@@ -187,25 +283,31 @@ export function useResumeAnalysis() {
             n[last] = {
               ...n[last],
               type: isError ? "error" : "success",
-              text: isError ? "LaTeX compilation failed." : "LaTeX compilation successful.",
+              text: isError ? "Failed." : "LaTeX compilation successful.",
             };
           return [
             ...n,
             {
               type: isError ? "error" : "success",
-              text: isError ? (compileErr || latex) : "Done! Resume generated.",
+              text: isError
+                ? compileErr || "Resume generation failed."
+                : "Done! Resume generated.",
             },
           ];
         });
         onSuccess();
       }
       if (ev.event === "error") {
-        addLine({ type: "error", text: ev.message });
+        const msg = ev.message || "An unknown error occurred.";
+        addLine({ type: "error", text: msg });
+        setApiError(msg); // Show in modal so it's impossible to miss
         setRunning(false);
       }
     }).catch((err) => {
       console.error("Analysis failed:", err);
-      addLine({ type: "error", text: err.message || String(err) });
+      const msg = err instanceof Error ? err.message : String(err);
+      addLine({ type: "error", text: msg });
+      setApiError(msg); // Network down / server unreachable errors shown in modal
       setRunning(false);
     });
   };
@@ -239,6 +341,6 @@ export function useResumeAnalysis() {
     compileError,
     setCompileError,
     apiError,
-    setApiError
+    setApiError,
   };
 }

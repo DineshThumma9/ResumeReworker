@@ -1,12 +1,16 @@
-from contextlib import asynccontextmanager
 import logging
+import os
+from contextlib import asynccontextmanager
 
+import redis.asyncio as redis
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi_limiter import FastAPILimiter
 
-from core.database import create_tables
 from api.routes import router
+from core.database import create_tables
 
 load_dotenv()
 
@@ -21,17 +25,17 @@ async def lifespan(app: FastAPI):
     """Create DB tables and initialize redis on startup."""
     await create_tables()
     try:
-        import redis.asyncio as redis
-        from fastapi_limiter import FastAPILimiter
-        redis_conn = redis.from_url("redis://localhost:6379", encoding="utf-8", decode_responses=True)
+        redis_conn = redis.from_url(
+            "redis://localhost:6379", encoding="utf-8", decode_responses=True
+        )
         await FastAPILimiter.init(redis_conn)
         logger.info("Connected to Redis and initialized FastAPILimiter")
     except Exception as e:
         logger.error(f"Failed to initialize Redis/FastAPILimiter: {e}")
     yield
     try:
-        if 'redis_conn' in locals():
-            await redis_conn.close()
+        if "redis_conn" in locals():
+            await redis_conn.close()  # type: ignore
     except Exception:
         pass
 
@@ -48,9 +52,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-from fastapi.staticfiles import StaticFiles
-import os
 
 os.makedirs("static/previews", exist_ok=True)
 app.mount("/api/static", StaticFiles(directory="static"), name="static")

@@ -6,6 +6,9 @@ interface ResumeState {
   pdfUrl: string | null;
   label: string;
   templateId: string;
+  jd: string;
+  tone: string;
+  file: File | null;
   setResumeState: (state: Partial<ResumeState>) => void;
   resetResumeState: () => void;
 }
@@ -16,6 +19,9 @@ const initialState = {
   pdfUrl: null,
   label: "",
   templateId: "",
+  jd: "",
+  tone: "Professional",
+  file: null,
 };
 
 export const useResumeStore = create<ResumeState>((set) => ({

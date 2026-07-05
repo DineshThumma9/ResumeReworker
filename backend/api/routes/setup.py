@@ -1,20 +1,18 @@
-
-import json
 from typing import Dict, List, Tuple
 
 import httpx
 from dotenv import load_dotenv
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from loguru import logger
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_session
-from models.models import APIKEYS, User, UserLLMConfig
+from models.models import APIKEYS, UserLLMConfig
 from schemas.schema import API_KEY_REQUEST, API_KEY_RESPONSE
-from services.resume_service import CurrentUser
 from services.auth_service import AuthService, CryptoService
+from services.resume_service import CurrentUser
 from utils.constants import _VALIDATION_URLS, VALID_PROVIDERS
 
 load_dotenv()
@@ -97,7 +95,8 @@ async def set_api_provider(
 
     existing = await db.execute(
         select(APIKEYS).where(
-            APIKEYS.user_id == current_user.id, APIKEYS.provider == api_provider
+            APIKEYS.user_id == current_user.id,  # type: ignore
+            APIKEYS.provider == api_provider,  # type: ignore
         )
     )
 
@@ -107,7 +106,7 @@ async def set_api_provider(
         existing.encrypted_key = encrypted_key
     else:
         new_key = APIKEYS(
-            user_id=current_user.id,
+            user_id=current_user.id,  # type: ignore
             provider=api_provider,
             encrypted_key=encrypted_key,
         )
@@ -204,7 +203,7 @@ async def api_config(
     current_user: CurrentUser, db: AsyncSession = Depends(get_session)
 ):
     api_configs = await db.execute(
-        select(APIKEYS).where(APIKEYS.user_id == current_user.id)
+        select(APIKEYS).where(APIKEYS.user_id == current_user.id)  # type: ignore
     )
     api_configs = api_configs.scalars().all()
     return api_configs
@@ -217,15 +216,16 @@ async def valid_models(
 ):
     return await AuthService(db).get_valid_models(current_user)
 
+
 @router.get("/current-model")
 async def current_model(
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_session),
 ):
-    result = await db.execute(select(UserLLMConfig).where(UserLLMConfig.user_id == current_user.id))
+    result = await db.execute(
+        select(UserLLMConfig).where(UserLLMConfig.user_id == current_user.id)  # type: ignore
+    )
     config = result.scalars().first()
     if config:
         return {"provider": config.provider, "model": config.model}
     return {"provider": "", "model": ""}
-
-

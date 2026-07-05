@@ -66,7 +66,6 @@ DUMMY_RESUME_DATA = {
 }
 
 
-
 _VALIDATION_URLS: dict[str, str] = {
     "groq": "https://api.groq.com/openai/v1/models",
     "openai": "https://api.openai.com/v1/models",

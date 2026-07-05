@@ -1,5 +1,11 @@
 \documentclass[letterpaper,11pt]{article}
 
+\usepackage{xcolor}
+\usepackage[normalem]{ulem}
+\providecommand{\added}[1]{{\color[HTML]{2E7D32}#1}}
+\providecommand{\deleted}[1]{{\color[HTML]{C62828}\sout{#1}}}
+\providecommand{\highlight}[1]{#1}
+
 \usepackage{latexsym}
 \usepackage[empty]{fullpage}
 \usepackage{titlesec}
@@ -75,95 +81,178 @@
 
 %----------HEADING----------
 \begin{center}
-    {\Huge \scshape Dinesh Thumma} \\ \vspace{1pt}
-    \small \raisebox{-0.1\height}\faPhone\ +91 9393519918 ~
-    \href{mailto:dineshthumma15@gmail.com}{\raisebox{-0.2\height}\faEnvelope\ \underline{dineshthumma15@gmail.com}} ~
-    \href{https://github.com/DineshThumma9}{\raisebox{-0.2\height}\faGithub\ \underline{github.com/DineshThumma9}} ~
-    \href{https://leetcode.com/u/dineshthummax975/}{\raisebox{-0.2\height}\faCode\ \underline{LeetCode }}
+    {\Huge \scshape [[ details.name | escape_latex ]]} \\ \vspace{1pt}
+    \small
+    [% if details.contact %]
+    \raisebox{-0.1\height}\faPhone\ [[ details.contact | escape_latex ]] ~
+    [% endif %]
+    [% if details.email %]
+    \href{mailto:[[ details.email ]]}{\raisebox{-0.2\height}\faEnvelope\ \underline{[[ details.email | escape_latex ]]}} ~
+    [% endif %]
+    [% if details.github %]
+    \href{[[ details.github ]]}{\raisebox{-0.2\height}\faGithub\ \underline{[[ details.github | escape_latex ]]}} ~
+    [% endif %]
+    [% if details.linkedin %]
+    \href{[[ details.linkedin ]]}{\raisebox{-0.2\height}\faLinkedin\ \underline{[[ details.linkedin | escape_latex ]]}} ~
+    [% endif %]
+    [% if details.portfolio %]
+    \href{[[ details.portfolio ]]}{\raisebox{-0.2\height}\faGlobe\ \underline{[[ details.portfolio | escape_latex ]]}}
+    [% endif %]
     \vspace{-8pt}
 \end{center}
 
+[% if details.profile_summary %]
+%-----------SUMMARY-----------
+\section{Summary}
+\small [[ details.profile_summary | escape_latex ]]
+\vspace{-10pt}
+[% endif %]
+
 %-----------EDUCATION-----------
+[% if education %]
 \section{Education}
   \resumeSubHeadingListStart
+    [% for edu in education %]
     \resumeSubheading
-      {CVR College of Engineering}{2023 -- 2027}
-      {Bachelor of Technology in Artificial Intelligence and Data Science}{Hyderabad, India}
-    \resumeSubheading
-      {Narayana Junior College}{}
-      {Intermediate (MPC)}{Hyderabad, India}
+      {[[ edu.institution | escape_latex ]]}{[[ edu.year | escape_latex ]]}
+      {[[ edu.course | escape_latex ]]}{[[ edu.location | escape_latex ]]}
+    [% endfor %]
   \resumeSubHeadingListEnd
+[% endif %]
 
 %-----------TECHNICAL SKILLS-----------
+[% if technical_skills %]
 \section{Technical Skills}
  \begin{itemize}[leftmargin=0.15in, label={}]
     \small{\item{
-     \textbf{Languages}{: Python, Java, TypeScript, SQL} \\
-     \textbf{Backend}{: FastAPI, Spring Boot, Flask} \\
-     \textbf{Frontend}{: React, Tailwind CSS, Chakra UI, HTML/CSS} \\
-     \textbf{Databases}{: PostgreSQL, MongoDB, Redis, Neo4j, ChromaDB} \\
-     \textbf{DevOps \& Tools}{: Docker, Azure, Render, Nginx, Git, Linux, Postman} \\
-     \textbf{AI/ML}{: LlamaIndex, LangChain, LangGraph} \\
-     \textbf{Coursework}{: Data Structures \& Algorithms, Object-Oriented Programming, Software Engineering, Computer Networks,Data Mining,Machine Learning} \\
-     %-----------COURSEWORK-----------
+    [% for skill_group in technical_skills %]
+     \textbf{[[ skill_group.category | escape_latex ]]}{: [[ skill_group.skills | join(', ') | escape_latex ]]}[% if not loop.last %] \\[% endif %]
 
- }}
+    [% endfor %]
+    }}
  \end{itemize}
  \vspace{-16pt}
+[% endif %]
 
+[% if coursework %]
+%-----------COURSEWORK-----------
+\section{Coursework}
+ \begin{itemize}[leftmargin=0.15in, label={}]
+    \small{\item{[[ coursework | join(', ') | escape_latex ]]}}
+ \end{itemize}
+ \vspace{-16pt}
+[% endif %]
+
+%-----------EXPERIENCE-----------
+[% if experience %]
+\section{Experience}
+  \resumeSubHeadingListStart
+    [% for job in experience %]
+    \resumeSubheading
+      {[[ job.company | escape_latex ]]}{[[ job.duration | escape_latex ]]}
+      {[[ job.role | escape_latex ]]}{[[ job.location | escape_latex ]]}
+      \resumeItemListStart
+        [% for bullet in job.responsibilities %]
+        \resumeItem{[[ bullet | escape_latex ]]}
+        [% endfor %]
+      \resumeItemListEnd
+    [% endfor %]
+  \resumeSubHeadingListEnd
+\vspace{-16pt}
+[% endif %]
+
+[% if internships %]
+%-----------INTERNSHIPS-----------
+\section{Internships}
+  \resumeSubHeadingListStart
+    [% for job in internships %]
+    \resumeSubheading
+      {[[ job.company | escape_latex ]]}{[[ job.duration | escape_latex ]]}
+      {[[ job.role | escape_latex ]]}{[[ job.location | escape_latex ]]}
+      \resumeItemListStart
+        [% for bullet in job.responsibilities %]
+        \resumeItem{[[ bullet | escape_latex ]]}
+        [% endfor %]
+      \resumeItemListEnd
+    [% endfor %]
+  \resumeSubHeadingListEnd
+\vspace{-16pt}
+[% endif %]
+
+[% if open_source %]
 %-----------OPEN SOURCE CONTRIBUTIONS-----------
- \section{Open Source Contributions}
+\section{Open Source Contributions}
     \resumeSubHeadingListStart
       \resumeProjectHeading
-          {\textbf{LlamaIndex, Spring AI, FOSSASIA \& MediaWiki} $|$ \emph{Python, Java, RAG Internals}}{Dec 2025 -- Present}
+          {\textbf{Open Source} $|$ \emph{Various Projects}}{}
           \resumeItemListStart
-            \resumeItem{Merged 5+ PRs into major open-source ecosystems including \textbf{LlamaIndex} and \textbf{Spring AI}. Resolved critical schema validation bugs (MySQL) and type-handling edge cases, significantly improving library stability for production RAG pipelines.}
-            \resumeItem{Authored a feature extension for Spring AI (Java) to support configurable \texttt{DistanceType} in \texttt{ChromaVectorStore}, enabling custom similarity metrics for vector search.}
+            [% for item in open_source %]
+            \resumeItem{[[ item | escape_latex ]]}
+            [% endfor %]
           \resumeItemListEnd
     \resumeSubHeadingListEnd
+[% endif %]
 
 %-----------PROJECTS-----------
+[% if projects %]
 \section{Projects}
     \vspace{-5pt}
     \resumeSubHeadingListStart
-
-\resumeProjectHeading
-  {\textbf{\href{https://github.com/dineshthumma9/nexusgpt}{NexusGPT}} $|$ \emph{FastAPI, Celery, Redis, Qdrant, Neo4j, Docker, Caddy, AWS EC2, LangGraph, Tree-sitter, Sentry, LangSmith}}{}
-  \resumeItemListStart
-    \resumeItem{Architected a \textbf{distributed, containerized backend} -- FastAPI, Celery/Redis task workers, Qdrant, Neo4j, and Caddy as reverse proxy -- deployed on an AWS EC2 m7i.large instance with Gunicorn and uvloop, sustaining 400+ concurrent active sessions and 1,000+ requests per second (RPS).}
-    \resumeItem{Engineered a hybrid, multi-threaded concurrent ingestion pipeline that extracts a universal AST baseline via Tree-sitter and dynamically applies a high-precision SCIP overlay via Docker-isolated indexers. Parsed the resulting Protobuf schemas to securely replace heuristic edges with exact global symbol resolution and call graphs.}
-    \resumeItem{Designed an Agentic Dual-RAG reasoning engine synthesizing structural codebase dependency graphs (Neo4j) with semantic vector spaces (Qdrant), implementing synchronization barriers for parallel cross-service writes and keeping end-to-end repository indexing under 30 seconds.}
-    \resumeItem{Instrumented the distributed pipeline with \textbf{Sentry} for production error monitoring and \textbf{LangSmith} for trace-level observability across agent and ingestion workflows, enabling root-cause debugging of multi-step LLM failures.}
-    \resumeItem{Developed a real-time full-stack streaming architecture utilizing React, Zustand, and Redis-backed Server-Sent Events (SSE) to maintain low-latency token delivery and background task progress updates.}
-  \resumeItemListEnd
-  \vspace{-13pt}
-
-      \resumeProjectHeading
-          {\textbf{\href{https://github.com/DineshThumma9/devconnect-backend}{DevConnect}}  $|$ \emph{React, Spring Boot, Neo4j, MongoDB, Redis, WebSockets}}{}
-          \resumeItemListStart
-            \resumeItem{Developed a social networking and collaboration platform tailored for developers to connect, share projects, and collaborate.}
-            \resumeItem{Built the frontend using React with Zustand for global state management and Chakra UI for component styling, communicating with the backend via Axios.}
-            \resumeItem{Modeled social relationships in Neo4j for efficient graph-traversal recommendations. Layered a Redis caching layer over MongoDB to bypass redundant disk reads, reducing feed-retrieval latency by up to 90\% and optimizing data throughput.}
-            \resumeItem{Architected a dual-protocol communication layer utilizing WebSockets for real-time live feeds/notifications and REST APIs for standard CRUD operations.}
-          \resumeItemListEnd
-          \vspace{-13pt}
-
-      \resumeProjectHeading
-          {\textbf{\href{https://github.com/DineshThumma9/ResumeReworker}{Resume Reworker}} $|$ \emph{Streamlit, LangGraph, Groq, CloudConvert}}{}
-          \resumeItemListStart
-            \resumeItem{Created an AI-driven automated resume analysis and enhancement tool for job-fit scoring and tailored feedback.}
-            \resumeItem{Built a multi-stage evaluation pipeline using LangGraph state machines and Groq to perform semantic matching against job descriptions.}
-            \resumeItem{Automated the export process through LaTeX-based document generation integrated with CloudConvert for seamless PDF conversion, deploying the complete pipeline on Render.}
-          \resumeItemListEnd
-
+    [% for project in projects %]
+    \resumeProjectHeading
+      {\textbf{[% if project.link %]\href{[[ project.link ]]}{[[ project.name | escape_latex ]]}[% else %][[ project.name | escape_latex ]][% endif %]}[% if project.technologies %] $|$ \emph{[[ project.technologies | join(', ') | escape_latex ]]}[% endif %]}{[[ project.date | escape_latex ]]}
+      \resumeItemListStart
+        [% for bullet in project.highlights %]
+        \resumeItem{[[ bullet | escape_latex ]]}
+        [% endfor %]
+        [% if project.description and not project.highlights %]
+        \resumeItem{[[ project.description | escape_latex ]]}
+        [% endif %]
+      \resumeItemListEnd
+      \vspace{-13pt}
+    [% endfor %]
     \resumeSubHeadingListEnd
 \vspace{-15pt}
+[% endif %]
 
-
-%-----------COMPETITIVE PROGRAMMING-----------
-\section{Competitive Programming}
+[% if achivements %]
+%-----------ACHIEVEMENTS-----------
+\section{Achievements}
   \resumeSubHeadingListStart
-\resumeSubItem{\textbf{LeetCode}: 1,030+ problems solved; Top 12\% global contest rating.}  \resumeSubHeadingListEnd
-  \vspace{-10pt}
+    [% for item in achivements %]
+    \resumeSubItem{[[ item | escape_latex ]]}
+    [% endfor %]
+  \resumeSubHeadingListEnd
+[% endif %]
+
+[% if certifications %]
+%-----------CERTIFICATIONS-----------
+\section{Certifications}
+  \resumeSubHeadingListStart
+    [% for cert in certifications %]
+    \resumeSubItem{[[ cert | escape_latex ]]}
+    [% endfor %]
+  \resumeSubHeadingListEnd
+[% endif %]
+
+[% if hackathons %]
+%-----------HACKATHONS-----------
+\section{Hackathons}
+  \resumeSubHeadingListStart
+    [% for item in hackathons %]
+    \resumeSubItem{[[ item | escape_latex ]]}
+    [% endfor %]
+  \resumeSubHeadingListEnd
+[% endif %]
+
+[% if extracircular_activities %]
+%-----------EXTRACURRICULAR-----------
+\section{Extracurricular Activities}
+  \resumeSubHeadingListStart
+    [% for item in extracircular_activities %]
+    \resumeSubItem{[[ item | escape_latex ]]}
+    [% endfor %]
+  \resumeSubHeadingListEnd
+[% endif %]
 
 \end{document}

@@ -1,7 +1,18 @@
 import { useState } from "react";
 import { useTheme } from "next-themes";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Sparkles, Folder, Palette, Sun, Moon, LogOut, Key, Menu, X, User } from "lucide-react";
+import {
+  Sparkles,
+  Folder,
+  Palette,
+  Sun,
+  Moon,
+  LogOut,
+  Key,
+  Menu,
+  X,
+  User,
+} from "lucide-react";
 import { authApi } from "../apis/auth";
 import { useAuthStore } from "../store/authStore";
 import { AnalyzeView } from "../views/AnalyzeView";
@@ -67,19 +78,39 @@ export function AppLayout() {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
-          <NavItem to="/analyze" icon={<Sparkles size={16} />} onClick={closeSidebar}>
+          <NavItem
+            to="/analyze"
+            icon={<Sparkles size={16} />}
+            onClick={closeSidebar}
+          >
             New Analysis
           </NavItem>
-          <NavItem to="/library" icon={<Folder size={16} />} onClick={closeSidebar}>
+          <NavItem
+            to="/library"
+            icon={<Folder size={16} />}
+            onClick={closeSidebar}
+          >
             My Library
           </NavItem>
-          <NavItem to="/templates" icon={<Palette size={16} />} onClick={closeSidebar}>
+          <NavItem
+            to="/templates"
+            icon={<Palette size={16} />}
+            onClick={closeSidebar}
+          >
             My Templates
           </NavItem>
-          <NavItem to="/apikeys" icon={<Key size={16} />} onClick={closeSidebar}>
+          <NavItem
+            to="/apikeys"
+            icon={<Key size={16} />}
+            onClick={closeSidebar}
+          >
             API Keys
           </NavItem>
-          <NavItem to="/profile" icon={<User size={16} />} onClick={closeSidebar}>
+          <NavItem
+            to="/profile"
+            icon={<User size={16} />}
+            onClick={closeSidebar}
+          >
             My Profile
           </NavItem>
         </nav>
@@ -120,10 +151,12 @@ export function AppLayout() {
           <div className="w-9" /> {/* Spacer to balance the layout */}
         </header>
 
-        <div className={`flex-1 flex flex-col min-h-0 h-full w-full ${location.pathname === '/analyze' ? '' : 'hidden'}`}>
+        <div
+          className={`flex-1 flex flex-col min-h-0 h-full w-full ${location.pathname === "/analyze" ? "" : "hidden"}`}
+        >
           <AnalyzeView />
         </div>
-        {location.pathname !== '/analyze' && (
+        {location.pathname !== "/analyze" && (
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}

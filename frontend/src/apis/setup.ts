@@ -50,7 +50,9 @@ export const modelSelection = async (model: string, provider: string) => {
   });
 };
 
-export const getCurrentModel = async (): Promise<{ provider: string; model: string }> => {
+export const getCurrentModel = async (): Promise<{
+  provider: string;
+  model: string;
+}> => {
   return await fetchJSON("/setup/current-model");
 };
-

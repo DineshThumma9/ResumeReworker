@@ -222,7 +222,9 @@ export function ProfileView() {
 
   const handleRemoveItem = (sectionId: string, itemId: string) => {
     setSections((prev) => {
-      const items = (prev[sectionId] || []).filter((item) => item.id !== itemId);
+      const items = (prev[sectionId] || []).filter(
+        (item) => item.id !== itemId,
+      );
       return {
         ...prev,
         [sectionId]: items,
@@ -234,7 +236,7 @@ export function ProfileView() {
     sectionId: string,
     itemId: string,
     field: keyof SectionItem,
-    val: string
+    val: string,
   ) => {
     setSections((prev) => {
       const items = (prev[sectionId] || []).map((item) => {
@@ -298,13 +300,19 @@ export function ProfileView() {
         <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 flex flex-col gap-3">
           <div className="flex items-center gap-2">
             <span className="text-lg">✨</span>
-            <h3 className="font-['EB_Garamond'] text-[20px] font-semibold text-foreground">Welcome to Resume Reworker!</h3>
+            <h3 className="font-['EB_Garamond'] text-[20px] font-semibold text-foreground">
+              Welcome to Resume Reworker!
+            </h3>
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Let's set up your contact links. Providing these now helps the AI automatically format, inject, and hyperlink them (like GitHub or LinkedIn) on your tailored resumes—even if they are missing from your uploaded files.
+            Let's set up your contact links. Providing these now helps the AI
+            automatically format, inject, and hyperlink them (like GitHub or
+            LinkedIn) on your tailored resumes—even if they are missing from
+            your uploaded files.
           </p>
           <p className="text-[11px] text-muted-foreground/80 italic">
-            This setup is optional. You can fill out as much or as little as you like, or skip it entirely.
+            This setup is optional. You can fill out as much or as little as you
+            like, or skip it entirely.
           </p>
         </div>
       )}
@@ -319,18 +327,58 @@ export function ProfileView() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
             {[
-              { id: "name", label: "Full Name", val: name, set: setName, required: true, ph: "e.g. John Doe" },
-              { id: "phone", label: "Phone", val: phone, set: setPhone, ph: "e.g. (555) 019-2834" },
-              { id: "location", label: "Location", val: location, set: setLocation, ph: "e.g. San Francisco, CA" },
-              { id: "github", label: "GitHub URL", val: github, set: setGithub, ph: "e.g. github.com/username" },
-              { id: "linkedin", label: "LinkedIn URL", val: linkedin, set: setLinkedin, ph: "e.g. linkedin.com/in/username" },
-              { id: "website", label: "Website", val: website, set: setWebsite, ph: "e.g. portfolio.com" },
+              {
+                id: "name",
+                label: "Full Name",
+                val: name,
+                set: setName,
+                required: true,
+                ph: "e.g. John Doe",
+              },
+              {
+                id: "phone",
+                label: "Phone",
+                val: phone,
+                set: setPhone,
+                ph: "e.g. (555) 019-2834",
+              },
+              {
+                id: "location",
+                label: "Location",
+                val: location,
+                set: setLocation,
+                ph: "e.g. San Francisco, CA",
+              },
+              {
+                id: "github",
+                label: "GitHub URL",
+                val: github,
+                set: setGithub,
+                ph: "e.g. github.com/username",
+              },
+              {
+                id: "linkedin",
+                label: "LinkedIn URL",
+                val: linkedin,
+                set: setLinkedin,
+                ph: "e.g. linkedin.com/in/username",
+              },
+              {
+                id: "website",
+                label: "Website",
+                val: website,
+                set: setWebsite,
+                ph: "e.g. portfolio.com",
+              },
             ].map((f) => (
               <div key={f.id} className="flex items-baseline gap-2">
                 <span className="font-['EB_Garamond'] text-[16px] font-medium text-foreground whitespace-nowrap w-[90px]">
-                  {f.label} {f.required && <span className="text-red-500">*</span>}
+                  {f.label}{" "}
+                  {f.required && <span className="text-red-500">*</span>}
                 </span>
-                <span className="font-['EB_Garamond'] text-[16px] text-muted-foreground shrink-0">:</span>
+                <span className="font-['EB_Garamond'] text-[16px] text-muted-foreground shrink-0">
+                  :
+                </span>
                 <input
                   type="text"
                   placeholder={f.ph}
@@ -360,7 +408,7 @@ export function ProfileView() {
                 <Plus size={14} />
                 Add Section
               </button>
-              
+
               {showAddMenu && (
                 <div className="absolute right-0 mt-2 z-50 w-48 bg-background border border-border rounded-lg shadow-lg py-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
                   {getUnusedSections().length === 0 ? (
@@ -389,20 +437,29 @@ export function ProfileView() {
           <div className="flex flex-col gap-10 mt-2 w-full">
             {Object.keys(sections).length === 0 ? (
               <div className="py-12 border border-dashed border-border rounded-xl text-center flex flex-col items-center justify-center gap-2">
-                <p className="text-sm font-semibold text-muted-foreground">No sections configured</p>
+                <p className="text-sm font-semibold text-muted-foreground">
+                  No sections configured
+                </p>
                 <p className="text-xs text-muted-foreground/80 max-w-md">
-                  Click "Add Section" above to start building your professional profile details.
+                  Click "Add Section" above to start building your professional
+                  profile details.
                 </p>
               </div>
             ) : (
               Object.keys(sections).map((key) => {
-                const label = AVAILABLE_SECTIONS.find((s) => s.id === key)?.label || key;
+                const label =
+                  AVAILABLE_SECTIONS.find((s) => s.id === key)?.label || key;
                 const fieldsConfig = SECTION_FIELDS[key] || {};
-                const activeFieldKeys = Object.keys(fieldsConfig).filter((k) => k !== "description") as Array<keyof SectionItem>;
+                const activeFieldKeys = Object.keys(fieldsConfig).filter(
+                  (k) => k !== "description",
+                ) as Array<keyof SectionItem>;
                 const items = sections[key] || [];
 
                 return (
-                  <div key={key} className="flex flex-col gap-4 border-b border-border pb-8 last:border-b-0 last:pb-0 animate-in fade-in duration-200">
+                  <div
+                    key={key}
+                    className="flex flex-col gap-4 border-b border-border pb-8 last:border-b-0 last:pb-0 animate-in fade-in duration-200"
+                  >
                     <div className="flex justify-between items-center">
                       <span className="font-['EB_Garamond'] text-[19px] font-semibold text-foreground tracking-wide uppercase">
                         {label}
@@ -415,7 +472,9 @@ export function ProfileView() {
                         >
                           <Plus size={12} /> Add Item
                         </button>
-                        <span className="text-muted-foreground/40 font-light">|</span>
+                        <span className="text-muted-foreground/40 font-light">
+                          |
+                        </span>
                         <button
                           type="button"
                           onClick={() => handleRemoveSection(key)}
@@ -429,7 +488,9 @@ export function ProfileView() {
 
                     <div className="flex flex-col gap-6">
                       {items.length === 0 ? (
-                        <p className="text-xs text-muted-foreground italic pl-2">No entries added. Click "Add Item" to add one.</p>
+                        <p className="text-xs text-muted-foreground italic pl-2">
+                          No entries added. Click "Add Item" to add one.
+                        </p>
                       ) : (
                         items.map((item) => (
                           <div
@@ -450,18 +511,33 @@ export function ProfileView() {
                             {activeFieldKeys.length > 0 && (
                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 pr-6">
                                 {activeFieldKeys.map((fKey) => {
-                                  const fieldLabel = fieldsConfig[fKey as keyof typeof fieldsConfig];
+                                  const fieldLabel =
+                                    fieldsConfig[
+                                      fKey as keyof typeof fieldsConfig
+                                    ];
                                   return (
-                                    <div key={fKey} className="flex items-baseline gap-2">
+                                    <div
+                                      key={fKey}
+                                      className="flex items-baseline gap-2"
+                                    >
                                       <span className="font-['EB_Garamond'] text-[15px] font-medium text-foreground whitespace-nowrap w-[90px] shrink-0">
                                         {fieldLabel}
                                       </span>
-                                      <span className="font-['EB_Garamond'] text-[15px] text-muted-foreground shrink-0">:</span>
+                                      <span className="font-['EB_Garamond'] text-[15px] text-muted-foreground shrink-0">
+                                        :
+                                      </span>
                                       <input
                                         type="text"
                                         placeholder={`Enter ${fieldLabel?.toLowerCase()}`}
                                         value={item[fKey] || ""}
-                                        onChange={(e) => handleFieldChange(key, item.id, fKey, e.target.value)}
+                                        onChange={(e) =>
+                                          handleFieldChange(
+                                            key,
+                                            item.id,
+                                            fKey,
+                                            e.target.value,
+                                          )
+                                        }
                                         className="font-sans text-xs border-0 border-b border-border bg-transparent text-foreground placeholder:text-muted-foreground/30 placeholder:text-[10px] py-1 outline-none w-full focus:border-primary transition-colors"
                                       />
                                     </div>
@@ -479,7 +555,14 @@ export function ProfileView() {
                                 <textarea
                                   placeholder={`Detail your ${label.toLowerCase()} details here...`}
                                   value={item.description || ""}
-                                  onChange={(e) => handleFieldChange(key, item.id, "description", e.target.value)}
+                                  onChange={(e) =>
+                                    handleFieldChange(
+                                      key,
+                                      item.id,
+                                      "description",
+                                      e.target.value,
+                                    )
+                                  }
                                   className="w-full min-h-[80px] font-sans text-xs leading-relaxed p-3 bg-background dark:bg-background/50 border border-border rounded-lg outline-none focus:border-primary transition-colors resize-y"
                                 />
                               </div>

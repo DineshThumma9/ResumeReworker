@@ -12,7 +12,6 @@
  *      You never manually write a `type Resume = { ... }` again.
  */
 
-
 export * from "./resumes";
 export * from "./templates";
 export * from "./share";

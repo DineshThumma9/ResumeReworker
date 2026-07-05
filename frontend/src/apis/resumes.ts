@@ -1,10 +1,16 @@
-import { fetchJSON, parse, ResumeSchema, type Resume, type AnalyzeEvent } from "./api";
+import {
+  fetchJSON,
+  parse,
+  ResumeSchema,
+  type Resume,
+  type AnalyzeEvent,
+} from "./api";
 import { useAuthStore } from "../store/authStore";
 
 export const resumeApi = {
   list: async (): Promise<Resume[]> => {
     const raw = await fetchJSON("/resumes");
-    return parse(ResumeSchema.array(), raw);
+    return parse(ResumeSchema.array(), raw.resumes);
   },
   get: async (id: number): Promise<Resume> => {
     const raw = await fetchJSON(`/resumes/${id}`);
@@ -13,38 +19,55 @@ export const resumeApi = {
   delete: async (id: number): Promise<void> => {
     await fetchJSON(`/resumes/${id}`, { method: "DELETE" });
   },
-  compile: async (latexCode: string, resumeId?: number | null): Promise<{ pdfUrl: string }> => {
+  compile: async (
+    latexCode: string,
+    resumeId?: number | null,
+  ): Promise<{ pdfUrl: string }> => {
     const raw = await fetchJSON("/resumes/compile", {
       method: "POST",
-      body: JSON.stringify({ latex_code: latexCode, id: resumeId })
+      body: JSON.stringify({ latex_code: latexCode, id: resumeId }),
     });
     return { pdfUrl: raw.pdf_url || raw.pdfUrl };
   },
   create: async (label: string, latexCode: string): Promise<Resume> => {
     const raw = await fetchJSON("/resumes", {
       method: "POST",
-      body: JSON.stringify({ label, tex_source: latexCode })
+      body: JSON.stringify({ label, tex_source: latexCode }),
     });
     return parse(ResumeSchema, raw);
   },
-  update: async (id: number, label: string, latexCode: string): Promise<Resume> => {
+  update: async (
+    id: number,
+    label: string,
+    latexCode: string,
+  ): Promise<Resume> => {
     const raw = await fetchJSON(`/resumes/${id}`, {
       method: "PUT",
-      body: JSON.stringify({ label, tex_source: latexCode })
+      body: JSON.stringify({ label, tex_source: latexCode }),
+    });
+    return parse(ResumeSchema, raw);
+  },
+  rename: async (id: number, label: string): Promise<Resume> => {
+    const raw = await fetchJSON(`/resumes/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ label }),
     });
     return parse(ResumeSchema, raw);
   },
   render: async (id: number, templateId: string): Promise<Resume> => {
-    const raw = await fetchJSON(`/resumes/${id}/render?template_id=${templateId}`, {
-      method: "PUT"
-    });
+    const raw = await fetchJSON(
+      `/resumes/${id}/render?template_id=${templateId}`,
+      {
+        method: "PUT",
+      },
+    );
     return parse(ResumeSchema, raw);
   },
 };
 
 export const analyzeResume = async (
   formData: FormData,
-  onEvent: (event: AnalyzeEvent) => void
+  onEvent: (event: AnalyzeEvent) => void,
 ) => {
   const token = useAuthStore.getState().token;
   const headers: Record<string, string> = {};
@@ -52,19 +75,43 @@ export const analyzeResume = async (
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch("http://localhost:8000/api/resumes/analyze", {
-    method: "POST",
-    body: formData,
-    headers,
-  });
+  let res: Response;
+  try {
+    res = await fetch("http://localhost:8000/api/resumes/analyze", {
+      method: "POST",
+      body: formData,
+      headers,
+    });
+  } catch (err) {
+    if (err instanceof TypeError) {
+      throw new Error(
+        "Cannot reach the server. Please check that the backend is running and try again.",
+      );
+    }
+    throw err;
+  }
   if (!res.ok) {
     let msg = res.statusText;
     try {
       const errData = await res.json();
       if (errData.detail) {
-        msg = typeof errData.detail === "string" ? errData.detail : JSON.stringify(errData.detail);
+        msg =
+          typeof errData.detail === "string"
+            ? errData.detail
+            : JSON.stringify(errData.detail);
       }
     } catch (e) {}
+    // Map common HTTP status codes to user-friendly messages
+    if (res.status === 401)
+      msg = `Unauthorized: ${msg || "Please log in again."}`;
+    else if (res.status === 402)
+      msg = `Payment required: ${msg || "Check your billing settings."}`;
+    else if (res.status === 429)
+      msg = `Rate limit exceeded. Please wait and try again.`;
+    else if (res.status === 500)
+      msg = `Server error (500). Please try again later.`;
+    else if (res.status === 503)
+      msg = `Service unavailable. The server may be overloaded.`;
     throw new Error(msg || `Request failed with status ${res.status}`);
   }
   if (!res.body) throw new Error("No body returned");

@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta, timezone
 
+import bcrypt
 import httpx
 from jose import JWTError, jwt
-import bcrypt
-from .config import  settings
+
+from .config import settings
 
 
 def hash_password(plain: str) -> str:

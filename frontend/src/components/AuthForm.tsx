@@ -37,19 +37,51 @@ export function AuthForm({
     }
   };
 
-  const displayName = mode === "signup" ? (name.trim() || "John Doe") : "Welcome Back";
+  const displayName =
+    mode === "signup" ? name.trim() || "John Doe" : "Welcome Back";
   const displayEmail = email.trim() || "john.doe@email.com";
 
-  const fields = mode === "signup"
-    ? [
-        { lbl: "Full Name", type: "text", ph: "Dinesh Thumma", val: name, set: setName },
-        { lbl: "Email", type: "email", ph: "you@example.com", val: email, set: setEmail },
-        { lbl: "Password", type: "password", ph: "At least 8 characters", val: password, set: setPassword },
-      ]
-    : [
-        { lbl: "Email", type: "email", ph: "you@example.com", val: email, set: setEmail },
-        { lbl: "Password", type: "password", ph: "••••••••", val: password, set: setPassword },
-      ];
+  const fields =
+    mode === "signup"
+      ? [
+          {
+            lbl: "Full Name",
+            type: "text",
+            ph: "Dinesh Thumma",
+            val: name,
+            set: setName,
+          },
+          {
+            lbl: "Email",
+            type: "email",
+            ph: "you@example.com",
+            val: email,
+            set: setEmail,
+          },
+          {
+            lbl: "Password",
+            type: "password",
+            ph: "At least 8 characters",
+            val: password,
+            set: setPassword,
+          },
+        ]
+      : [
+          {
+            lbl: "Email",
+            type: "email",
+            ph: "you@example.com",
+            val: email,
+            set: setEmail,
+          },
+          {
+            lbl: "Password",
+            type: "password",
+            ph: "••••••••",
+            val: password,
+            set: setPassword,
+          },
+        ];
 
   return (
     <form onSubmit={handleSubmit} className="contents">
@@ -89,7 +121,9 @@ export function AuthForm({
       ))}
 
       {error && (
-        <div className="text-red-500 text-[11px] text-center mb-2 font-sans">{error}</div>
+        <div className="text-red-500 text-[11px] text-center mb-2 font-sans">
+          {error}
+        </div>
       )}
 
       <hr className="border-t-[0.5px] border-[#e8e8e8] my-3" />
@@ -125,7 +159,11 @@ export function AuthForm({
           tracking-widest uppercase border-[1.5px] border-[#1a1a1a] rounded py-3 cursor-pointer
           hover:bg-[#607456] hover:text-white hover:border-[#607456] transition-all duration-150 disabled:opacity-50"
       >
-        {loading ? "Loading..." : (mode === "signup" ? "Submit Application" : "Sign In")}
+        {loading
+          ? "Loading..."
+          : mode === "signup"
+            ? "Submit Application"
+            : "Sign In"}
       </button>
 
       <p className="font-sans text-[9px] text-[#ccc] text-center mt-4 leading-[1.7]">
@@ -141,7 +179,7 @@ export function AuthForm({
         <br />
         We never store passwords in plain text.
       </p>
-      
+
       <p className="font-sans text-[11px] text-[#aaa] text-center mt-2">
         {mode === "signup" ? (
           <>

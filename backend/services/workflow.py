@@ -1,14 +1,17 @@
-import requests
-from typing import Any
+import base64
+import logging
+import subprocess
+
+import cloudconvert
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, SystemMessage
-from langgraph.constants import START, END
+from langgraph.constants import END, START
 from langgraph.graph import StateGraph
-from utils.prompts import resume_analysis_prompt, rewrite_content_prompt
-from schemas.schema import ResumeAnalysis, RewriteResume, ResumeState
-import cloudconvert
+
 from core.config import settings
-import logging
+from schemas.schema import ResumeAnalysis, ResumeState, RewriteResume
+from services.renderer import render_resume_template, render_resume_template_from_string
+from utils.prompts import resume_analysis_prompt, rewrite_content_prompt, extract_details_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -40,16 +43,18 @@ class ResumeWorkflowService:
                 yield full_key, value
 
     async def match_jd(self, state: ResumeState):
-        jd = state['jd']
-        resume = state['resume']
-        
+        jd = state["jd"]  # type: ignore
+        resume = state["resume"]  # type: ignore
+
         messages = [
             SystemMessage(content=resume_analysis_prompt),
-            HumanMessage(content=f"Job Description:\n{jd}\n\nCandidate Resume:\n{resume}"),
+            HumanMessage(
+                content=f"Job Description:\n{jd}\n\nCandidate Resume:\n{resume}"
+            ),
         ]
 
         try:
-            provider = state['provider']
+            provider = state["provider"]  # type: ignore
             provider_keys = {
                 "openai": settings.openai_api_key,
                 "anthropic": settings.anthropic_api_key,
@@ -59,72 +64,113 @@ class ResumeWorkflowService:
                 "openrouter": settings.openrouter_api_key,
                 "huggingface": settings.huggingface_api_key,
             }
-            api_key = state.get('api_key') or provider_keys.get(provider)
+            api_key = state.get("api_key") or provider_keys.get(provider)
             llm_kwargs = {}
             if api_key:
                 llm_kwargs["api_key"] = api_key
-            llm = init_chat_model(state['model'], model_provider=provider, **llm_kwargs)
+            llm = init_chat_model(state["model"], model_provider=provider, **llm_kwargs)  # type: ignore
             structured_llm = llm.with_structured_output(ResumeAnalysis)
-            
+
             response = await structured_llm.ainvoke(messages)
-            
+
             if response is None:
                 return {**state, "analysis": None}
-            
+
             analysis = response.model_dump()
         except Exception as e:
             logger.exception(f"Error in match_jd node: {e}")
             return {**state, "analysis": None}
 
-        return {
-            **state,
-            "analysis": analysis
+        return {**state, "analysis": analysis}
+
+    async def _get_llm(self, state: "ResumeState"):
+        """Helper: build the LLM instance from state config."""
+        provider = state["provider"]  # type: ignore
+        provider_keys = {
+            "openai": settings.openai_api_key,
+            "anthropic": settings.anthropic_api_key,
+            "google_genai": settings.google_api_key,
+            "groq": settings.groq_api_key,
+            "mistralai": settings.mistral_api_key,
+            "openrouter": settings.openrouter_api_key,
+            "huggingface": settings.huggingface_api_key,
         }
+        api_key = state.get("api_key") or provider_keys.get(provider)
+        llm_kwargs = {}
+        if api_key:
+            llm_kwargs["api_key"] = api_key
+        return init_chat_model(state["model"], model_provider=provider, **llm_kwargs)  # type: ignore
 
-    async def rewrite_resume(self, state: ResumeState):
-        resume = state['resume']
-        jd = state['jd']
-        tone = state['tone']
-        exclude_sections = [sec for sec, sec_val in state.get('exclude_sections', {}).items() if sec_val]
+    async def rewrite_resume(self, state: "ResumeState"):
+        resume = state["resume"]  # type: ignore
+        jd = state["jd"]  # type: ignore
+        tone = state["tone"]  # type: ignore
+        exclude_sections = [
+            sec for sec, sec_val in state.get("exclude_sections", {}).items() if sec_val
+        ]
 
-        if state.get('analysis') is None:
+        if state.get("analysis") is None:
             return {**state, "changes_content": None}
-        
+
         try:
-            analysis = state['analysis']
+            analysis = state["analysis"]  # type: ignore
             if not isinstance(analysis, dict):
-                analysis = analysis.model_dump()
-                
-            provider = state['provider']
-            provider_keys = {
-                "openai": settings.openai_api_key,
-                "anthropic": settings.anthropic_api_key,
-                "google_genai": settings.google_api_key,
-                "groq": settings.groq_api_key,
-                "mistralai": settings.mistral_api_key,
-                "openrouter": settings.openrouter_api_key,
-                "huggingface": settings.huggingface_api_key,
-            }
-            api_key = state.get('api_key') or provider_keys.get(provider)
-            llm_kwargs = {}
-            if api_key:
-                llm_kwargs["api_key"] = api_key
-            llm = init_chat_model(state['model'], model_provider=provider, **llm_kwargs)
+                analysis = analysis.model_dump()  # type: ignore
+
+            llm = await self._get_llm(state)
+
+            # ── Call 1: Extract personal details + links only ────────────────
+            # Small, focused schema → models handle it reliably every time
+            details_obj = None
+            try:
+                from schemas.schema import Details
+                details_llm = llm.with_structured_output(Details)
+                details_messages = [
+                    SystemMessage(content=extract_details_prompt),
+                    HumanMessage(
+                        content=f"Resume text:\n{resume}"
+                    ),
+                ]
+                details_obj = await details_llm.ainvoke(details_messages)
+            except Exception as details_err:
+                logger.warning(f"Details extraction failed (will rely on validator fallback): {details_err}")
+
+            # ── Call 2: Rewrite full content ─────────────────────────────────
             structured_llm = llm.with_structured_output(RewriteResume)
+
+            # If Call 1 succeeded, tell the model the links are already known
+            details_hint = ""
+            if details_obj:
+                details_hint = (
+                    f"\n\n[PRE-EXTRACTED CONTACT INFO — copy these exactly into profile_links, do not change]\n"
+                    f"Name: {details_obj.name}\n"
+                    f"Links: {details_obj.profile_links}\n"
+                )
+
             messages = [
                 SystemMessage(content=rewrite_content_prompt),
-                HumanMessage(content=f"Job Description:\n{jd}\n\nCandidate Resume:\n{resume}\n\nAnalysis Report:\n{analysis}tone:{tone}\nDon't generate content for Exclude Sections:{exclude_sections}\n"),
+                HumanMessage(
+                    content=(
+                        f"Job Description:\n{jd}\n\n"
+                        f"Candidate Resume:\n{resume}"
+                        f"{details_hint}\n\n"
+                        f"Analysis Report:\n{analysis}\n"
+                        f"Tone: {tone}\n"
+                        f"Exclude Sections: {exclude_sections}\n"
+                    )
+                ),
             ]
-            
+
             response = await structured_llm.ainvoke(messages)
-            
+
             if response is None:
                 return {**state, "changes_content": None}
-            
-            return {
-                **state,
-                "changes_content": response
-            }
+
+            # If the response has empty profile_links but Call 1 gave us links, merge them
+            if details_obj and not response.details.profile_links:
+                response.details.profile_links = details_obj.profile_links
+
+            return {**state, "changes_content": response}
         except Exception as e:
             logger.exception(f"Error in rewrite_resume node: {e}")
             return {**state, "changes_content": None}
@@ -163,17 +209,17 @@ class ResumeWorkflowService:
     #         tex_path = os.path.join(tmpdir, "resume.tex")
     #         with open(tex_path, "w", encoding="utf-8") as f:
     #             f.write(latex_string)
-    #         
+    #
     #         # Run pdflatex command locally
     #         result = subprocess.run(
     #             ["pdflatex", "-interaction=nonstopmode", "-output-directory", tmpdir, tex_path],
     #             capture_output=True
     #         )
-    #         
+    #
     #         pdf_path = os.path.join(tmpdir, "resume.pdf")
     #         if not os.path.exists(pdf_path):
     #             raise Exception(f"Local compilation failed: {result.stderr.decode('utf-8', errors='ignore')}")
-    #         
+    #
     #         with open(pdf_path, "rb") as f:
     #             return f.read()
 
@@ -217,7 +263,7 @@ class ResumeWorkflowService:
     #             if task.get("operation") == "export/url" and task.get("status") == "finished":
     #                 export_task = task
     #                 break
-    #         
+    #
     #         if export_task is None:
     #             failed_tasks = [task for task in job.get("tasks", []) if task.get("status") == "error"]
     #             if failed_tasks:
@@ -230,10 +276,10 @@ class ResumeWorkflowService:
     #         if not export_task.get("result") or not export_task["result"].get("files"):
     #             error_msg = "No files found in export task result"
     #             raise Exception(error_msg)
-    #         
+    #
     #         file_info = export_task["result"]["files"][0]
     #         download_url = file_info["url"]
-    #         
+    #
     #         try:
     #             import httpx
     #             client = httpx.AsyncClient()
@@ -252,13 +298,13 @@ class ResumeWorkflowService:
     #
     #         if not pdf_bytes or len(pdf_bytes) < 100:
     #             raise Exception("Downloaded PDF is empty or too small")
-    #         
+    #
     #         if not pdf_bytes.startswith(b'%PDF'):
     #             raise Exception("Downloaded file is not a valid PDF")
-    #         
+    #
     #         if not pdf_bytes.rstrip().endswith(b'%%EOF'):
     #             raise Exception("Downloaded PDF is incomplete or missing EOF marker")
-    #         
+    #
     #         return pdf_bytes
     #
     #     except Exception as e:
@@ -269,8 +315,7 @@ class ResumeWorkflowService:
         """
         Compile LaTeX locally using a container compiler (tries Docker first, falls back to Podman).
         """
-        import subprocess
-        
+
         cmd = ["docker", "run", "-i", "--rm", "latex-compiler"]
         try:
             # Check if docker command is available
@@ -284,11 +329,13 @@ class ResumeWorkflowService:
                 cmd,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+                stderr=subprocess.PIPE,
             )
-            pdf_bytes, stderr = process.communicate(input=latex_string.encode('utf-8'))
+            pdf_bytes, stderr = process.communicate(input=latex_string.encode("utf-8"))
             if process.returncode != 0:
-                raise Exception(f"Container compilation error: {stderr.decode('utf-8', errors='ignore')}")
+                raise Exception(
+                    f"Container compilation error: {stderr.decode('utf-8', errors='ignore')}"
+                )
             return pdf_bytes
         except Exception as e:
             raise Exception(f"Local container compilation failed: {e}")
@@ -296,52 +343,50 @@ class ResumeWorkflowService:
     async def rewrite_latex(self, state: ResumeState):
         suggesting_changes = state.get("changes_content")
         exclude_sections = state.get("exclude_sections", {})
-        
+
         if suggesting_changes is None:
             return {**state, "latex_code": "Error: No resume content to convert"}
 
         try:
-            # IMPORTANT: Make sure services.renderer exists
-            from services.renderer import render_resume_template, render_resume_template_from_string
-            
             # Convert schema to dict
             data_dict = suggesting_changes.model_dump()
-            
+
             # Apply exclude_sections logic by removing keys
             if exclude_sections:
                 for section in exclude_sections:
                     if section in data_dict:
                         data_dict[section] = None
-                        
+
             template_source = state.get("template_source")
             if template_source and template_source.strip():
-                latex_code = render_resume_template_from_string(template_source, data_dict)
+                latex_code = render_resume_template_from_string(
+                    template_source, data_dict
+                )
             else:
                 latex_code = render_resume_template("jakes1.tex", data_dict)
 
             try:
-                filename = f"{suggesting_changes.details.name.replace(' ', '_')}_resume.pdf"
+                filename = (
+                    f"{suggesting_changes.details.name.replace(' ', '_')}_resume.pdf"
+                )
                 pdf_bytes = await self.latex_to_pdf(latex_code, filename)
-                
+
                 if not pdf_bytes or len(pdf_bytes) < 100:
                     return {**state, "latex_code": latex_code}
-                    
-                import base64
+
                 pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
-                return {**state, "latex_code": latex_code, "pdf_base64": f"data:application/pdf;base64,{pdf_base64}"}
-                
+                return {
+                    **state,
+                    "latex_code": latex_code,
+                    "pdf_base64": f"data:application/pdf;base64,{pdf_base64}",
+                }
+
             except Exception as pdf_error:
                 return {**state, "latex_code": latex_code, "error": str(pdf_error)}
 
         except Exception as e:
-            return {**state, "latex_code": "Error: Failed to generate LaTeX template", "error": str(e)}
-
-
-
-
-
-
-
-
-
-
+            return {
+                **state,
+                "latex_code": "Error: Failed to generate LaTeX template",
+                "error": str(e),
+            }

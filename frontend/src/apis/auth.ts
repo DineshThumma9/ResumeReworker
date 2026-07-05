@@ -28,7 +28,9 @@ export const authApi = {
   getProfile: async (): Promise<UserProfile> => {
     return await fetchJSON("/auth/profile");
   },
-  updateProfile: async (profile: Omit<UserProfile, "id" | "username">): Promise<UserProfile> => {
+  updateProfile: async (
+    profile: Omit<UserProfile, "id" | "username">,
+  ): Promise<UserProfile> => {
     return await fetchJSON("/auth/profile", {
       method: "PUT",
       body: JSON.stringify(profile),

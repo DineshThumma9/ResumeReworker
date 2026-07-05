@@ -40,11 +40,45 @@ export const AnalyzeEventSchema = z.discriminatedUnion("event", [
     analysis: ResumeAnalysisSchema.optional(),
   }),
   z.object({
+    event: z.literal("analysis_score"),
+    score: z.number().optional(),
+    match: z.boolean().optional(),
+    company: z.string().optional(),
+    urgency: z.string().nullable().optional(),
+  }),
+  z.object({
+    event: z.literal("analysis_quality"),
+    text: z.string(),
+  }),
+  z.object({
+    event: z.literal("analysis_explanation"),
+    text: z.string(),
+  }),
+  z.object({
+    event: z.literal("analysis_keyword"),
+    keyword: z.string(),
+  }),
+  z.object({
+    event: z.literal("analysis_negative"),
+    text: z.string(),
+  }),
+  z.object({
+    event: z.literal("analysis_improvement"),
+    text: z.string(),
+  }),
+  z.object({
+    event: z.literal("analysis_done"),
+    step: z.string(),
+    message: z.string(),
+  }),
+  z.object({
     event: z.literal("complete"),
     message: z.string(),
     latexCode: z.string().optional(),
     pdfUrl: z.string().optional(),
     resumeId: z.number().optional(),
+    label: z.string().optional(),
+    error: z.string().optional(), // LaTeX compile or upstream error surfaced in complete event
   }),
   z.object({
     event: z.literal("error"),

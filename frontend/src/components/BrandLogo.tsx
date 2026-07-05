@@ -1,4 +1,3 @@
-
 export function BrandLogo({ large = false }: { large?: boolean }) {
   return (
     <div className="leading-none select-none">

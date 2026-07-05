@@ -1,7 +1,9 @@
-from pydantic import BaseModel, Field
-from typing import Any, Dict, List, Optional
-from typing_extensions import TypedDict
+import re
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field, model_serializer, model_validator
+from typing_extensions import TypedDict
 
 
 class ResumeAnalysis(BaseModel):
@@ -39,6 +41,45 @@ class ResumeAnalysis(BaseModel):
         description="Extract the target company name from the job description if present, otherwise default to 'Company'",
         default="Company",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def clean_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            # Clean potential_improvements
+            pi = data.get("potential_improvements")
+            if isinstance(pi, list):
+                cleaned = []
+                for item in pi:
+                    if isinstance(item, dict):
+                        val = (
+                            item.get("action")
+                            or item.get("improvement")
+                            or item.get("text")
+                            or (list(item.values())[0] if item.values() else "")
+                        )
+                        cleaned.append(str(val))
+                    else:
+                        cleaned.append(str(item))
+                data["potential_improvements"] = cleaned
+
+            # Clean negative_points
+            np = data.get("negative_points")
+            if isinstance(np, list):
+                cleaned = []
+                for item in np:
+                    if isinstance(item, dict):
+                        val = (
+                            item.get("point")
+                            or item.get("issue")
+                            or item.get("text")
+                            or (list(item.values())[0] if item.values() else "")
+                        )
+                        cleaned.append(str(val))
+                    else:
+                        cleaned.append(str(item))
+                data["negative_points"] = cleaned
+        return data
 
 
 class Project(BaseModel):
@@ -94,49 +135,183 @@ class Details(BaseModel):
     name: str = Field(description="Full name of the candidate")
     profile_summary: Optional[str] = Field(
         default="",
-        description="Professional summary/objective statement for the resume keep it short and simple and don't go overboard and write paragraphs",
-    )
-    contact: Optional[str] = Field(
-        default="",
-        description="Contact information as a single string (phone)",
-    )
-    email: Optional[str] = Field(
-        default="",
-        description="Email address",
-    )
-    linkedin: Optional[str] = Field(
-        default="",
-        description="LinkedIn profile URL",
-    )
-    leetcode: Optional[str] = Field(
-        default="",
-        description="LeetCode profile URL",
-    )
-    codechef: Optional[str] = Field(
-        default="",
-        description="CodeChef profile URL",
-    )
-    location: Optional[str] = Field(
-        default="",
-        description="Location of the candidate",
-    )
-    github: Optional[str] = Field(
-        default="",
-        description="GitHub profile URL",
-    )
-    portfolio: Optional[str] = Field(
-        default="",
-        description="Portfolio website URL",
+        description=(
+            "Professional summary/objective. Rewrite to be ATS-optimized and concise. "
+            "MUST be shorter than or equal to the original in word count. "
+            "Do NOT expand it into multiple sentences if the original was one sentence."
+        ),
     )
     profile_links: Dict[str, Optional[str]] = Field(
-        description="""Extract ALL personal contact details and professional profile links with their COMPLETE URLs as values and platform names as keys. 
-        Expected keys: phone, email, github, linkedin, leetcode, portfolio, website.
-        For URLs, include the full link (e.g., 'https://github.com/username', 'https://linkedin.com/in/username').
-        For email, include the full email address.
-        For phone, include the complete phone number.
-        Example: {"phone": "+1234567890", "email": "user@email.com", "github": "https://github.com/username", "linkedin": "https://linkedin.com/in/username"}""",
+        description=(
+            "ALL contact and profile links from the resume. "
+            "Keys MUST be: 'phone', 'email', 'github', 'linkedin', 'leetcode', "
+            "'codechef', 'portfolio', 'website', 'location'. "
+            "Values are FULL URLs or raw values (e.g., '+91XXXXXXXXXX', 'user@email.com', "
+            "'https://github.com/username'). "
+            "Scan the ENTIRE resume text for any github.com, linkedin.com, leetcode.com, "
+            "codechef.com, mailto:, http/https links, phone numbers, and email addresses. "
+            "If a field is not found, set it to null — do NOT omit the key. "
+            "NEVER leave this dict empty if the resume has any links or contact info."
+        ),
         default_factory=dict,
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def extract_links_fallback(cls, data: Any) -> Any:
+        """If LLM left profile_links empty/incomplete, regex-scan any raw text fields to fill gaps."""
+        if not isinstance(data, dict):
+            return data
+
+        links: Dict[str, Optional[str]] = data.get("profile_links") or {}
+
+        # Collect raw text to scan (from any field that might contain resume text)
+        raw_text = " ".join(
+            str(v) for v in data.values() if isinstance(v, str)
+        )
+
+        def _first(pattern: str, text: str) -> Optional[str]:
+            m = re.search(pattern, text, re.IGNORECASE)
+            return m.group(0) if m else None
+
+        # GitHub
+        if not links.get("github"):
+            gh = _first(r"https?://(?:www\.)?github\.com/[\w\-\.]+(?:/[\w\-\.]*)*", raw_text)
+            if not gh:
+                # bare username form: github.com/username
+                gh = _first(r"github\.com/[\w\-\.]+", raw_text)
+                if gh:
+                    gh = "https://" + gh
+            if gh:
+                links["github"] = gh
+
+        # LinkedIn
+        if not links.get("linkedin"):
+            li = _first(r"https?://(?:www\.)?linkedin\.com/in/[\w\-\.]+(?:/[\w\-\.]*)*", raw_text)
+            if not li:
+                li = _first(r"linkedin\.com/in/[\w\-\.]+", raw_text)
+                if li:
+                    li = "https://" + li
+            if li:
+                links["linkedin"] = li
+
+        # LeetCode
+        if not links.get("leetcode"):
+            lc = _first(r"https?://(?:www\.)?leetcode\.com/[u/]?[\w\-\.]+", raw_text)
+            if not lc:
+                lc = _first(r"leetcode\.com/[u/]?[\w\-\.]+", raw_text)
+                if lc:
+                    lc = "https://" + lc
+            if lc:
+                links["leetcode"] = lc
+
+        # Email
+        if not links.get("email"):
+            email = _first(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}", raw_text)
+            if email:
+                links["email"] = email
+
+        # Phone — Indian (+91) and generic
+        if not links.get("phone"):
+            phone = _first(r"(?:\+91[\s\-]?)?[6-9]\d{9}|\+?\d[\d\s\-\.]{8,14}\d", raw_text)
+            if phone:
+                links["phone"] = phone.strip()
+
+        # Any other https:// link → portfolio/website
+        if not links.get("portfolio") and not links.get("website"):
+            other = _first(
+                r"https?://(?!(?:www\.)?(?:github|linkedin|leetcode|codechef)\.com)[\w\-\.]+\.[a-zA-Z]{2,}[\w\-\./\?\=\&\%]*",
+                raw_text,
+            )
+            if other:
+                links["website"] = other
+
+        data["profile_links"] = links
+        return data
+
+    @property
+    def contact(self) -> Optional[str]:
+        return self.profile_links.get("phone") or ""
+
+    @contact.setter
+    def contact(self, val: Optional[str]):
+        self.profile_links["phone"] = val
+
+    @property
+    def email(self) -> Optional[str]:
+        return self.profile_links.get("email") or ""
+
+    @email.setter
+    def email(self, val: Optional[str]):
+        self.profile_links["email"] = val
+
+    @property
+    def github(self) -> Optional[str]:
+        return self.profile_links.get("github") or ""
+
+    @github.setter
+    def github(self, val: Optional[str]):
+        self.profile_links["github"] = val
+
+    @property
+    def linkedin(self) -> Optional[str]:
+        return self.profile_links.get("linkedin") or ""
+
+    @linkedin.setter
+    def linkedin(self, val: Optional[str]):
+        self.profile_links["linkedin"] = val
+
+    @property
+    def leetcode(self) -> Optional[str]:
+        return self.profile_links.get("leetcode") or ""
+
+    @leetcode.setter
+    def leetcode(self, val: Optional[str]):
+        self.profile_links["leetcode"] = val
+
+    @property
+    def codechef(self) -> Optional[str]:
+        return self.profile_links.get("codechef") or ""
+
+    @codechef.setter
+    def codechef(self, val: Optional[str]):
+        self.profile_links["codechef"] = val
+
+    @property
+    def portfolio(self) -> Optional[str]:
+        return (
+            self.profile_links.get("portfolio")
+            or self.profile_links.get("website")
+            or ""
+        )
+
+    @portfolio.setter
+    def portfolio(self, val: Optional[str]):
+        self.profile_links["portfolio"] = val
+
+    @property
+    def location(self) -> Optional[str]:
+        return self.profile_links.get("location") or ""
+
+    @location.setter
+    def location(self, val: Optional[str]):
+        self.profile_links["location"] = val
+
+    @model_serializer
+    def serialize_model(self) -> Dict[str, Any]:
+        return {
+            "name": self.name,
+            "profile_summary": self.profile_summary,
+            "profile_links": self.profile_links,
+            "contact": self.contact,
+            "email": self.email,
+            "github": self.github,
+            "linkedin": self.linkedin,
+            "leetcode": self.leetcode,
+            "codechef": self.codechef,
+            "portfolio": self.portfolio,
+            "location": self.location,
+        }
 
 
 class RewriteResume(BaseModel):
@@ -170,12 +345,21 @@ class RewriteResume(BaseModel):
     )
 
     achivements: Optional[List[str]] = Field(
-        description="List of achievements, awards, and certifications as strings",
+        description=(
+            "Achievements, awards, competitive programming stats, and certifications. "
+            "Do NOT include open source contributions here — those go in open_source. "
+            "Do NOT include hackathons — those go in hackathons."
+        ),
         default=None,
     )
 
     open_source: Optional[List[str]] = Field(
-        description="List of open source projects and contributions as strings", default=None
+        description=(
+            "Open source contributions ONLY — merged PRs, filed issues, maintainer credits. "
+            "Each entry is one contribution as a string. "
+            "Do NOT include hackathons, certificates, or LeetCode stats here."
+        ),
+        default=None,
     )
 
     internships: Optional[List[Experience]] = Field(
@@ -194,6 +378,122 @@ class RewriteResume(BaseModel):
     extracircular_activities: Optional[List[str]] = Field(
         description="List of extracurricular activities as strings", default=None
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def clean_input(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        # 1. Clean technical_skills
+        if "technical_skills" in data and data["technical_skills"] is not None:
+            ts = data["technical_skills"]
+            if isinstance(ts, dict):
+                if "technical_skills" in ts:
+                    ts = ts["technical_skills"]
+                elif "skills" in ts:
+                    ts = ts["skills"]
+                else:
+                    # e.g. {"Languages": "Python, Java", "Frameworks": "React"}
+                    ts = [
+                        {
+                            "category": str(k),
+                            "skills": val if isinstance(val, list) else [str(val)],
+                        }
+                        for k, val in ts.items()
+                    ]
+
+            # Now, if ts is a list, clean each item if they are dicts with list values or strings
+            if isinstance(ts, list):
+                cleaned_ts = []
+                for item in ts:
+                    if isinstance(item, dict):
+                        category = item.get("category") or item.get("name") or ""
+                        skills = item.get("skills") or item.get("values") or []
+                        if isinstance(skills, str):
+                            skills = [s.strip() for s in skills.split(",") if s.strip()]
+                        elif not isinstance(skills, list):
+                            skills = [str(skills)]
+                        cleaned_ts.append(
+                            {
+                                "category": str(category),
+                                "skills": [str(s) for s in skills],
+                            }
+                        )
+                    else:
+                        # Fallback if item is just a string or list
+                        cleaned_ts.append({"category": "Skills", "skills": [str(item)]})
+                data["technical_skills"] = cleaned_ts
+
+        # 2. Clean list of strings fields
+        list_fields = [
+            "open_source",
+            "coursework",
+            "achivements",
+            "hackathons",
+            "certifications",
+            "extracircular_activities",
+        ]
+        for field in list_fields:
+            if field in data and data[field] is not None:
+                val = data[field]
+                # If it's a dictionary (like {"open_source": [...]})
+                if isinstance(val, dict):
+                    # Check if the field name is a key in the dict
+                    if field in val:
+                        val = val[field]
+                    else:
+                        for sub_val in val.values():
+                            if isinstance(sub_val, list):
+                                val = sub_val
+                                break
+                        else:
+                            val = list(val.values())
+
+                # If it is a list, clean its items to be strings
+                if isinstance(val, list):
+                    cleaned_list = []
+                    for item in val:
+                        if isinstance(item, dict):
+                            # Extract any string fields or list values
+                            name = (
+                                item.get("name")
+                                or item.get("title")
+                                or item.get("description")
+                                or item.get("project")
+                            )
+                            if name:
+                                cleaned_list.append(str(name))
+                            else:
+                                parts = []
+                                for sub_item_val in item.values():
+                                    if isinstance(sub_item_val, list):
+                                        parts.extend(str(x) for x in sub_item_val)
+                                    else:
+                                        parts.append(str(sub_item_val))
+                                cleaned_list.append(" - ".join(parts))
+                        elif isinstance(item, list):
+                            cleaned_list.append(", ".join(str(x) for x in item))
+                        else:
+                            cleaned_list.append(str(item))
+                    data[field] = cleaned_list
+                elif isinstance(val, str):
+                    data[field] = [val]
+
+        # Deduplicate open_source and achivements
+        if "open_source" in data and "achivements" in data:
+            os_items = data.get("open_source") or []
+            ach_items = data.get("achivements") or []
+            if os_items and ach_items:
+                # Remove any achievement that is also in open_source
+                os_set = {str(item).lower().strip() for item in os_items}
+                new_ach = []
+                for ach in ach_items:
+                    if str(ach).lower().strip() not in os_set:
+                        new_ach.append(ach)
+                data["achivements"] = new_ach
+
+        return data
 
 
 class SignupBody(BaseModel):
@@ -231,17 +531,8 @@ class ResumeOut(BaseModel):
         from_attributes = True
 
 
-# class ShareLinkOut(BaseModel):
-#     """POST /resumes/{id}/share — what we return after creating a share link."""
-
-#     token: str
-#     resume_id: int
-#     is_active: bool
-#     view_count: int
-
-
 class ResumeState(TypedDict, total=False):
-    jd: str  
+    jd: str
     resume: str
     analysis: Optional[Any]
     changes_content: Optional[Any]
@@ -253,9 +544,9 @@ class ResumeState(TypedDict, total=False):
     exclude_sections: Dict[str, bool]
     output_path: str
     pdf_base64: str
-    pdf_base64: str
     template_source: str
     template_id: Optional[int]
+    error: Optional[str]  # propagated from any node on failure
 
 
 class PaginatedResume(BaseModel):
@@ -303,9 +594,6 @@ class MaskDetails(BaseModel):
     company_name: Optional[bool] = True
 
 
-
-
-
 class API_KEY_REQUEST(BaseModel):
     api_provider: str
     api_key: str
@@ -344,3 +632,37 @@ class ResumeUpdate(BaseModel):
     label: Optional[str] = None
     tex_source: Optional[str] = None
     pdf_url: Optional[str] = None
+
+
+class ResumeCreate(BaseModel):
+    label: str
+    tex_source: str
+    jd_snippet: Optional[str] = None
+    template_id: Optional[int] = None
+    pdf_url: Optional[str] = None
+
+
+class CompileRequest(BaseModel):
+    latex_code: str
+    id: Optional[int] = None
+
+
+class BulletRewriteOutput(BaseModel):
+    id: str = Field(
+        description="The unique ID matching the input bullet point (e.g. 'exp_0_1')"
+    )
+    rewritten_text: str = Field(
+        description="Optimized, ATS-friendly text incorporating keywords naturally"
+    )
+
+
+class BatchedRewriteResponse(BaseModel):
+    rewritten_bullets: List[BulletRewriteOutput] = Field(default_factory=list)
+    rewritten_summary: Optional[str] = Field(
+        default=None,
+        description="Optimized profile summary/objective. Null if summary was not provided in input.",
+    )
+    optimized_skills: Optional[List[Skill]] = Field(
+        default=None,
+        description="Optimized skills list, keeping skills candidate actually has but aligning headers/keywords with JD. Null if not provided.",
+    )

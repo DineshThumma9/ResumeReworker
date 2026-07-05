@@ -24,7 +24,7 @@ cd backend || exit 1
 
 # Use uvx (uv tool) to run ruff (very fast python linter/formatter)
 # Fix auto-fixable lint errors
-uvx ruff check --fix .
+uvx ruff check --extend-select I --fix .
 # Format code
 uvx ruff format .
 

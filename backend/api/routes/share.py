@@ -1,5 +1,5 @@
-from typing import Annotated
 import json
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,10 +7,10 @@ from sqlmodel import select
 
 from core.database import get_session
 from models.models import Resume, Template
+from schemas.schema import MaskDetails
+from services.renderer import render_resume_template, render_resume_template_from_string
 from services.resume_service import CurrentUser, mask_resume
 from services.workflow import ResumeWorkflowService
-from services.renderer import render_resume_template, render_resume_template_from_string
-from schemas.schema import MaskDetails
 
 router = APIRouter(prefix="/share", tags=["share"])
 

@@ -1,10 +1,11 @@
-import os
-import fitz
 import logging
+
 from sqlalchemy import select
+
 from core.database import AsyncSessionLocal
 from models.models import Template
 from services.renderer import render_resume_template_from_string
+from services.storage import upload_pdf_to_cloudinary
 from services.workflow import ResumeWorkflowService
 from utils.constants import DUMMY_RESUME_DATA
 
@@ -25,7 +26,7 @@ async def generate_template_preview_task(template_id: int):
         async with AsyncSessionLocal() as session:
             # 1. Fetch template
             result = await session.execute(
-                select(Template).where(Template.id == template_id)
+                select(Template).where(Template.id == template_id)  # type: ignore
             )
             template = result.scalar_one_or_none()
             if not template:
@@ -52,10 +53,9 @@ async def generate_template_preview_task(template_id: int):
                 return
 
             # 4. Upload to Cloudinary to get preview
-            from services.storage import upload_pdf_to_cloudinary
             upload_res = await upload_pdf_to_cloudinary(pdf_bytes, filename)
             preview_url = upload_res.get("preview_image_url")
-            
+
             if not preview_url:
                 logger.error(f"Cloudinary upload failed for template {template_id}")
                 return

@@ -87,5 +87,4 @@ const TONES = [
   "Enthusiastic",
 ];
 
-
-export {CARDS, TONES}
+export { CARDS, TONES };

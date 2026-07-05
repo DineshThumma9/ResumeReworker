@@ -13,7 +13,10 @@ import {
   SelectValue,
 } from "../components/ui/select";
 
-export const PROVIDERS_CONFIG: Record<string, { id: string; displayName: string }> = {
+export const PROVIDERS_CONFIG: Record<
+  string,
+  { id: string; displayName: string }
+> = {
   groq: { id: "groq", displayName: "Groq" },
   openai: { id: "openai", displayName: "OpenAI" },
   anthropic: { id: "anthropic", displayName: "Anthropic" },
@@ -160,7 +163,8 @@ const ApiKeysPage = () => {
                   No API keys configured yet.
                 </p>
                 <p className="text-xs text-muted-foreground/80 mt-1">
-                  Use the form on the right to configure your first provider key.
+                  Use the form on the right to configure your first provider
+                  key.
                 </p>
               </div>
             ) : (
@@ -247,7 +251,9 @@ const ApiKeysPage = () => {
                     <label className="font-['EB_Garamond'] text-[16px] font-medium text-foreground whitespace-nowrap w-[90px]">
                       Provider
                     </label>
-                    <span className="font-['EB_Garamond'] text-[16px] text-muted-foreground shrink-0">:</span>
+                    <span className="font-['EB_Garamond'] text-[16px] text-muted-foreground shrink-0">
+                      :
+                    </span>
                     <div className="w-full">
                       <Select
                         value={selectedProvider}
@@ -276,7 +282,9 @@ const ApiKeysPage = () => {
                   <label className="font-['EB_Garamond'] text-[16px] font-medium text-foreground whitespace-nowrap w-[90px]">
                     API Key
                   </label>
-                  <span className="font-['EB_Garamond'] text-[16px] text-muted-foreground shrink-0">:</span>
+                  <span className="font-['EB_Garamond'] text-[16px] text-muted-foreground shrink-0">
+                    :
+                  </span>
                   <div className="w-full">
                     <input
                       placeholder="sk-..."

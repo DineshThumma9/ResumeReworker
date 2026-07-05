@@ -15,32 +15,43 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-  web:
-    build:backend/.
-    dockerfile:Dockerfile 
-  container_name: resumereworker
-  expose:
-    - "8000"
-  environment:
-    - ENV_FILE=.env 
-  depends_on:
-    - postgres 
-  
+
   redis:
-    image:redis: 6.2-alpine
+    image: redis:6.2-alpine
     container_name: redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
-      - redis_data:/data 
+      - redis_data:/data
+
+  web:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: resumereworker
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      - ENV_FILE=.env
+      # Redis is reachable at the service name "redis" inside Docker network,
+      # not localhost. Set this so the FastAPI lifespan picks it up.
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
   caddy:
     image: caddy:latest
     container_name: caddy
     restart: unless-stopped
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data: /data
-      - caddy_config: /caddy_config
+      - caddy_data:/data
+      - caddy_config:/config
     depends_on:
       - web
     ports:

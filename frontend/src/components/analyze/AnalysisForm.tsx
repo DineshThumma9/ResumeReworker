@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Sparkles } from "lucide-react";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
@@ -44,10 +43,8 @@ export function AnalysisForm({
   onModelChange,
   onSubmit,
 }: AnalysisFormProps) {
-  const { label, templateId, setResumeState } = useResumeStore();
-  const [jd, setJd] = useState("");
-  const [tone, setTone] = useState("Professional");
-  const [file, setFile] = useState<File | null>(null);
+  const { label, templateId, setResumeState, jd, tone, file } =
+    useResumeStore();
 
   const canSubmit = jd.trim().length > 0;
 
@@ -66,7 +63,7 @@ export function AnalysisForm({
       fd.append("resume_file", file);
     }
     fd.append("exclude_sections", "{}");
-    
+
     onSubmit(fd);
   };
 
@@ -81,7 +78,10 @@ export function AnalysisForm({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="flex flex-col gap-3">
             <Label className="text-sm font-semibold text-foreground">
-              Resume Label
+              Resume Label{" "}
+              <span className="text-muted-foreground font-normal text-xs">
+                (optional — auto-generated if blank)
+              </span>
             </Label>
             <Input
               placeholder="e.g. Software_Engineer_Google"
@@ -94,14 +94,22 @@ export function AnalysisForm({
             <Label className="text-sm font-semibold text-foreground">
               Resume PDF <span className="text-destructive">*</span>
             </Label>
-            <PdfUploadZone file={file} onFile={setFile} />
+            <PdfUploadZone
+              file={file}
+              onFile={(f) => setResumeState({ file: f })}
+            />
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="flex flex-col gap-3">
-            <Label className="text-sm font-semibold text-foreground">Tone</Label>
-            <Select value={tone} onValueChange={(val) => setTone(val)}>
+            <Label className="text-sm font-semibold text-foreground">
+              Tone
+            </Label>
+            <Select
+              value={tone}
+              onValueChange={(val) => setResumeState({ tone: val })}
+            >
               <SelectTrigger className="flex h-11! w-full rounded-md border border-input bg-background px-4! py-3! text-base shadow-sm text-foreground">
                 <SelectValue placeholder="Select tone" />
               </SelectTrigger>
@@ -118,20 +126,19 @@ export function AnalysisForm({
             <Label className="text-sm font-semibold text-foreground">
               Template
             </Label>
-            <Select value={templateId} onValueChange={(val) => setResumeState({ templateId: val })}>
+            <Select
+              value={templateId}
+              onValueChange={(val) => setResumeState({ templateId: val })}
+            >
               <SelectTrigger className="flex h-11! w-full rounded-md border border-input bg-background px-4! py-3! text-base shadow-sm text-foreground">
                 <SelectValue placeholder="Select template" />
               </SelectTrigger>
               <SelectContent side="bottom">
-                {templates.length === 0 ? (
-                  <SelectItem value="default">Default Template</SelectItem>
-                ) : (
-                  templates.map((t) => (
-                    <SelectItem key={t.id} value={String(t.id)}>
-                      {t.name}
-                    </SelectItem>
-                  ))
-                )}
+                {templates.map((t) => (
+                  <SelectItem key={t.id} value={String(t.id)}>
+                    {t.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -142,7 +149,10 @@ export function AnalysisForm({
             <Label className="text-sm font-semibold text-foreground">
               Provider
             </Label>
-            <Select value={provider} onValueChange={(val) => onProviderChange(val)}>
+            <Select
+              value={provider}
+              onValueChange={(val) => onProviderChange(val)}
+            >
               <SelectTrigger className="flex h-11! w-full rounded-md border border-input bg-background px-4! py-3! text-base shadow-sm text-foreground">
                 <SelectValue placeholder="Select provider" />
               </SelectTrigger>
@@ -187,7 +197,7 @@ export function AnalysisForm({
             className="min-h-[220px] resize-y bg-background font-mono text-base leading-relaxed p-4"
             placeholder="Paste the full job description here..."
             value={jd}
-            onChange={(e) => setJd(e.target.value)}
+            onChange={(e) => setResumeState({ jd: e.target.value })}
           />
         </div>
 

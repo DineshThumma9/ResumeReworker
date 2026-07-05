@@ -42,24 +42,59 @@ export function AuthView() {
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "An error occurred");
-
     } finally {
       setLoading(false);
     }
   };
 
   const signupFields = [
-    { lbl: "Full Name", type: "text", ph: "Dinesh Thumma", value: name, onChange: (e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value) },
-    { lbl: "Email", type: "email", ph: "you@example.com", value: email, onChange: (e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value) },
-    { lbl: "Password", type: "password", ph: "At least 8 characters", value: password, onChange: (e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value) },
+    {
+      lbl: "Full Name",
+      type: "text",
+      ph: "Dinesh Thumma",
+      value: name,
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
+        setName(e.target.value),
+    },
+    {
+      lbl: "Email",
+      type: "email",
+      ph: "you@example.com",
+      value: email,
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
+        setEmail(e.target.value),
+    },
+    {
+      lbl: "Password",
+      type: "password",
+      ph: "At least 8 characters",
+      value: password,
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
+        setPassword(e.target.value),
+    },
   ];
   const signinFields = [
-    { lbl: "Email", type: "email", ph: "you@example.com", value: email, onChange: (e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value) },
-    { lbl: "Password", type: "password", ph: "••••••••", value: password, onChange: (e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value) },
+    {
+      lbl: "Email",
+      type: "email",
+      ph: "you@example.com",
+      value: email,
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
+        setEmail(e.target.value),
+    },
+    {
+      lbl: "Password",
+      type: "password",
+      ph: "••••••••",
+      value: password,
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
+        setPassword(e.target.value),
+    },
   ];
   const fields = mode === "signup" ? signupFields : signinFields;
 
-  const displayName = mode === "signup" ? (name.trim() || "John Doe") : "Welcome Back";
+  const displayName =
+    mode === "signup" ? name.trim() || "John Doe" : "Welcome Back";
   const displayEmail = email.trim() || "john.doe@email.com";
 
   return (
@@ -158,7 +193,9 @@ export function AuthView() {
             ))}
 
             {error && (
-              <div className="text-red-500 text-xs text-center mt-2 font-sans">{error}</div>
+              <div className="text-red-500 text-xs text-center mt-2 font-sans">
+                {error}
+              </div>
             )}
 
             <hr className="border-t-[0.5px] border-[#e8e8e8] my-4" />
@@ -194,7 +231,11 @@ export function AuthView() {
                 tracking-widest uppercase border-[1.5px] border-[#1a1a1a] rounded py-3.5 cursor-pointer
                 hover:bg-[#607456] hover:text-white hover:border-[#607456] transition-all duration-150 disabled:opacity-50"
             >
-              {loading ? "Loading..." : (mode === "signup" ? "Submit Application" : "Sign In")}
+              {loading
+                ? "Loading..."
+                : mode === "signup"
+                  ? "Submit Application"
+                  : "Sign In"}
             </button>
           </form>
 

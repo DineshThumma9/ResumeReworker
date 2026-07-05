@@ -44,9 +44,10 @@ export function ShareView() {
 
   useEffect(() => {
     if (!token) return;
-    shareApi.get(token)
+    shareApi
+      .get(token)
       .then(setResume)
-      .catch(err => setError(err.message || "Failed to load shared resume"))
+      .catch((err) => setError(err.message || "Failed to load shared resume"))
       .finally(() => setLoading(false));
   }, [token]);
 
@@ -69,7 +70,10 @@ export function ShareView() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 font-sans">
       <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold tracking-tight">ResumeReworker <span className="font-normal text-gray-500">Shared Preview</span></h1>
+        <h1 className="text-xl font-bold tracking-tight">
+          ResumeReworker{" "}
+          <span className="font-normal text-gray-500">Shared Preview</span>
+        </h1>
         <div className="flex gap-4">
           <button
             onClick={() => setShowLatex(!showLatex)}
@@ -86,7 +90,9 @@ export function ShareView() {
             <pre className="whitespace-pre-wrap">{resume.tex_source}</pre>
           </div>
         )}
-        <div className={`flex-1 bg-gray-200 overflow-hidden ${!showLatex && "w-full"}`}>
+        <div
+          className={`flex-1 bg-gray-200 overflow-hidden ${!showLatex && "w-full"}`}
+        >
           {iframeUrl ? (
             <iframe
               src={iframeUrl}

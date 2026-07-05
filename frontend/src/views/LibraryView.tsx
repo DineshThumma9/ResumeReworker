@@ -37,6 +37,19 @@ export function LibraryView() {
       console.error(e);
     }
   };
+  const handleRename = async (id: number, newLabel: string) => {
+    mutate(
+      resumes.map((x) => (x.id === id ? { ...x, label: newLabel } : x)),
+      false,
+    );
+    try {
+      await resumeApi.rename(id, newLabel);
+      mutate();
+    } catch (e) {
+      mutate();
+      console.error(e);
+    }
+  };
 
   return (
     <div className="px-6 py-10 flex flex-col gap-6 overflow-y-auto h-full w-full">
@@ -73,7 +86,12 @@ export function LibraryView() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {resumes.map((r) => (
-            <LibraryResumeCard key={r.id} resume={r} onDelete={onDelete} />
+            <LibraryResumeCard
+              key={r.id}
+              resume={r}
+              onDelete={onDelete}
+              onRename={handleRename}
+            />
           ))}
         </div>
       )}
@@ -82,12 +100,19 @@ export function LibraryView() {
       {deleteId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs">
           <div className="bg-background rounded-xl shadow-xl w-full max-w-sm p-6 animate-in fade-in zoom-in-95 duration-200 text-center">
-            <h3 className="font-['EB_Garamond'] text-2xl font-semibold mb-2">Delete Resume</h3>
+            <h3 className="font-['EB_Garamond'] text-2xl font-semibold mb-2">
+              Delete Resume
+            </h3>
             <p className="text-xs text-muted-foreground mb-6">
-              Are you sure you want to delete this resume? This action cannot be undone.
+              Are you sure you want to delete this resume? This action cannot be
+              undone.
             </p>
             <div className="flex justify-center gap-3">
-              <Button variant="ghost" size="sm" onClick={() => setDeleteId(null)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setDeleteId(null)}
+              >
                 Cancel
               </Button>
               <Button
