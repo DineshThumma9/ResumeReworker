@@ -141,7 +141,7 @@ export function ProfileView() {
               experience: [{ id: "1", description: data.raw_resume }],
             });
           }
-        } catch (e) {
+        } catch {
           // Fallback if raw_resume is just raw text
           setSections({
             experience: [{ id: "1", description: data.raw_resume }],

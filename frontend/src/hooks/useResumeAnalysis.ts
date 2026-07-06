@@ -148,45 +148,69 @@ export function useResumeAnalysis() {
           return n;
         });
       } else if (ev.event === "analysis_quality") {
-        accumulatedAnalysis = { ...accumulatedAnalysis, resume_quality: ev.text };
+        accumulatedAnalysis = {
+          ...accumulatedAnalysis,
+          resume_quality: ev.text,
+        };
         setLines((prev) => {
           const n = [...prev];
           const idx = n.findIndex((l) => l.text.includes("Analyzing"));
           if (idx >= 0)
-            n[idx] = { ...n[idx], analysis: { ...accumulatedAnalysis } as ResumeAnalysis };
+            n[idx] = {
+              ...n[idx],
+              analysis: { ...accumulatedAnalysis } as ResumeAnalysis,
+            };
           return n;
         });
       } else if (ev.event === "analysis_explanation") {
-        accumulatedAnalysis = { ...accumulatedAnalysis, match_explanation: ev.text };
+        accumulatedAnalysis = {
+          ...accumulatedAnalysis,
+          match_explanation: ev.text,
+        };
         setLines((prev) => {
           const n = [...prev];
           const idx = n.findIndex((l) => l.text.includes("Analyzing"));
           if (idx >= 0)
-            n[idx] = { ...n[idx], analysis: { ...accumulatedAnalysis } as ResumeAnalysis };
+            n[idx] = {
+              ...n[idx],
+              analysis: { ...accumulatedAnalysis } as ResumeAnalysis,
+            };
           return n;
         });
       } else if (ev.event === "analysis_keyword") {
         accumulatedAnalysis = {
           ...accumulatedAnalysis,
-          missing_keywords: [...(accumulatedAnalysis.missing_keywords || []), ev.keyword],
+          missing_keywords: [
+            ...(accumulatedAnalysis.missing_keywords || []),
+            ev.keyword,
+          ],
         };
         setLines((prev) => {
           const n = [...prev];
           const idx = n.findIndex((l) => l.text.includes("Analyzing"));
           if (idx >= 0)
-            n[idx] = { ...n[idx], analysis: { ...accumulatedAnalysis } as ResumeAnalysis };
+            n[idx] = {
+              ...n[idx],
+              analysis: { ...accumulatedAnalysis } as ResumeAnalysis,
+            };
           return n;
         });
       } else if (ev.event === "analysis_negative") {
         accumulatedAnalysis = {
           ...accumulatedAnalysis,
-          negative_points: [...(accumulatedAnalysis.negative_points || []), ev.text],
+          negative_points: [
+            ...(accumulatedAnalysis.negative_points || []),
+            ev.text,
+          ],
         };
         setLines((prev) => {
           const n = [...prev];
           const idx = n.findIndex((l) => l.text.includes("Analyzing"));
           if (idx >= 0)
-            n[idx] = { ...n[idx], analysis: { ...accumulatedAnalysis } as ResumeAnalysis };
+            n[idx] = {
+              ...n[idx],
+              analysis: { ...accumulatedAnalysis } as ResumeAnalysis,
+            };
           return n;
         });
       } else if (ev.event === "analysis_improvement") {
@@ -201,7 +225,10 @@ export function useResumeAnalysis() {
           const n = [...prev];
           const idx = n.findIndex((l) => l.text.includes("Analyzing"));
           if (idx >= 0)
-            n[idx] = { ...n[idx], analysis: { ...accumulatedAnalysis } as ResumeAnalysis };
+            n[idx] = {
+              ...n[idx],
+              analysis: { ...accumulatedAnalysis } as ResumeAnalysis,
+            };
           return n;
         });
       } else if (ev.event === "analysis_done") {
@@ -218,7 +245,10 @@ export function useResumeAnalysis() {
           }
           return [
             ...n,
-            { type: "progress", text: "AI is rewriting your resume to match the JD..." },
+            {
+              type: "progress",
+              text: "AI is rewriting your resume to match the JD...",
+            },
           ];
         });
       } else if (ev.event === "progress") {

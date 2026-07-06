@@ -1,18 +1,85 @@
+import { useState } from "react";
 import useSWR from "swr";
-import { Upload, Loader2, Image as ImageIcon } from "lucide-react";
+import {
+  Upload,
+  Loader2,
+  Image as ImageIcon,
+  Trash,
+  Edit2,
+} from "lucide-react";
 import { templateApi } from "../apis/templates";
 import type { Template } from "../schemas";
 import { Button } from "../components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "../components/ui/dialog";
+import { Input } from "../components/ui/input";
 
 import { useNavigate } from "react-router-dom";
 import { useResumeStore } from "../store/resumeStore";
+
 export function TemplatesView() {
   const navigate = useNavigate();
   const setResumeState = useResumeStore((s) => s.setResumeState);
-  const { data: templates = [], isLoading } = useSWR<Template[]>(
-    "templates",
-    () => templateApi.list(),
-  );
+  const {
+    data: templates = [],
+    isLoading,
+    mutate,
+  } = useSWR<Template[]>("templates", () => templateApi.list());
+
+  const [deleteTemplateId, setDeleteTemplateId] = useState<number | null>(null);
+  const [renameTemplateId, setRenameTemplateId] = useState<number | null>(null);
+  const [renameName, setRenameName] = useState("");
+
+  const handleConfirmDelete = async () => {
+    if (deleteTemplateId === null) return;
+    const id = deleteTemplateId;
+    setDeleteTemplateId(null);
+
+    // Optimistic UI update
+    mutate(
+      templates.filter((t) => t.id !== id),
+      false,
+    );
+    try {
+      await templateApi.delete(id);
+      mutate();
+    } catch (err) {
+      mutate();
+      console.error("Failed to delete template:", err);
+    }
+  };
+
+  const handleRenameSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (renameTemplateId === null || !renameName.trim()) return;
+
+    const id = renameTemplateId;
+    const template = templates.find((t) => t.id === id);
+    if (!template) return;
+
+    const newName = renameName.trim();
+    setRenameTemplateId(null);
+
+    // Optimistic UI update
+    mutate(
+      templates.map((t) => (t.id === id ? { ...t, name: newName } : t)),
+      false,
+    );
+
+    try {
+      await templateApi.update(id, newName, template.tex_source || "");
+      mutate();
+    } catch (err) {
+      mutate();
+      console.error("Failed to rename template:", err);
+    }
+  };
 
   return (
     <div className="px-6 py-10 flex flex-col gap-6 overflow-y-auto h-full w-full">
@@ -93,20 +160,117 @@ export function TemplatesView() {
                 <span className="font-semibold text-sm text-foreground">
                   {t.name}
                 </span>
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    t.is_builtin
-                      ? "bg-primary/10 text-primary"
-                      : "bg-secondary text-secondary-foreground"
-                  }`}
-                >
-                  {t.is_builtin ? "Built-in" : "Custom"}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      t.is_builtin
+                        ? "bg-primary/10 text-primary"
+                        : "bg-secondary text-secondary-foreground"
+                    }`}
+                  >
+                    {t.is_builtin ? "Built-in" : "Custom"}
+                  </span>
+                  {!t.is_builtin && (
+                    <>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRenameTemplateId(t.id);
+                          setRenameName(t.name);
+                        }}
+                        className="p-1 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                        title="Rename template"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTemplateId(t.id);
+                        }}
+                        className="p-1 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        title="Delete custom template"
+                      >
+                        <Trash size={14} />
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* DELETE CONFIRMATION DIALOG */}
+      <Dialog
+        open={deleteTemplateId !== null}
+        onOpenChange={(open) => !open && setDeleteTemplateId(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <div className="text-center p-2">
+            <h3 className="font-['EB_Garamond'] text-2xl font-semibold mb-2">
+              Delete Template
+            </h3>
+            <p className="text-xs text-muted-foreground mb-6">
+              Are you sure you want to delete this custom template? This action
+              cannot be undone.
+            </p>
+            <div className="flex justify-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setDeleteTemplateId(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold"
+                onClick={handleConfirmDelete}
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* RENAME DIALOG */}
+      <Dialog
+        open={renameTemplateId !== null}
+        onOpenChange={(open) => !open && setRenameTemplateId(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={handleRenameSubmit} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Rename Template</DialogTitle>
+              <DialogDescription>
+                Enter a new name/label for this custom template.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-2">
+              <Input
+                value={renameName}
+                onChange={(e) => setRenameName(e.target.value)}
+                placeholder="Template name..."
+                autoFocus
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setRenameTemplateId(null)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Save</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

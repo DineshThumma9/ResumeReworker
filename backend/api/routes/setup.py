@@ -93,14 +93,14 @@ async def set_api_provider(
 
     encrypted_key = crypto.encrypt(api_key)
 
-    existing = await db.execute(
+    existing_result = await db.execute(
         select(APIKEYS).where(
             APIKEYS.user_id == current_user.id,  # type: ignore
             APIKEYS.provider == api_provider,  # type: ignore
         )
     )
 
-    existing = existing.scalars().first()
+    existing = existing_result.scalars().first()
 
     if existing:
         existing.encrypted_key = encrypted_key
@@ -202,10 +202,10 @@ async def choose_llm_model(
 async def api_config(
     current_user: CurrentUser, db: AsyncSession = Depends(get_session)
 ):
-    api_configs = await db.execute(
+    api_configs_result = await db.execute(
         select(APIKEYS).where(APIKEYS.user_id == current_user.id)  # type: ignore
     )
-    api_configs = api_configs.scalars().all()
+    api_configs = api_configs_result.scalars().all()
     return api_configs
 
 

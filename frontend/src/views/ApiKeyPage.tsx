@@ -13,10 +13,7 @@ import {
   SelectValue,
 } from "../components/ui/select";
 
-export const PROVIDERS_CONFIG: Record<
-  string,
-  { id: string; displayName: string }
-> = {
+const PROVIDERS_CONFIG: Record<string, { id: string; displayName: string }> = {
   groq: { id: "groq", displayName: "Groq" },
   openai: { id: "openai", displayName: "OpenAI" },
   anthropic: { id: "anthropic", displayName: "Anthropic" },

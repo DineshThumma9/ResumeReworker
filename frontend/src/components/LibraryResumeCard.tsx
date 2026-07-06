@@ -1,7 +1,18 @@
+import { useState } from "react";
 import { FileText, Calendar, Trash2, Edit2 } from "lucide-react";
 import type { Resume } from "../schemas";
 import { useNavigate } from "react-router-dom";
 import { useResumeStore } from "../store/resumeStore";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "./ui/dialog";
+import { Input } from "./ui/input";
+import { Button } from "./ui/button";
 
 export function LibraryResumeCard({
   resume,
@@ -14,6 +25,16 @@ export function LibraryResumeCard({
 }) {
   const navigate = useNavigate();
   const setResumeState = useResumeStore((s) => s.setResumeState);
+  const [isRenameOpen, setIsRenameOpen] = useState(false);
+  const [newLabel, setNewLabel] = useState(resume.label);
+
+  const handleRenameSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newLabel && newLabel.trim() && newLabel.trim() !== resume.label) {
+      onRename(resume.id, newLabel.trim());
+    }
+    setIsRenameOpen(false);
+  };
 
   const handleViewPdf = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -83,14 +104,8 @@ export function LibraryResumeCard({
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all ml-2 shrink-0">
           <button
             onClick={() => {
-              const newName = window.prompt("Rename Resume", resume.label);
-              if (
-                newName &&
-                newName.trim() &&
-                newName.trim() !== resume.label
-              ) {
-                onRename(resume.id, newName.trim());
-              }
+              setNewLabel(resume.label);
+              setIsRenameOpen(true);
             }}
             className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
             title="Rename Resume"
@@ -132,6 +147,38 @@ export function LibraryResumeCard({
           Edit
         </button>
       </div>
+
+      {/* RENAME DIALOG */}
+      <Dialog open={isRenameOpen} onOpenChange={setIsRenameOpen}>
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={handleRenameSubmit} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Rename Resume</DialogTitle>
+              <DialogDescription>
+                Enter a new name/label for this resume.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-2">
+              <Input
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+                placeholder="Resume name..."
+                autoFocus
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setIsRenameOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Save</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -43,7 +43,7 @@ export function AnalyzeView() {
 
   const location = useLocation();
   const [activeTab, setActiveTab] = useState<string>(
-    (location.state as any)?.tab || "analysis",
+    (location.state as { tab?: string })?.tab || "analysis",
   );
 
   // Custom states for the new toolbar buttons

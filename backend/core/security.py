@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
@@ -5,6 +6,8 @@ import httpx
 from jose import JWTError, jwt
 
 from .config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def hash_password(plain: str) -> str:
@@ -38,7 +41,8 @@ def decode_access_token(token: str) -> int | None:
             token, settings.jwt_secret, algorithms=[settings.jwt_algorithm]
         )
         return int(payload["sub"])
-    except JWTError, KeyError, ValueError:
+    except (JWTError, KeyError, ValueError) as e:
+        logger.error(f"Error :{e}")
         return None
 
 

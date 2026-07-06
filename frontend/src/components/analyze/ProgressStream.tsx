@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 import { type StreamLine } from "../../hooks/useResumeAnalysis";
 import {
   Loader2,
@@ -12,32 +13,6 @@ import {
   Compass,
 } from "lucide-react";
 
-// Helper to parse bold markdown syntax **text**
-function parseLine(line: string): React.ReactNode[] {
-  const parts: React.ReactNode[] = [];
-  const regex = /\*\*(.*?)\*\*/g;
-  let lastIndex = 0;
-  let match;
-
-  while ((match = regex.exec(line)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(line.slice(lastIndex, match.index));
-    }
-    parts.push(
-      <strong key={match.index} className="font-semibold text-foreground">
-        {match[1]}
-      </strong>,
-    );
-    lastIndex = regex.lastIndex;
-  }
-
-  if (lastIndex < line.length) {
-    parts.push(line.slice(lastIndex));
-  }
-
-  return parts.length > 0 ? parts : [line];
-}
-
 // Markdown parser component for long text paragraphs
 function MarkdownText({
   text,
@@ -47,62 +22,47 @@ function MarkdownText({
   className?: string;
 }) {
   if (!text) return null;
-  const lines = text.split("\n");
-
   return (
-    <div className={`space-y-4 ${className}`}>
-      {lines.map((line, idx) => {
-        const trimmed = line.trim();
-        if (!trimmed) return <div key={idx} className="h-2" />;
-
-        // Header check
-        if (trimmed.startsWith("### ")) {
-          return (
-            <h4
-              key={idx}
-              className="text-[17px] font-bold text-foreground mt-5 mb-2"
-            >
-              {parseLine(trimmed.slice(4))}
-            </h4>
-          );
-        }
-        if (trimmed.startsWith("## ")) {
-          return (
-            <h3
-              key={idx}
-              className="text-[19px] font-bold text-foreground mt-6 mb-3"
-            >
-              {parseLine(trimmed.slice(3))}
+    <div
+      className={`space-y-4 text-[16px] leading-relaxed text-foreground ${className}`}
+    >
+      <ReactMarkdown
+        components={{
+          p: ({ children }) => (
+            <p className="text-[16px] leading-relaxed text-foreground">
+              {children}
+            </p>
+          ),
+          h3: ({ children }) => (
+            <h3 className="text-[19px] font-bold text-foreground mt-6 mb-3">
+              {children}
             </h3>
-          );
-        }
-
-        const isBullet =
-          trimmed.startsWith("- ") ||
-          trimmed.startsWith("* ") ||
-          trimmed.startsWith("• ");
-        const content = isBullet ? trimmed.slice(2).trim() : trimmed;
-
-        if (isBullet) {
-          return (
-            <div
-              key={idx}
-              className="flex gap-2.5 text-[16px] leading-relaxed text-foreground pl-3"
-            >
+          ),
+          h4: ({ children }) => (
+            <h4 className="text-[17px] font-bold text-foreground mt-5 mb-2">
+              {children}
+            </h4>
+          ),
+          ul: ({ children }) => (
+            <ul className="space-y-2 list-none pl-3">{children}</ul>
+          ),
+          li: ({ children }) => (
+            <li className="flex gap-2.5 text-[16px] leading-relaxed text-foreground">
               <span className="text-primary font-bold mt-0.5 select-none">
                 •
               </span>
-              <span className="flex-1">{parseLine(content)}</span>
-            </div>
-          );
-        }
-
-        return (
-          <p key={idx} className="text-[16px] leading-relaxed text-foreground">
-            {parseLine(content)}
-          </p>
-        );
-      })}
+              <span className="flex-1">{children}</span>
+            </li>
+          ),
+          strong: ({ children }) => (
+            <strong className="font-semibold text-foreground">
+              {children}
+            </strong>
+          ),
+        }}
+      >
+        {text}
+      </ReactMarkdown>
     </div>
   );
 }
@@ -115,6 +75,7 @@ function MarkdownItem({
   text: string;
   markerClass?: string;
 }) {
+  if (!text) return null;
   const trimmed = text.trim();
   const isBullet =
     trimmed.startsWith("- ") ||
@@ -125,7 +86,18 @@ function MarkdownItem({
   if (!isBullet) {
     return (
       <div className="text-[16px] text-foreground leading-relaxed mt-4 first:mt-0 font-medium">
-        {parseLine(content)}
+        <ReactMarkdown
+          components={{
+            p: ({ children }) => <>{children}</>,
+            strong: ({ children }) => (
+              <strong className="font-semibold text-foreground">
+                {children}
+              </strong>
+            ),
+          }}
+        >
+          {content}
+        </ReactMarkdown>
       </div>
     );
   }
@@ -133,7 +105,20 @@ function MarkdownItem({
   return (
     <div className="flex gap-2.5 text-[16px] text-foreground leading-relaxed pl-3 mt-2">
       <span className={`${markerClass} mt-1 font-bold select-none`}>•</span>
-      <span className="flex-1">{parseLine(content)}</span>
+      <span className="flex-1">
+        <ReactMarkdown
+          components={{
+            p: ({ children }) => <>{children}</>,
+            strong: ({ children }) => (
+              <strong className="font-semibold text-foreground">
+                {children}
+              </strong>
+            ),
+          }}
+        >
+          {content}
+        </ReactMarkdown>
+      </span>
     </div>
   );
 }

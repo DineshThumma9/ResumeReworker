@@ -166,9 +166,7 @@ class Details(BaseModel):
         links: Dict[str, Optional[str]] = data.get("profile_links") or {}
 
         # Collect raw text to scan (from any field that might contain resume text)
-        raw_text = " ".join(
-            str(v) for v in data.values() if isinstance(v, str)
-        )
+        raw_text = " ".join(str(v) for v in data.values() if isinstance(v, str))
 
         def _first(pattern: str, text: str) -> Optional[str]:
             m = re.search(pattern, text, re.IGNORECASE)
@@ -176,7 +174,9 @@ class Details(BaseModel):
 
         # GitHub
         if not links.get("github"):
-            gh = _first(r"https?://(?:www\.)?github\.com/[\w\-\.]+(?:/[\w\-\.]*)*", raw_text)
+            gh = _first(
+                r"https?://(?:www\.)?github\.com/[\w\-\.]+(?:/[\w\-\.]*)*", raw_text
+            )
             if not gh:
                 # bare username form: github.com/username
                 gh = _first(r"github\.com/[\w\-\.]+", raw_text)
@@ -187,7 +187,10 @@ class Details(BaseModel):
 
         # LinkedIn
         if not links.get("linkedin"):
-            li = _first(r"https?://(?:www\.)?linkedin\.com/in/[\w\-\.]+(?:/[\w\-\.]*)*", raw_text)
+            li = _first(
+                r"https?://(?:www\.)?linkedin\.com/in/[\w\-\.]+(?:/[\w\-\.]*)*",
+                raw_text,
+            )
             if not li:
                 li = _first(r"linkedin\.com/in/[\w\-\.]+", raw_text)
                 if li:
@@ -207,13 +210,17 @@ class Details(BaseModel):
 
         # Email
         if not links.get("email"):
-            email = _first(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}", raw_text)
+            email = _first(
+                r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}", raw_text
+            )
             if email:
                 links["email"] = email
 
         # Phone — Indian (+91) and generic
         if not links.get("phone"):
-            phone = _first(r"(?:\+91[\s\-]?)?[6-9]\d{9}|\+?\d[\d\s\-\.]{8,14}\d", raw_text)
+            phone = _first(
+                r"(?:\+91[\s\-]?)?[6-9]\d{9}|\+?\d[\d\s\-\.]{8,14}\d", raw_text
+            )
             if phone:
                 links["phone"] = phone.strip()
 

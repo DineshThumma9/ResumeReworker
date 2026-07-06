@@ -11,7 +11,11 @@ from langgraph.graph import StateGraph
 from core.config import settings
 from schemas.schema import ResumeAnalysis, ResumeState, RewriteResume
 from services.renderer import render_resume_template, render_resume_template_from_string
-from utils.prompts import resume_analysis_prompt, rewrite_content_prompt, extract_details_prompt
+from utils.prompts import (
+    extract_details_prompt,
+    resume_analysis_prompt,
+    rewrite_content_prompt,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -124,16 +128,17 @@ class ResumeWorkflowService:
             details_obj = None
             try:
                 from schemas.schema import Details
+
                 details_llm = llm.with_structured_output(Details)
                 details_messages = [
                     SystemMessage(content=extract_details_prompt),
-                    HumanMessage(
-                        content=f"Resume text:\n{resume}"
-                    ),
+                    HumanMessage(content=f"Resume text:\n{resume}"),
                 ]
                 details_obj = await details_llm.ainvoke(details_messages)
             except Exception as details_err:
-                logger.warning(f"Details extraction failed (will rely on validator fallback): {details_err}")
+                logger.warning(
+                    f"Details extraction failed (will rely on validator fallback): {details_err}"
+                )
 
             # ── Call 2: Rewrite full content ─────────────────────────────────
             structured_llm = llm.with_structured_output(RewriteResume)

@@ -4,7 +4,8 @@ from cloudinary.utils import cloudinary_url
 
 from core.config import settings
 
-cloudinary.config(cloudinary_url=settings.cloudinary_url, secure=True)
+cloudinary.config()._load_from_url(settings.cloudinary_url)
+cloudinary.config(secure=True)
 
 
 async def upload_pdf_to_cloudinary(pdf_bytes: bytes, filename: str) -> dict:

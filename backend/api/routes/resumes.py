@@ -65,13 +65,37 @@ async def get_resumes(user: CurrentUser, db: DB, skip: int = 0, limit: int = 100
 
 @router.post("", response_model=ResumeOut)
 async def create_resume(body: ResumeCreate, user: CurrentUser, db: DB):
+    # Compile LaTeX and upload preview if tex_source is provided
+    pdf_url = None
+    preview_url = None
+    if body.tex_source:
+        try:
+            service = ResumeWorkflowService()
+            pdf_bytes = await service.latex_to_pdf(body.tex_source, "resume.pdf")
+            pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
+            pdf_url = f"data:application/pdf;base64,{pdf_base64}"
+
+            try:
+                from services.storage import upload_pdf_to_cloudinary
+
+                filename = (
+                    f"resume_{user.id}_new_{int(datetime.utcnow().timestamp())}.pdf"
+                )
+                upload_res = await upload_pdf_to_cloudinary(pdf_bytes, filename)
+                preview_url = upload_res.get("preview_image_url")
+            except Exception as preview_err:
+                print(f"Failed to generate preview in create_resume: {preview_err}")
+        except Exception as compile_err:
+            print(f"Failed compile in create_resume: {compile_err}")
+
     resume = Resume(
         user_id=user.id,
         label=body.label,
         tex_source=body.tex_source,
         jd_snippet=body.jd_snippet,
         template_id=body.template_id,
-        pdf_url=body.pdf_url,
+        pdf_url=pdf_url or body.pdf_url,
+        preview_url=preview_url,
     )
     db.add(resume)
     await db.commit()
@@ -95,6 +119,19 @@ async def compile_latex(body: CompileRequest, user: CurrentUser, db: DB):
             if resume:
                 resume.tex_source = body.latex_code
                 resume.pdf_url = pdf_url
+
+                # Upload to Cloudinary to generate preview image url
+                try:
+                    from services.storage import upload_pdf_to_cloudinary
+
+                    filename = f"resume_{user.id}_{body.id}_{int(datetime.utcnow().timestamp())}.pdf"
+                    upload_res = await upload_pdf_to_cloudinary(pdf_bytes, filename)
+                    preview_url = upload_res.get("preview_image_url")
+                    if preview_url:
+                        resume.preview_url = preview_url
+                except Exception as preview_err:
+                    print(f"Failed to generate preview in compile_latex: {preview_err}")
+
                 resume.updated_at = datetime.utcnow()
                 await db.commit()
 
@@ -141,6 +178,27 @@ async def update_resume(resume_id: int, body: ResumeUpdate, user: CurrentUser, d
         resume.label = body.label
     if body.tex_source is not None:
         resume.tex_source = body.tex_source
+
+        # Compile LaTeX and upload preview
+        try:
+            service = ResumeWorkflowService()
+            pdf_bytes = await service.latex_to_pdf(body.tex_source, "resume.pdf")
+            pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
+            resume.pdf_url = f"data:application/pdf;base64,{pdf_base64}"
+
+            try:
+                from services.storage import upload_pdf_to_cloudinary
+
+                filename = f"resume_{user.id}_{resume_id}_{int(datetime.utcnow().timestamp())}.pdf"
+                upload_res = await upload_pdf_to_cloudinary(pdf_bytes, filename)
+                preview_url = upload_res.get("preview_image_url")
+                if preview_url:
+                    resume.preview_url = preview_url
+            except Exception as preview_err:
+                print(f"Failed to generate preview in update_resume: {preview_err}")
+        except Exception as compile_err:
+            print(f"Failed compile in update_resume: {compile_err}")
+
     if body.pdf_url is not None:
         resume.pdf_url = body.pdf_url
     resume.updated_at = datetime.utcnow()
@@ -187,10 +245,28 @@ async def render_resume(
             latex_code = render_resume_template("jakes1.tex", data_dict)
 
         # Recompile
-        pdf_url = ResumeWorkflowService.latex_to_pdf(latex_code)  # type: ignore
+        service = ResumeWorkflowService()
+        pdf_bytes = await service.latex_to_pdf(latex_code, "resume.pdf")
+        pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
+        pdf_url = f"data:application/pdf;base64,{pdf_base64}"
+
+        # Upload to Cloudinary to generate preview image url
+        preview_url = None
+        try:
+            from services.storage import upload_pdf_to_cloudinary
+
+            filename = (
+                f"resume_{user.id}_{resume_id}_{int(datetime.utcnow().timestamp())}.pdf"
+            )
+            upload_res = await upload_pdf_to_cloudinary(pdf_bytes, filename)
+            preview_url = upload_res.get("preview_image_url")
+        except Exception as preview_err:
+            print(f"Failed to generate preview in render_resume: {preview_err}")
 
         resume.tex_source = latex_code
         resume.pdf_url = pdf_url
+        if preview_url:
+            resume.preview_url = preview_url
         resume.template_id = db_template_id
         resume.updated_at = datetime.utcnow()
         db.add(resume)
@@ -240,16 +316,20 @@ async def analyze(
                             if rect:
                                 anchor_text = page.get_text("text", clip=rect).strip()
                                 anchor_text = " ".join(anchor_text.split())
-                            
+
                             if anchor_text:
-                                extracted_links.append(f"Text: '{anchor_text}' -> URL: {uri}")
+                                extracted_links.append(
+                                    f"Text: '{anchor_text}' -> URL: {uri}"
+                                )
                             else:
                                 extracted_links.append(f"URL: {uri}")
-                                
+
                 if extracted_links:
                     # Deduplicate while preserving order
                     seen: set[str] = set()
-                    unique_links = [u for u in extracted_links if not (u in seen or seen.add(u))]  # type: ignore
+                    unique_links = [
+                        u for u in extracted_links if not (u in seen or seen.add(u))
+                    ]  # type: ignore
                     resume_text += "\n\n[HYPERLINKS FOUND IN RESUME — use these to fill profile_links and project links]\n"
                     resume_text += "\n".join(unique_links)
             except Exception as e:
@@ -451,6 +531,26 @@ async def analyze(
 
                             resolved_label = f"{clean_name}_{clean_company}"
 
+                        # Decode pdf_base64 to pdf_bytes and upload to Cloudinary
+                        preview_url = None
+                        if pdf_base64 and pdf_base64.startswith(
+                            "data:application/pdf;base64,"
+                        ):
+                            try:
+                                b64_str = pdf_base64.split(",")[1]
+                                pdf_bytes = base64.b64decode(b64_str)
+                                from services.storage import upload_pdf_to_cloudinary
+
+                                filename = f"resume_{user.id}_new_{int(datetime.utcnow().timestamp())}.pdf"
+                                upload_res = await upload_pdf_to_cloudinary(
+                                    pdf_bytes, filename
+                                )
+                                preview_url = upload_res.get("preview_image_url")
+                            except Exception as preview_err:
+                                print(
+                                    f"Failed to generate preview in analyze: {preview_err}"
+                                )
+
                         resume = Resume(
                             user_id=user.id,
                             label=resolved_label,
@@ -458,6 +558,7 @@ async def analyze(
                             content=content_dict,
                             tex_source=latex_code,
                             pdf_url=pdf_base64,
+                            preview_url=preview_url,
                             template_id=initial_state.get("template_id"),
                             created_at=datetime.utcnow(),
                             updated_at=datetime.utcnow(),
