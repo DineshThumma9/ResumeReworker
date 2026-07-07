@@ -1,4 +1,5 @@
 import { fetchJSON } from "./api";
+import { useAuthStore } from "../store/authStore";
 
 export const authApi = {
   signup: async (name: string, email: string, password: string) => {
@@ -35,6 +36,45 @@ export const authApi = {
       method: "PUT",
       body: JSON.stringify(profile),
     });
+  },
+  autofillProfile: async (
+    file: File,
+  ): Promise<{
+    name: string;
+    phone: string;
+    location: string;
+    github: string;
+    linkedin: string;
+    website: string;
+    sections: any;
+  }> => {
+    const token = useAuthStore.getState().token;
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch("http://localhost:8000/api/auth/profile/autofill", {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+    if (!res.ok) {
+      let msg = res.statusText;
+      try {
+        const errData = await res.json();
+        if (errData.detail) {
+          msg =
+            typeof errData.detail === "string"
+              ? errData.detail
+              : JSON.stringify(errData.detail);
+        }
+      } catch (e) {}
+      throw new Error(msg || "Failed to autofill profile");
+    }
+    return res.json();
   },
 };
 

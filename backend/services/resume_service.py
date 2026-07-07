@@ -64,21 +64,27 @@ async def mask_resume(resume_content, mask_details: MaskDetails):
             for internship in resume_content.internships:
                 internship.company = "COMPANY NAME"
 
-    if mask_details.name:
+    if mask_details.education:
+        if resume_content.education:
+            for edu in resume_content.education:
+                if edu.institution:
+                    edu.institution = "UNIVERSITY NAME"
+
+    if mask_details.name and resume_content.details.name:
         resume_content.details.name = "John Doe"
-    if mask_details.email:
+    if mask_details.email and resume_content.details.email:
         resume_content.details.email = "doejohn"
-    if mask_details.phone:
+    if mask_details.phone and resume_content.details.contact:
         resume_content.details.contact = "1234567890"
-    if mask_details.location:
+    if mask_details.location and resume_content.details.location:
         resume_content.details.location = "LOCATION"
-    if mask_details.github:
+    if mask_details.github and resume_content.details.github:
         resume_content.details.github = "GITHUB_USERNAME"
-    if mask_details.linkedin:
+    if mask_details.linkedin and resume_content.details.linkedin:
         resume_content.details.linkedin = "LINKEDIN_USERNAME"
-    if mask_details.leetcode:
+    if mask_details.leetcode and resume_content.details.leetcode:
         resume_content.details.leetcode = "[LEETCODE_USERNAME]"
-    if mask_details.portfolio:
+    if mask_details.portfolio and resume_content.details.portfolio:
         resume_content.details.portfolio = "[PORTFOLIO_URL]"
 
     if resume_content.details.profile_links:

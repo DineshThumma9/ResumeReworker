@@ -1,9 +1,13 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import Column, Text
 from sqlalchemy.dialects.postgresql import JSON
 from sqlmodel import Field, SQLModel
+
+
+def naive_utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class User(SQLModel, table=True):
@@ -14,7 +18,7 @@ class User(SQLModel, table=True):
     hashed_password: str
     name: str
     email: str = Field(index=True, unique=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=naive_utcnow)
     github: Optional[str] = Field(default=None, sa_column=Column(Text))
     linkedin: Optional[str] = Field(default=None, sa_column=Column(Text))
     website: Optional[str] = Field(default=None, sa_column=Column(Text))
@@ -32,7 +36,7 @@ class Template(SQLModel, table=True):
     tex_source: str = Field(sa_column=Column(Text))
     is_builtin: bool = Field(default=False)
     preview_url: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=naive_utcnow)
 
 
 class Resume(SQLModel, table=True):
@@ -49,8 +53,8 @@ class Resume(SQLModel, table=True):
     tex_source: Optional[str] = Field(default=None, sa_column=Column(Text))
     pdf_url: Optional[str] = None
     preview_url: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=naive_utcnow)
+    updated_at: datetime = Field(default_factory=naive_utcnow)
 
 
 class ShareLink(SQLModel, table=True):
@@ -66,7 +70,7 @@ class ShareLink(SQLModel, table=True):
     token: str = Field(unique=True)
     is_active: bool = Field(default=True)
     view_count: int = Field(default=0)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=naive_utcnow)
 
 
 class APIKEYS(SQLModel, table=True):

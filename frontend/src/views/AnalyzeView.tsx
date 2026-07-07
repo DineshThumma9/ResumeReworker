@@ -65,6 +65,7 @@ export function AnalyzeView() {
     portfolio: true,
     project_name: true,
     company_name: true,
+    education: true,
   });
 
   const handleDownloadPdf = async () => {

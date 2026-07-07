@@ -7,6 +7,7 @@ import { LandingView } from "./views/LandingView";
 import { ProfileView } from "./views/ProfileView";
 import { ShareView } from "./views/ShareView";
 import ApiKeysPage from "./views/ApiKeyPage";
+import { OnboardingView } from "./views/OnboardingView";
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
         <Route path="/" element={<LandingView />} />
         <Route path="/login" element={<LandingView startMode="signin" />} />
         <Route path="/share/:token" element={<ShareView />} />
+        <Route path="/onboarding" element={<OnboardingView />} />
 
         {/* App shell (authenticated) */}
         <Route element={<AppLayout />}>

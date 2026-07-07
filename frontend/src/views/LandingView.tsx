@@ -134,7 +134,13 @@ export function LandingView({
 
   const handleNotificationDismiss = () => {
     setNotification(null);
-    navigate("/analyze", { replace: true });
+    const params = new URLSearchParams(window.location.search);
+    const isNew = params.get("new") === "true";
+    if (isNew) {
+      navigate("/onboarding", { replace: true });
+    } else {
+      navigate("/library", { replace: true });
+    }
   };
 
   const expand = useCallback(
@@ -308,7 +314,7 @@ export function LandingView({
             initialMode={authMode}
             onSuccess={(mode) => {
               if (mode === "signup") {
-                navigate("/profile?onboarding=true");
+                navigate("/onboarding");
               } else {
                 navigate("/library");
               }

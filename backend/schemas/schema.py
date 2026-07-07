@@ -599,6 +599,7 @@ class MaskDetails(BaseModel):
     portfolio: Optional[bool] = True
     project_name: Optional[bool] = True
     company_name: Optional[bool] = True
+    education: Optional[bool] = True
 
 
 class API_KEY_REQUEST(BaseModel):

@@ -116,6 +116,47 @@ export function ProfileView() {
   const [sections, setSections] = useState<Record<string, SectionItem[]>>({});
   const [showAddMenu, setShowAddMenu] = useState(false);
 
+  // Autofill states
+  const [isAutofilling, setIsAutofilling] = useState(false);
+  const [autofillError, setAutofillError] = useState<string | null>(null);
+
+  const handleAutofillUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsAutofilling(true);
+    setAutofillError(null);
+    try {
+      const data = await authApi.autofillProfile(file);
+
+      if (data.name) setName(data.name);
+      if (data.phone) setPhone(data.phone);
+      if (data.location) setLocation(data.location);
+      if (data.github) setGithub(data.github);
+      if (data.linkedin) setLinkedin(data.linkedin);
+      if (data.website) setWebsite(data.website);
+
+      if (data.sections) {
+        setSections(data.sections);
+      }
+
+      setSuccess(
+        "Profile autofilled successfully from resume! Don't forget to save changes.",
+      );
+      setTimeout(() => setSuccess(null), 5000);
+    } catch (err) {
+      console.error("Autofill error:", err);
+      setAutofillError(
+        err instanceof Error ? err.message : "Failed to parse resume.",
+      );
+    } finally {
+      setIsAutofilling(false);
+      e.target.value = "";
+    }
+  };
+
   const fetchProfile = async () => {
     try {
       setLoading(true);
@@ -278,7 +319,6 @@ export function ProfileView() {
 
   return (
     <div className="px-6 py-10 flex flex-col gap-10 overflow-y-auto h-full w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* ── PROFILE HEADER ── */}
       <div className="flex flex-col items-center text-center gap-4">
         <div
           className="w-20 h-20 rounded-full flex items-center justify-center text-white text-3xl font-semibold shadow-xs select-none"
@@ -294,6 +334,51 @@ export function ProfileView() {
             {username} <span className="mx-1.5 opacity-40">|</span> {email}
           </p>
         </div>
+      </div>
+
+      {/* ── AUTOFILL FROM RESUME ZONE ── */}
+      <div className="flex flex-col items-center gap-4 bg-muted/10 dark:bg-muted/5 border border-dashed border-border rounded-xl p-6 text-center max-w-xl mx-auto w-full">
+        <div className="flex flex-col gap-1">
+          <h3 className="font-['EB_Garamond'] text-[18px] font-semibold text-foreground">
+            Autofill Profile from Resume
+          </h3>
+          <p className="text-xs text-muted-foreground leading-relaxed max-w-md">
+            Upload your existing PDF resume, and our AI will automatically parse
+            and fill out your contact links, experience, education, projects,
+            skills, and more!
+          </p>
+        </div>
+        <div className="relative mt-2">
+          <input
+            type="file"
+            accept=".pdf"
+            onChange={handleAutofillUpload}
+            disabled={isAutofilling}
+            className="hidden"
+            id="autofill-file-input"
+          />
+          <label
+            htmlFor="autofill-file-input"
+            className="flex items-center gap-2 bg-[#2d3b28] hover:bg-[#202a1c] text-white font-['EB_Garamond'] text-[13px] font-semibold tracking-wider uppercase rounded-md px-5 py-2.5 cursor-pointer transition-colors shadow-sm disabled:opacity-50"
+          >
+            {isAutofilling ? (
+              <>
+                <Loader2 size={15} className="animate-spin" />
+                Parsing Resume...
+              </>
+            ) : (
+              <>
+                <Plus size={15} />
+                Upload Resume PDF
+              </>
+            )}
+          </label>
+        </div>
+        {autofillError && (
+          <p className="text-xs text-red-500 font-medium mt-1">
+            {autofillError}
+          </p>
+        )}
       </div>
 
       {isOnboarding && (
