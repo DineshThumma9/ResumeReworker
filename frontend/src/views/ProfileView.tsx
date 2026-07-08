@@ -603,13 +603,10 @@ export function ProfileView() {
                                   return (
                                     <div
                                       key={fKey}
-                                      className="flex items-baseline gap-2"
+                                      className="flex flex-col gap-1.5"
                                     >
-                                      <span className="font-['EB_Garamond'] text-[15px] font-medium text-foreground whitespace-nowrap w-[90px] shrink-0">
+                                      <span className="font-sans text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
                                         {fieldLabel}
-                                      </span>
-                                      <span className="font-['EB_Garamond'] text-[15px] text-muted-foreground shrink-0">
-                                        :
                                       </span>
                                       <input
                                         type="text"
@@ -623,7 +620,7 @@ export function ProfileView() {
                                             e.target.value,
                                           )
                                         }
-                                        className="font-sans text-xs border-0 border-b border-border bg-transparent text-foreground placeholder:text-muted-foreground/30 placeholder:text-[10px] py-1 outline-none w-full focus:border-primary transition-colors"
+                                        className="font-sans text-[13px] border-0 border-b border-border/50 bg-transparent text-foreground placeholder:text-muted-foreground/30 py-1.5 outline-none w-full focus:border-primary transition-colors"
                                       />
                                     </div>
                                   );

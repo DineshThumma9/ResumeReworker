@@ -130,8 +130,8 @@ class Skill(BaseModel):
     )
 
 
-class Details(BaseModel):
-    name: str = Field(description="Full name of the candidate")
+
+class ProfileSummary(BaseModel):
     profile_summary: Optional[str] = Field(
         default="",
         description=(
@@ -140,6 +140,9 @@ class Details(BaseModel):
             "Do NOT expand it into multiple sentences if the original was one sentence."
         ),
     )
+
+class Details(BaseModel):
+    name: str = Field(description="Full name of the candidate")
     profile_links: Dict[str, Optional[str]] = Field(
         description=(
             "ALL contact and profile links from the resume. "
@@ -307,7 +310,6 @@ class Details(BaseModel):
     def serialize_model(self) -> Dict[str, Any]:
         return {
             "name": self.name,
-            "profile_summary": self.profile_summary,
             "profile_links": self.profile_links,
             "contact": self.contact,
             "email": self.email,
@@ -323,7 +325,9 @@ class Details(BaseModel):
 class RewriteResume(BaseModel):
     """Structured content for rewritten resume"""
 
-    details: Details = Field(description="Personal details and profile summary")
+    profile_summary:Optional[ProfileSummary]=Field(description="Professional Summary")
+
+    details: Optional[Details] = Field(description="Personal details")
 
     education: Optional[List[Education]] = Field(
         description="List of education entries (must match Education schema precisely)",
@@ -599,6 +603,7 @@ class MaskDetails(BaseModel):
     project_name: Optional[bool] = True
     company_name: Optional[bool] = True
     education: Optional[bool] = True
+    latex_code: Optional[str] = None
 
 
 class API_KEY_REQUEST(BaseModel):

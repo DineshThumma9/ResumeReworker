@@ -162,11 +162,16 @@ async def update_profile(body: ProfileUpdate, user: CurrentUser, db: DB):
 
 
 def map_llm_to_profile(parsed: Any) -> Dict[str, Any]:
-    details = parsed.details
-    links = details.profile_links or {}
+    if isinstance(parsed, dict):
+        parsed = RewriteResume.model_validate(parsed)
+
+    details = getattr(parsed, "details", None)
+    links = getattr(details, "profile_links", {}) if details else {}
+    if links is None:
+        links = {}
 
     profile_data = {
-        "name": details.name or "",
+        "name": getattr(details, "name", "") if details else "",
         "phone": links.get("phone") or "",
         "location": links.get("location") or "",
         "github": links.get("github") or "",
@@ -354,6 +359,21 @@ async def autofill_profile(
             llm_kwargs["api_key"] = api_key
 
         llm = init_chat_model(model, model_provider=provider, **llm_kwargs)
+
+        # ── Call 1: Extract personal details + links only ────────────────
+        details_obj = None
+        try:
+            from schemas.schema import Details
+            from utils.prompts import extract_details_prompt
+            details_llm = llm.with_structured_output(Details)
+            details_messages = [
+                SystemMessage(content=extract_details_prompt),
+                HumanMessage(content=f"Resume text:\n{resume_text}"),
+            ]
+            details_obj = await details_llm.ainvoke(details_messages)
+        except Exception:
+            pass
+
         structured_llm = llm.with_structured_output(RewriteResume)
 
         parse_resume_prompt = """
@@ -377,6 +397,26 @@ async def autofill_profile(
         parsed = await structured_llm.ainvoke(messages)
         if not parsed:
             raise Exception("LLM returned empty parsed result.")
+            
+        if isinstance(parsed, dict):
+            parsed = RewriteResume.model_validate(parsed)
+            
+        if details_obj:
+            if getattr(parsed, "details", None):
+                # Merge name
+                if not parsed.details.name and details_obj.name:
+                    parsed.details.name = details_obj.name
+                
+                # Merge links
+                if details_obj.profile_links:
+                    if not parsed.details.profile_links:
+                        parsed.details.profile_links = details_obj.profile_links
+                    else:
+                        for k, v in details_obj.profile_links.items():
+                            if not parsed.details.profile_links.get(k) and v:
+                                parsed.details.profile_links[k] = v
+            else:
+                parsed.details = details_obj
 
         return map_llm_to_profile(parsed)
     except Exception as e:

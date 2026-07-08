@@ -148,7 +148,7 @@ export function AnalyzeView() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(maskOptions),
+          body: JSON.stringify({ ...maskOptions, latex_code: latexCode }),
         },
       );
 
@@ -169,6 +169,19 @@ export function AnalyzeView() {
     } finally {
       setIsDownloadingAnonymous(false);
     }
+  };
+
+  const handleUploadTex = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      setResumeState({ latexCode: content });
+    };
+    reader.readAsText(file);
+    e.target.value = "";
   };
 
   return (
@@ -209,6 +222,7 @@ export function AnalyzeView() {
                 onCompile={handleCompile}
                 onDownloadPdf={handleDownloadPdf}
                 onDownloadTex={handleDownloadTex}
+                onUploadTex={handleUploadTex}
                 onSave={handleSave}
                 onSaveAsTemplate={() => setShowTemplateModal(true)}
                 onShareAnonymous={() => setShowShareModal(true)}

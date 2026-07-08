@@ -58,21 +58,7 @@ class ResumeWorkflowService:
         ]
 
         try:
-            provider = state["provider"]  # type: ignore
-            provider_keys = {
-                "openai": settings.openai_api_key,
-                "anthropic": settings.anthropic_api_key,
-                "google_genai": settings.google_api_key,
-                "groq": settings.groq_api_key,
-                "mistralai": settings.mistral_api_key,
-                "openrouter": settings.openrouter_api_key,
-                "huggingface": settings.huggingface_api_key,
-            }
-            api_key = state.get("api_key") or provider_keys.get(provider)
-            llm_kwargs = {}
-            if api_key:
-                llm_kwargs["api_key"] = api_key
-            llm = init_chat_model(state["model"], model_provider=provider, **llm_kwargs)  # type: ignore
+            llm = await self._get_llm(state)  # type: ignore
             structured_llm = llm.with_structured_output(ResumeAnalysis)
 
             response = await structured_llm.ainvoke(messages)

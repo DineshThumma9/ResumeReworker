@@ -5,6 +5,7 @@ interface EditorToolbarProps {
   onCompile: () => void;
   onDownloadPdf: () => void;
   onDownloadTex: () => void;
+  onUploadTex: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSave: () => void;
   onSaveAsTemplate: () => void;
   onShareAnonymous: () => void;
@@ -18,6 +19,7 @@ export function EditorToolbar({
   onCompile,
   onDownloadPdf,
   onDownloadTex,
+  onUploadTex,
   onSave,
   onSaveAsTemplate,
   onShareAnonymous,
@@ -66,13 +68,30 @@ export function EditorToolbar({
 
       <div className="h-4 w-px bg-border mx-1" />
 
+      <div className="relative overflow-hidden">
+        <input
+          type="file"
+          accept=".tex"
+          onChange={onUploadTex}
+          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+          title="Upload .tex file"
+        />
+        <Button
+          variant="ghost"
+          size="sm"
+          className="font-sans text-[12px] h-8 text-muted-foreground hover:text-foreground px-2 pointer-events-none"
+        >
+          Upload .tex
+        </Button>
+      </div>
+
       <Button
         variant="ghost"
         size="sm"
         className="font-sans text-[12px] h-8 text-muted-foreground hover:text-foreground px-2"
         onClick={onDownloadTex}
       >
-        .tex
+        Download .tex
       </Button>
 
       <Button
