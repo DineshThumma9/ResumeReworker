@@ -1,9 +1,8 @@
 import re
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TypedDict
 
 from pydantic import BaseModel, Field, model_serializer, model_validator
-from typing_extensions import TypedDict
 
 
 class ResumeAnalysis(BaseModel):

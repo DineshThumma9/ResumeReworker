@@ -28,7 +28,7 @@ class ResumeWorkflowService:
         self.graph = self._build_graph()
 
     def _build_graph(self):
-        graph = StateGraph(ResumeState)
+        graph = StateGraph(ResumeState)  # type: ignore
         graph.add_node("match_jd", self.match_jd)
         graph.add_node("rewrite_resume", self.rewrite_resume)
         graph.add_node("rewrite_latex", self.rewrite_latex)

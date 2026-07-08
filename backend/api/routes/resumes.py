@@ -279,7 +279,15 @@ async def extract_details(resume_file):
                         rect = link.get("from")
                         anchor_text = ""
                         if rect:
-                            anchor_text = page.get_text("text", clip=rect).strip()
+                            raw_text = page.get_text("text", clip=rect)
+                            if isinstance(raw_text, str):
+                                anchor_text = raw_text.strip()
+                            elif isinstance(raw_text, dict):
+                                anchor_text = raw_text.get("text", "").strip()
+                            elif isinstance(raw_text, list):
+                                anchor_text = " ".join(str(x) for x in raw_text).strip()
+                            else:
+                                anchor_text = str(raw_text).strip()
                             anchor_text = " ".join(anchor_text.split())
 
                         if anchor_text:
