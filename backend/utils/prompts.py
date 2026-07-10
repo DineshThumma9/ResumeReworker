@@ -74,6 +74,21 @@ Extract the following and nothing else:
 Do not summarize. Do not rewrite. Do not add a profile_summary. Just extract.
 """
 
+
+judge_prompt = """
+You are an expert ATS (Applicant Tracking System) specialist and career consultant.
+Your task is to judge the quality of the rewritten resume against the job description, the original resume, and the initial resume analysis.
+Determine if the rewritten resume meets all the requirements and is well-optimized.
+
+When evaluating, you MUST check for the following:
+1. False Information: Ensure no skills, experiences, or qualifications were fabricated. Everything must be grounded in the original resume.
+2. Forced Keywords: Ensure that any keywords added from the job description are integrated naturally. If keywords look "stuffed" or forced without proper context, this must be fixed.
+3. Optimal State: Have we reached the best possible version of this resume given the original content? If the resume is as good as it can realistically get without making things up, you should consider it optimal.
+4. NO HALLUCINATIONS: DO NOT request the rewriter to add new skills, tools, or experiences that are not already present in the original resume. If the JD requires a skill (e.g. Node.js) but the original resume does not have it, DO NOT ask the rewriter to add it.
+
+If the rewritten resume has false information, forced keywords, or still has significant room for realistic improvement, set `should_rewrite` to true and provide a detailed list of `request_changes`.
+If the rewritten resume is in an optimal state, excellent, and needs no further changes, set `should_rewrite` to false and leave `request_changes` empty.
+"""
 rewrite_content_prompt = """
 You are a professional resume writer optimizing a candidate's resume to match a job description.
 
@@ -88,12 +103,19 @@ You are a professional resume writer optimizing a candidate's resume to match a 
 - If the bullet contains a missing keyword AND can be improved naturally → rewrite it
 - If the bullet is already strong → copy it word-for-word
 - If vague but no relevant keyword → rewrite for clarity and impact only
+- **IMPORTANT**: When you add new keywords, phrases, or make significant improvements to a bullet point, wrap the new/changed words in double asterisks (e.g., `Optimized the backend using **Redis**, improving latency by 20%`). This acts as a diff highlight.
 
 ## REWRITE GOALS (in priority order):
 1. Naturally weave in missing keywords from the analysis report
 2. Use strong action verbs: Architected, Engineered, Optimized, Reduced, Increased, Built
 3. Add metrics if the original has them; do NOT invent metrics if there are none
 4. Keep sentences concise — match or shorten the original word count per bullet
+
+## SPECIFIC CONTENT GUIDELINES (Highly Recommended):
+- **Technical Skills**: Explicitly include Node.js in the languages/skills section to ensure ATS keyword matching if it is relevant to the JD (even if the candidate's experience with it is limited).
+- **Collaboration**: In the DevConnect project description (or experience bullets), explicitly highlight collaboration with frontend developers or designers.
+- **System Architecture**: In the NexusGPT or DevConnect project/experience descriptions, explicitly mention participating in system architecture or design discussions.
+- **Product & Technical Decisions**: In the projects or achievements section, explicitly emphasize how the candidate contributed to product or technical decisions (e.g., decisions about scalability or AI integration in NexusGPT).
 
 ## PROFILE SUMMARY:
 - ONLY include a summary if the original resume has one. If the original has NO summary, leave this field blank/null. Do NOT invent a summary.
@@ -131,4 +153,5 @@ Your task is to optimize the provided candidate resume content to better align w
 3. **Keyword Optimization**: Naturally incorporate missing keywords from the analysis report into the rewritten bullets where appropriate.
 4. **Skills Optimization**: Align the skills categorization and terminology with the job description. Do NOT add skills the candidate does not have.
 5. **Concise Phrasing**: Improve clarity and impact using strong action verbs (e.g., 'Architected', 'Optimized', 'Engineered').
+6. **No Markdown Bold/Italics**: DO NOT wrap any words in `**` or `__`. Just output plain text.
 """

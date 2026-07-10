@@ -8,13 +8,6 @@ export function BrandLogo({ large = false }: { large?: boolean }) {
       >
         Resume Reworker
       </span>
-      {/* <span
-        className={`font-sans font-semibold tracking-widest uppercase text-[#b8d4a4] block ${
-          large ? "text-[18px] xl:text-[22px]" : "text-[14px] xl:text-[16px]"
-        }`} */}
-      {/* >
-        Reworker
-      </span> */}
     </div>
   );
 }

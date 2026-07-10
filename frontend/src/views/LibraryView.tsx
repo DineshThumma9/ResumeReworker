@@ -1,12 +1,17 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import useSWR from "swr";
 import { Folder, Loader2 } from "lucide-react";
 import type { Resume } from "../schemas";
 import { LibraryResumeCard } from "../components/LibraryResumeCard";
 import { resumeApi } from "../apis/resumes";
 import { Button } from "../components/ui/button";
+import { Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useResumeStore } from "../store/resumeStore";
 
 export function LibraryView() {
+  const navigate = useNavigate();
+  const resetResumeState = useResumeStore((s) => s.resetResumeState);
   const {
     data: resumes = [],
     isLoading,
@@ -14,6 +19,15 @@ export function LibraryView() {
   } = useSWR<Resume[]>("resumes", () => resumeApi.list());
 
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      resetResumeState();
+      useResumeStore.getState().setResumeState({ file: e.target.files[0] });
+      navigate("/analyze");
+    }
+  };
 
   const onDelete = (id: number) => {
     setDeleteId(id);
@@ -53,13 +67,31 @@ export function LibraryView() {
 
   return (
     <div className="px-6 py-10 flex flex-col gap-6 overflow-y-auto h-full w-full">
-      <div>
-        <h1 className="font-['EB_Garamond'] text-[36px] font-semibold text-foreground tracking-tight">
-          My Library
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          All your saved and tailored resumes.
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="font-['EB_Garamond'] text-[36px] font-semibold text-foreground tracking-tight">
+            My Library
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            All your saved and tailored resumes.
+          </p>
+        </div>
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          accept=".pdf,.doc,.docx"
+          onChange={handleFileChange}
+        />
+        <Button
+          onClick={() => {
+            fileInputRef.current?.click();
+          }}
+          className="gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          Add Resume
+        </Button>
       </div>
 
       {isLoading ? (

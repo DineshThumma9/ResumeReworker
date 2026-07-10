@@ -29,10 +29,10 @@ export const resumeApi = {
     });
     return { pdfUrl: raw.pdf_url || raw.pdfUrl };
   },
-  create: async (label: string, latexCode: string): Promise<Resume> => {
+  create: async (label: string, latexCode: string, content?: any): Promise<Resume> => {
     const raw = await fetchJSON("/resumes", {
       method: "POST",
-      body: JSON.stringify({ label, tex_source: latexCode }),
+      body: JSON.stringify({ label, tex_source: latexCode, content }),
     });
     return parse(ResumeSchema, raw);
   },

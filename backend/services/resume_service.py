@@ -111,8 +111,8 @@ async def mask_resume(resume_content, mask_details: MaskDetails):
 def extract_username(url: str):
     if not url:
         return None
-    url = url.strip().rstrip('/')
-    parts = url.split('/')
+    url = url.strip().rstrip("/")
+    parts = url.split("/")
     if parts and len(parts[-1]) > 3:
         return parts[-1]
     return None
@@ -120,14 +120,14 @@ def extract_username(url: str):
 
 def mask_latex(latex_code: str, resume_content: dict, mask_details: MaskDetails) -> str:
     resume_content_model = RewriteResume.model_validate(resume_content)
-    
+
     replacements = []
-    
+
     if mask_details.project_name and resume_content_model.projects:
         for project in resume_content_model.projects:
             if project.name:
                 replacements.append((project.name, "PROJECT NAME"))
-                
+
     if mask_details.company_name:
         if resume_content_model.experience:
             for exp in resume_content_model.experience:
@@ -137,12 +137,12 @@ def mask_latex(latex_code: str, resume_content: dict, mask_details: MaskDetails)
             for internship in resume_content_model.internships:
                 if internship.company:
                     replacements.append((internship.company, "COMPANY NAME"))
-                    
+
     if mask_details.education and resume_content_model.education:
         for edu in resume_content_model.education:
             if edu.institution:
                 replacements.append((edu.institution, "UNIVERSITY NAME"))
-                
+
     if resume_content_model.details:
         if mask_details.name and resume_content_model.details.name:
             name = resume_content_model.details.name
@@ -152,50 +152,61 @@ def mask_latex(latex_code: str, resume_content: dict, mask_details: MaskDetails)
                 for p in parts:
                     if len(p) > 3:
                         replacements.append((p, "Doe"))
-                        
+
         if mask_details.email and resume_content_model.details.email:
-            replacements.append((resume_content_model.details.email, "doejohn@example.com"))
-            
+            replacements.append(
+                (resume_content_model.details.email, "doejohn@example.com")
+            )
+
         if mask_details.phone and resume_content_model.details.contact:
             contact = resume_content_model.details.contact
             replacements.append((contact, "1234567890"))
             clean_phone = contact.replace(" ", "")
             if clean_phone != contact:
                 replacements.append((clean_phone, "1234567890"))
-                
+
         if mask_details.location and resume_content_model.details.location:
             replacements.append((resume_content_model.details.location, "LOCATION"))
-            
+
         if mask_details.github and resume_content_model.details.github:
-            replacements.append((resume_content_model.details.github, "GITHUB USERNAME"))
+            replacements.append(
+                (resume_content_model.details.github, "GITHUB USERNAME")
+            )
             uname = extract_username(resume_content_model.details.github)
             if uname:
                 replacements.append((uname, "GITHUB USERNAME"))
-            
+
         if mask_details.linkedin and resume_content_model.details.linkedin:
-            replacements.append((resume_content_model.details.linkedin, "LINKEDIN_USERNAME"))
+            replacements.append(
+                (resume_content_model.details.linkedin, "LINKEDIN_USERNAME")
+            )
             uname = extract_username(resume_content_model.details.linkedin)
             if uname:
                 replacements.append((uname, "LINKEDIN_USERNAME"))
-            
+
         if mask_details.leetcode and resume_content_model.details.leetcode:
-            replacements.append((resume_content_model.details.leetcode, "LEETCODE USERNAME"))
+            replacements.append(
+                (resume_content_model.details.leetcode, "LEETCODE USERNAME")
+            )
             uname = extract_username(resume_content_model.details.leetcode)
             if uname:
                 replacements.append((uname, "LEETCODE USERNAME"))
-            
+
         if mask_details.portfolio and resume_content_model.details.portfolio:
-            replacements.append((resume_content_model.details.portfolio, "PORTFOLIO_URL"))
+            replacements.append(
+                (resume_content_model.details.portfolio, "PORTFOLIO_URL")
+            )
 
     # deduplicate and sort
     replacements = list(set(replacements))
     replacements.sort(key=lambda x: len(x[0]), reverse=True)
-    
+
     for old, new in replacements:
         if old.strip():
             latex_code = latex_code.replace(old, new)
-            
+
     return latex_code
+
 
 # Convenient shorthand for use in route signatures
 CurrentUser = Annotated[User, Depends(get_current_user)]

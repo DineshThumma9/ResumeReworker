@@ -10,7 +10,7 @@
 \usepackage[normalem]{ulem}
 \providecommand{\added}[1]{{\color[HTML]{2E7D32}#1}}
 \providecommand{\deleted}[1]{{\color[HTML]{C62828}\sout{#1}}}
-\providecommand{\highlight}[1]{#1}
+\providecommand{\highlight}[1]{{\color[HTML]{2E7D32}#1}}
 
 \usepackage{latexsym}
 \usepackage[empty]{fullpage}
@@ -89,12 +89,16 @@
 \begin{document}
 
 %----------HEADING-----------------
-\begin{tabular*}{\textwidth}{l@{\extracolsep{\fill}}r}
-  \textbf{\Large [[ details.name | escape_latex ]]} &
-  [% if details.email %]Email: \href{mailto:[[ details.email ]]}{[[ details.email | escape_latex ]]}[% endif %] \\
-  [% if details.github %]\href{[[ details.github ]]}{[[ details.github | escape_latex ]]}[% endif %] &
-  [% if details.contact %]Mobile: [[ details.contact | escape_latex ]][% endif %] \\
-\end{tabular*}
+\begin{center}
+  \textbf{\Huge \scshape [[ details.name | escape_latex ]]} \\ \vspace{1pt}
+  \small
+  [% if details.profile_links.get('phone') %][[ details.profile_links.get('phone') | escape_latex ]][% endif %]
+  [% if details.profile_links.get('email') %] $|$
+  \href{mailto:[[ details.profile_links.get('email') ]]}{\underline{[[ details.profile_links.get('email') | escape_latex ]]}}[% endif %]
+  [% for platform, url in details.profile_links.items() %]
+  [% if platform not in ['phone', 'email', 'location'] and url %] $|$
+  \href{[% if url.startswith('http') %][[ url ]][% else %]https://[[ url ]][% endif %]}{\underline{[[ platform | capitalize ]]}}[% endif %][% endfor %]
+\end{center}
 
 [% if details.profile_summary %]
 %-----------SUMMARY-----------

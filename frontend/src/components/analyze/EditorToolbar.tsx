@@ -1,4 +1,4 @@
-import { Save, FileCode, Users, Play, Loader2 } from "lucide-react";
+import { Save, FileCode, Users, Play, Loader2, GitCompare } from "lucide-react";
 import { Button } from "../ui/button";
 
 interface EditorToolbarProps {
@@ -13,6 +13,9 @@ interface EditorToolbarProps {
   isSaving: boolean;
   hasPdf: boolean;
   hasResumeId: boolean;
+  showDiff: boolean;
+  onToggleDiff: () => void;
+  hasDiff: boolean;
 }
 
 export function EditorToolbar({
@@ -27,6 +30,9 @@ export function EditorToolbar({
   isSaving,
   hasPdf,
   hasResumeId,
+  showDiff,
+  onToggleDiff,
+  hasDiff,
 }: EditorToolbarProps) {
   return (
     <div className="flex items-center gap-2">
@@ -44,6 +50,18 @@ export function EditorToolbar({
         )}
         <span>Save</span>
       </Button>
+
+      {hasDiff && (
+        <Button
+          variant={showDiff ? "default" : "outline"}
+          size="sm"
+          className="font-sans text-[12px] h-8 rounded-md border-border"
+          onClick={onToggleDiff}
+        >
+          <GitCompare size={13} />
+          <span>{showDiff ? "Hide Changes" : "Show Changes"}</span>
+        </Button>
+      )}
 
       <Button
         variant="outline"

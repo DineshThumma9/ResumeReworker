@@ -61,6 +61,7 @@ async def download_anonymous(
     try:
         if mask_details.latex_code:
             from services.resume_service import mask_latex
+
             latex_code = mask_latex(mask_details.latex_code, content, mask_details)
         elif resume.template_id:
             t_result = await db.execute(

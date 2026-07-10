@@ -4,7 +4,7 @@
 \usepackage[normalem]{ulem}
 \providecommand{\added}[1]{{\color[HTML]{2E7D32}#1}}
 \providecommand{\deleted}[1]{{\color[HTML]{C62828}\sout{#1}}}
-\providecommand{\highlight}[1]{#1}
+\providecommand{\highlight}[1]{{\color[HTML]{2E7D32}#1}}
 
 \usepackage{latexsym}
 \usepackage[empty]{fullpage}
@@ -83,21 +83,17 @@
 \begin{center}
     {\Huge \scshape [[ details.name | escape_latex ]]} \\ \vspace{1pt}
     \small
-    [% if details.contact %]
-    \raisebox{-0.1\height}\faPhone\ [[ details.contact | escape_latex ]] ~
+    [% if details.profile_links.get('phone') %]
+    \raisebox{-0.1\height}\faPhone\ [[ details.profile_links.get('phone') | escape_latex ]] ~
     [% endif %]
-    [% if details.email %]
-    \href{mailto:[[ details.email ]]}{\raisebox{-0.2\height}\faEnvelope\ \underline{[[ details.email | escape_latex ]]}} ~
+    [% if details.profile_links.get('email') %]
+    \href{mailto:[[ details.profile_links.get('email') ]]}{\raisebox{-0.2\height}\faEnvelope\ \underline{Email}} ~
     [% endif %]
-    [% if details.github %]
-    \href{[[ details.github ]]}{\raisebox{-0.2\height}\faGithub\ \underline{[[ details.github | escape_latex ]]}} ~
+    [% for platform, url in details.profile_links.items() %]
+    [% if platform not in ['phone', 'email', 'location'] and url %]
+    \href{[% if url.startswith('http') %][[ url ]][% else %]https://[[ url ]][% endif %]}{\raisebox{-0.2\height}\faLink\ \underline{[[ platform | capitalize ]]}} ~
     [% endif %]
-    [% if details.linkedin %]
-    \href{[[ details.linkedin ]]}{\raisebox{-0.2\height}\faLinkedin\ \underline{[[ details.linkedin | escape_latex ]]}} ~
-    [% endif %]
-    [% if details.portfolio %]
-    \href{[[ details.portfolio ]]}{\raisebox{-0.2\height}\faGlobe\ \underline{[[ details.portfolio | escape_latex ]]}}
-    [% endif %]
+    [% endfor %]
     \vspace{-8pt}
 \end{center}
 

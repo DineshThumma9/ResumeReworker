@@ -130,7 +130,6 @@ class Skill(BaseModel):
     )
 
 
-
 class ProfileSummary(BaseModel):
     profile_summary: Optional[str] = Field(
         default="",
@@ -141,17 +140,18 @@ class ProfileSummary(BaseModel):
         ),
     )
 
+
 class Details(BaseModel):
     name: str = Field(description="Full name of the candidate")
     profile_links: Dict[str, Optional[str]] = Field(
         description=(
-            "ALL contact and profile links from the resume. "
-            "Keys MUST be: 'phone', 'email', 'github', 'linkedin', 'leetcode', "
-            "'codechef', 'portfolio', 'website', 'location'. "
+            "Dictionary of ALL links and contact info found in the resume. "
+            "Keys should be the platform name (e.g., 'github', 'linkedin', 'phone', 'email', "
+            "'gitlab', 'medium', 'hackerrank', 'portfolio', 'website', 'location'). "
             "Values are FULL URLs or raw values (e.g., '+91XXXXXXXXXX', 'user@email.com', "
             "'https://github.com/username'). "
-            "Scan the ENTIRE resume text for any github.com, linkedin.com, leetcode.com, "
-            "codechef.com, mailto:, http/https links, phone numbers, and email addresses. "
+            "Scan the ENTIRE resume text for any profile links (GitHub, LinkedIn, GitLab, LeetCode, etc), "
+            "mailto:, http/https links, phone numbers, and email addresses. "
             "If a field is not found, set it to null — do NOT omit the key. "
             "NEVER leave this dict empty if the resume has any links or contact info."
         ),
@@ -166,6 +166,25 @@ class Details(BaseModel):
             return data
 
         links: Dict[str, Optional[str]] = data.get("profile_links") or {}
+        
+        # Normalize keys in case LLM used the URL as the key
+        normalized_links = {}
+        for k, v in links.items():
+            if not v:
+                continue
+            k_lower = k.lower()
+            if k_lower.startswith("http") or "." in k_lower:
+                m = re.search(r"https?://(?:www\.)?([\w\-\.]+)", v)
+                if m:
+                    domain = m.group(1).lower()
+                    if domain.endswith(".com") or domain.endswith(".org") or domain.endswith(".net") or domain.endswith(".io"):
+                        domain = domain[:-4]
+                    normalized_links[domain] = v
+                else:
+                    normalized_links[k_lower] = v
+            else:
+                normalized_links[k_lower] = v
+        links = normalized_links
 
         # Collect raw text to scan (from any field that might contain resume text)
         raw_text = " ".join(str(v) for v in data.values() if isinstance(v, str))
@@ -174,49 +193,20 @@ class Details(BaseModel):
             m = re.search(pattern, text, re.IGNORECASE)
             return m.group(0) if m else None
 
-        # GitHub
-        if not links.get("github"):
-            gh = _first(
-                r"https?://(?:www\.)?github\.com/[\w\-\.]+(?:/[\w\-\.]*)*", raw_text
-            )
-            if not gh:
-                # bare username form: github.com/username
-                gh = _first(r"github\.com/[\w\-\.]+", raw_text)
-                if gh:
-                    gh = "https://" + gh
-            if gh:
-                links["github"] = gh
-
-        # LinkedIn
-        if not links.get("linkedin"):
-            li = _first(
-                r"https?://(?:www\.)?linkedin\.com/in/[\w\-\.]+(?:/[\w\-\.]*)*",
-                raw_text,
-            )
-            if not li:
-                li = _first(r"linkedin\.com/in/[\w\-\.]+", raw_text)
-                if li:
-                    li = "https://" + li
-            if li:
-                links["linkedin"] = li
-
-        # LeetCode
-        if not links.get("leetcode"):
-            lc = _first(r"https?://(?:www\.)?leetcode\.com/[u/]?[\w\-\.]+", raw_text)
-            if not lc:
-                lc = _first(r"leetcode\.com/[u/]?[\w\-\.]+", raw_text)
-                if lc:
-                    lc = "https://" + lc
-            if lc:
-                links["leetcode"] = lc
-
-        # Email
-        if not links.get("email"):
-            email = _first(
-                r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}", raw_text
-            )
-            if email:
-                links["email"] = email
+        # Generic fallback for any other http/https links
+        urls = re.findall(r"https?://(?:www\.)?([\w\-\.]+)[/\w\-\.\?\=\&\%]*", raw_text)
+        for domain in urls:
+            if domain.endswith(".com"):
+                domain = domain[:-4]
+            elif domain.endswith(".org") or domain.endswith(".net") or domain.endswith(".io"):
+                domain = domain[:-4]
+            # normalize domain to generic key, e.g. linkedin, github
+            key = domain.lower()
+            if key not in links:
+                # Find the full match in text
+                match = re.search(r"https?://(?:www\.)?" + re.escape(domain) + r"[a-zA-Z]{0,4}[/\w\-\.\?\=\&\%]*", raw_text)
+                if match:
+                    links[key] = match.group(0)
 
         # Phone — Indian (+91) and generic
         if not links.get("phone"):
@@ -226,14 +216,13 @@ class Details(BaseModel):
             if phone:
                 links["phone"] = phone.strip()
 
-        # Any other https:// link → portfolio/website
-        if not links.get("portfolio") and not links.get("website"):
-            other = _first(
-                r"https?://(?!(?:www\.)?(?:github|linkedin|leetcode|codechef)\.com)[\w\-\.]+\.[a-zA-Z]{2,}[\w\-\./\?\=\&\%]*",
-                raw_text,
+        # Email
+        if not links.get("email"):
+            email = _first(
+                r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}", raw_text
             )
-            if other:
-                links["website"] = other
+            if email:
+                links["email"] = email
 
         data["profile_links"] = links
         return data
@@ -253,6 +242,15 @@ class Details(BaseModel):
     @email.setter
     def email(self, val: Optional[str]):
         self.profile_links["email"] = val
+
+    @property
+    def other_links(self) -> Dict[str, str]:
+        """Returns all links except email, phone, location."""
+        return {
+            k: v
+            for k, v in self.profile_links.items()
+            if v and k.lower() not in ["email", "phone", "location", "contact"]
+        }
 
     @property
     def github(self) -> Optional[str]:
@@ -325,7 +323,9 @@ class Details(BaseModel):
 class RewriteResume(BaseModel):
     """Structured content for rewritten resume"""
 
-    profile_summary:Optional[ProfileSummary]=Field(description="Professional Summary")
+    profile_summary: Optional[ProfileSummary] = Field(
+        description="Professional Summary"
+    )
 
     details: Optional[Details] = Field(description="Personal details")
 
@@ -394,6 +394,10 @@ class RewriteResume(BaseModel):
     def clean_input(cls, data: Any) -> Any:
         if not isinstance(data, dict):
             return data
+
+        # Fix profile_summary if LLM returns a string instead of dict
+        if "profile_summary" in data and isinstance(data["profile_summary"], str):
+            data["profile_summary"] = {"profile_summary": data["profile_summary"]}
 
         # 1. Clean technical_skills
         if "technical_skills" in data and data["technical_skills"] is not None:
@@ -536,6 +540,7 @@ class ResumeOut(BaseModel):
     preview_url: Optional[str] = None
     created_at: datetime = Field(default=datetime.now())
     updated_at: datetime = Field(default=datetime.now())
+    content: Optional[Dict[str, Any]] = None
 
     class Config:
         from_attributes = True
@@ -547,16 +552,19 @@ class ResumeState(TypedDict, total=False):
     analysis: Optional[Any]
     changes_content: Optional[Any]
     latex_code: str
+    diff_latex_code: str
     tone: str
     model: str
     provider: str
     api_key: str
     exclude_sections: Dict[str, bool]
     output_path: str
+    judgement: Any
     pdf_base64: str
     template_source: str
     template_id: Optional[int]
     error: Optional[str]  # propagated from any node on failure
+    iteration: int
 
 
 class PaginatedResume(BaseModel):
@@ -652,6 +660,7 @@ class ResumeCreate(BaseModel):
     jd_snippet: Optional[str] = None
     template_id: Optional[int] = None
     pdf_url: Optional[str] = None
+    content: Optional[dict] = None
 
 
 class CompileRequest(BaseModel):
@@ -678,3 +687,8 @@ class BatchedRewriteResponse(BaseModel):
         default=None,
         description="Optimized skills list, keeping skills candidate actually has but aligning headers/keywords with JD. Null if not provided.",
     )
+
+
+class JudgeResume(BaseModel):
+    request_changes: List[str]
+    should_rewrite: bool

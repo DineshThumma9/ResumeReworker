@@ -115,6 +115,7 @@ export function useResumeAnalysis() {
   const clearLines = () => setLines([]);
 
   const submitAnalysis = (fd: FormData, onSuccess: () => void) => {
+
     setLines([]);
     setRunning(true);
     setLines([
@@ -252,34 +253,24 @@ export function useResumeAnalysis() {
           ];
         });
       } else if (ev.event === "progress") {
-        if (ev.step === "rewrite_resume") {
-          setLines((prev) => {
-            const n = [...prev];
-            const lastIdx = n.map((l) => l.type).lastIndexOf("progress");
-            if (lastIdx >= 0) {
-              n[lastIdx] = {
-                ...n[lastIdx],
-                type: "success",
-                text: "Resume rewritten successfully.",
-              };
-            } else {
-              n.push({
-                type: "success",
-                text: "Resume rewritten successfully.",
-              });
-            }
-            return [
-              ...n,
-              { type: "progress", text: "Compiling LaTeX document..." },
-            ];
-          });
-        } else {
-          addLine({
-            type: "progress",
-            text: ev.message,
-            analysis: { ...accumulatedAnalysis } as ResumeAnalysis,
-          });
-        }
+        setLines((prev) => {
+          const n = [...prev];
+          const lastIdx = n.map((l) => l.type).lastIndexOf("progress");
+          if (lastIdx >= 0) {
+            n[lastIdx] = {
+              ...n[lastIdx],
+              type: "success",
+            };
+          }
+          return [
+            ...n,
+            {
+              type: "progress",
+              text: ev.message,
+              analysis: { ...accumulatedAnalysis } as ResumeAnalysis,
+            },
+          ];
+        });
       }
       if (ev.event === "complete") {
         setRunning(false);
@@ -289,6 +280,7 @@ export function useResumeAnalysis() {
 
         setResumeState({
           latexCode: latex || "% No LaTeX was generated.",
+          diffLatexCode: ev.diffLatexCode || "",
           pdfUrl: isError ? null : ev.pdfUrl || pdfUrl,
           resumeId: ev.resumeId || resumeId,
           label: ev.label || label,

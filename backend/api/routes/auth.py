@@ -365,6 +365,7 @@ async def autofill_profile(
         try:
             from schemas.schema import Details
             from utils.prompts import extract_details_prompt
+
             details_llm = llm.with_structured_output(Details)
             details_messages = [
                 SystemMessage(content=extract_details_prompt),
@@ -397,16 +398,16 @@ async def autofill_profile(
         parsed = await structured_llm.ainvoke(messages)
         if not parsed:
             raise Exception("LLM returned empty parsed result.")
-            
+
         if isinstance(parsed, dict):
             parsed = RewriteResume.model_validate(parsed)
-            
+
         if details_obj:
             if getattr(parsed, "details", None):
                 # Merge name
                 if not parsed.details.name and details_obj.name:
                     parsed.details.name = details_obj.name
-                
+
                 # Merge links
                 if details_obj.profile_links:
                     if not parsed.details.profile_links:

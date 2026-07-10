@@ -498,8 +498,12 @@ async def analyze(
                 jd,
                 resume_text,
             )
-        except ValueError as ve:
-            yield f"data: {json.dumps({'event': 'error', 'message': str(ve)})}\n\n"
+        except Exception as graph_err:
+            import traceback
+            tb = traceback.format_exc()
+            import logging
+            logging.getLogger(__name__).error(f"GRAPH ERROR: {tb}")
+            yield f"data: {json.dumps({'event': 'error', 'message': f'Internal Error: {str(graph_err)}\nTraceback:\n{tb}'})}\n\n"
             return
 
         service = ResumeWorkflowService()
@@ -547,9 +551,30 @@ async def analyze(
                     yield f"data: {json.dumps({'event': 'analysis_done'})}\n\n"
             elif "rewrite_resume" in event:
                 yield f"data: {json.dumps({'event': 'progress', 'step': 'rewrite_resume', 'message': 'Finished rewriting resume...'})}\n\n"
+            elif "judge_resume" in event:
+                judgement = event["judge_resume"].get("judgement")
+                iteration = event["judge_resume"].get("iteration", 1)
+                if judgement:
+                    if isinstance(judgement, dict):
+                        should_rewrite = judgement.get("should_rewrite", False)
+                        req_changes = judgement.get("request_changes", [])
+                    else:
+                        should_rewrite = getattr(judgement, "should_rewrite", False)
+                        req_changes = getattr(judgement, "request_changes", [])
+                    
+                    if should_rewrite:
+                        msg = f"Judge requested changes (Iteration {iteration}). Rewriting again..."
+                        if req_changes:
+                            msg += f" Feedback: {'; '.join(req_changes)}"
+                    else:
+                        msg = f"Judge approved rewrite (Iteration {iteration}). Proceeding to PDF generation..."
+                    yield f"data: {json.dumps({'event': 'progress', 'step': 'judge_resume', 'message': msg})}\n\n"
+                else:
+                    yield f"data: {json.dumps({'event': 'progress', 'step': 'judge_resume', 'message': f'Evaluating rewritten resume (Iteration {iteration})...'})}\n\n"
             elif "rewrite_latex" in event:
                 data = event["rewrite_latex"]
                 latex_code = data.get("latex_code", "")
+                diff_latex_code = data.get("diff_latex_code", "")
                 pdf_base64 = data.get("pdf_base64", "")
                 error_msg = data.get("error", None)
 
@@ -596,6 +621,7 @@ async def analyze(
                     "event": "complete",
                     "message": "Done!",
                     "latexCode": latex_code,
+                    "diffLatexCode": diff_latex_code,
                     "pdfUrl": pdf_base64,
                 }
                 if error_msg:

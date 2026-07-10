@@ -1,6 +1,7 @@
 import base64
 import logging
 import subprocess
+from typing import Literal
 
 import cloudconvert
 from langchain.chat_models import init_chat_model
@@ -9,7 +10,7 @@ from langgraph.constants import END, START
 from langgraph.graph import StateGraph
 
 from core.config import settings
-from schemas.schema import ResumeAnalysis, ResumeState, RewriteResume
+from schemas.schema import JudgeResume, ResumeAnalysis, ResumeState, RewriteResume
 from services.renderer import render_resume_template, render_resume_template_from_string
 from utils.prompts import (
     extract_details_prompt,
@@ -31,12 +32,41 @@ class ResumeWorkflowService:
         graph = StateGraph(ResumeState)  # type: ignore
         graph.add_node("match_jd", self.match_jd)
         graph.add_node("rewrite_resume", self.rewrite_resume)
+        graph.add_node("judge_resume", self.judge_rewrite)
         graph.add_node("rewrite_latex", self.rewrite_latex)
         graph.add_edge(START, "match_jd")
         graph.add_edge("match_jd", "rewrite_resume")
-        graph.add_edge("rewrite_resume", "rewrite_latex")
+        graph.add_edge("rewrite_resume", "judge_resume")
+        graph.add_conditional_edges(source="judge_resume", path=self.route_path)
         graph.add_edge("rewrite_latex", END)
         return graph.compile()
+
+    def route_path(
+        self, state: "ResumeState"
+    ) -> Literal["rewrite_resume", "rewrite_latex"]:
+        iteration = int(state.get("iteration", 1))
+        judgement = state.get("judgement")
+        if not judgement or iteration >= 5:
+            logger.info(f"Proceeding to rewrite_latex. Iteration: {iteration}")
+            return "rewrite_latex"
+
+        if isinstance(judgement, dict):
+            should_rewrite = judgement.get("should_rewrite", False)
+            req_changes = judgement.get("request_changes", [])
+        else:
+            should_rewrite = getattr(judgement, "should_rewrite", False)
+            req_changes = getattr(judgement, "request_changes", [])
+
+        if should_rewrite:
+            logger.info(
+                f"Judge rejected rewrite (iteration {iteration}). Requesting changes: {req_changes}"
+            )
+        else:
+            logger.info(
+                f"Judge approved rewrite (iteration {iteration}). Proceeding to LaTeX."
+            )
+
+        return "rewrite_resume" if should_rewrite else "rewrite_latex"
 
     def iterate_nested_dict(self, d, parent_key=""):
         for key, value in d.items():
@@ -92,6 +122,7 @@ class ResumeWorkflowService:
         return init_chat_model(state["model"], model_provider=provider, **llm_kwargs)  # type: ignore
 
     async def rewrite_resume(self, state: "ResumeState"):
+        iteration = int(state.get("iteration", 0)) + 1
         resume = state["resume"]  # type: ignore
         jd = state["jd"]  # type: ignore
         tone = state["tone"]  # type: ignore
@@ -125,6 +156,20 @@ class ResumeWorkflowService:
                 logger.warning(
                     f"Details extraction failed (will rely on validator fallback): {details_err}"
                 )
+            
+            # Robust URL fallback extraction from the entire resume text
+            import re
+            if details_obj:
+                urls = re.findall(r"https?://(?:www\.)?([\w\-\.]+)[/\w\-\.\?\=\&\%]*", resume)
+                for full_url in re.findall(r"https?://[^\s\"\'\>]+", resume):
+                    m = re.search(r"https?://(?:www\.)?([\w\-\.]+)", full_url)
+                    if m:
+                        domain = m.group(1).lower()
+                        if domain.endswith(".com") or domain.endswith(".org") or domain.endswith(".net") or domain.endswith(".io"):
+                            domain = domain[:-4]
+                        
+                        if domain not in details_obj.profile_links:
+                            details_obj.profile_links[domain] = full_url
 
             # ── Call 2: Rewrite full content ─────────────────────────────────
             structured_llm = llm.with_structured_output(RewriteResume)
@@ -138,13 +183,28 @@ class ResumeWorkflowService:
                     f"Links: {details_obj.profile_links}\n"
                 )
 
+            judgement = state.get("judgement")
+            judgement_hint = ""
+            if judgement:
+                if isinstance(judgement, dict):
+                    req_changes = judgement.get("request_changes", [])
+                else:
+                    req_changes = getattr(judgement, "request_changes", [])
+                if req_changes:
+                    changes_str = "\n- ".join(req_changes)
+                    judgement_hint = (
+                        f"\n\n[PREVIOUS FEEDBACK TO INCORPORATE]\n"
+                        f"The previous rewrite was rejected. Please make the following changes:\n- {changes_str}\n"
+                    )
+
             messages = [
                 SystemMessage(content=rewrite_content_prompt),
                 HumanMessage(
                     content=(
                         f"Job Description:\n{jd}\n\n"
                         f"Candidate Resume:\n{resume}"
-                        f"{details_hint}\n\n"
+                        f"{details_hint}\n"
+                        f"{judgement_hint}\n"
                         f"Analysis Report:\n{analysis}\n"
                         f"Tone: {tone}\n"
                         f"Exclude Sections: {exclude_sections}\n"
@@ -161,10 +221,38 @@ class ResumeWorkflowService:
             if details_obj and not response.details.profile_links:
                 response.details.profile_links = details_obj.profile_links
 
-            return {**state, "changes_content": response}
+            return {**state, "changes_content": response, "iteration": iteration}
         except Exception as e:
             logger.exception(f"Error in rewrite_resume node: {e}")
-            return {**state, "changes_content": None}
+            return {**state, "changes_content": None, "iteration": iteration}
+
+    async def judge_rewrite(self, state: "ResumeState"):
+        changes = state["changes_content"]
+        resume = state["resume"]
+        jd = state["jd"]
+        analysis = state["analysis"]
+
+        from utils.prompts import judge_prompt
+
+        messages = [
+            SystemMessage(content=judge_prompt),
+            HumanMessage(
+                content=(
+                    f"Job Description:\n{jd}\n\n"
+                    f"Candidate Resume:\n{resume}"
+                    f"\n\nCandidate Changed Resume:\n{changes}"
+                    f"\n\nCandidate Analysis:\n{analysis}"
+                    f"\n\nRewrite Score: "
+                )
+            ),
+        ]
+
+        llm = await self._get_llm(state)
+        structured_llm = llm.with_structured_output(JudgeResume)
+        response = await structured_llm.ainvoke(messages)
+        if response is None:
+            return {**state, "judgement": None}
+        return {**state, "judgement": response}
 
     # =========================================================================
     # OPTIONAL LOCAL COMPILATION ENGINES (Commented out)
@@ -341,39 +429,59 @@ class ResumeWorkflowService:
         try:
             # Convert schema to dict
             data_dict = suggesting_changes.model_dump()
+            import copy
+            clean_data_dict = copy.deepcopy(data_dict)
+
+            # Apply programmatic diff to inject ** and ~~ tags
+            original_resume_text = state.get("resume", "")
+            from utils.diff_engine import apply_diff_to_data
+            diff_data_dict = apply_diff_to_data(original_resume_text, data_dict)
 
             # Apply exclude_sections logic by removing keys
             if exclude_sections:
                 for section in exclude_sections:
-                    if section in data_dict:
-                        data_dict[section] = None
+                    if section in clean_data_dict:
+                        clean_data_dict[section] = None
+                    if section in diff_data_dict:
+                        diff_data_dict[section] = None
 
             template_source = state.get("template_source")
             if template_source and template_source.strip():
                 latex_code = render_resume_template_from_string(
-                    template_source, data_dict
+                    template_source, clean_data_dict
+                )
+                diff_latex_code = render_resume_template_from_string(
+                    template_source, diff_data_dict
                 )
             else:
-                latex_code = render_resume_template("jakes1.tex", data_dict)
+                latex_code = render_resume_template("jakes1.tex", clean_data_dict)
+                diff_latex_code = render_resume_template("jakes1.tex", diff_data_dict)
 
             try:
                 filename = (
                     f"{suggesting_changes.details.name.replace(' ', '_')}_resume.pdf"
                 )
+                # Compile clean latex_code
                 pdf_bytes = await self.latex_to_pdf(latex_code, filename)
 
                 if not pdf_bytes or len(pdf_bytes) < 100:
-                    return {**state, "latex_code": latex_code}
+                    return {**state, "latex_code": latex_code, "diff_latex_code": diff_latex_code}
 
                 pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
                 return {
                     **state,
                     "latex_code": latex_code,
+                    "diff_latex_code": diff_latex_code,
                     "pdf_base64": f"data:application/pdf;base64,{pdf_base64}",
                 }
 
             except Exception as pdf_error:
-                return {**state, "latex_code": latex_code, "error": str(pdf_error)}
+                return {
+                    **state,
+                    "latex_code": latex_code,
+                    "diff_latex_code": diff_latex_code,
+                    "error": str(pdf_error),
+                }
 
         except Exception as e:
             return {

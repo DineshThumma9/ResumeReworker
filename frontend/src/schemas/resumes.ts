@@ -11,6 +11,7 @@ export const ResumeSchema = z.object({
   preview_url: z.string().nullable().optional(),
   created_at: z.string(), // ISO datetime string from FastAPI
   updated_at: z.string(),
+  content: z.any().optional(),
 });
 
 export type Resume = z.infer<typeof ResumeSchema>; // <-- type comes FROM the schema
@@ -75,6 +76,7 @@ export const AnalyzeEventSchema = z.discriminatedUnion("event", [
     event: z.literal("complete"),
     message: z.string(),
     latexCode: z.string().optional(),
+    diffLatexCode: z.string().optional(),
     pdfUrl: z.string().optional(),
     resumeId: z.number().optional(),
     label: z.string().optional(),

@@ -76,7 +76,7 @@ export function AnalyzeView() {
       if (cleanLatex.includes("\\begin{document}")) {
         cleanLatex = cleanLatex.replace(
           "\\begin{document}",
-          "\\renewcommand{\\highlight}[1]{#1}\n\\begin{document}",
+          "\\renewcommand{\\highlight}[1]{#1}\n\\renewcommand{\\added}[1]{#1}\n\\renewcommand{\\deleted}[1]{}\n\\begin{document}",
         );
       }
 

@@ -3,6 +3,9 @@ import { FileText, Calendar, Trash2, Edit2 } from "lucide-react";
 import type { Resume } from "../schemas";
 import { useNavigate } from "react-router-dom";
 import { useResumeStore } from "../store/resumeStore";
+import { resumeApi } from "../apis/resumes";
+import { templateApi } from "../apis/templates";
+import useSWR from "swr";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +16,13 @@ import {
 } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "./ui/select";
+import { Loader2 } from "lucide-react";
 
 export function LibraryResumeCard({
   resume,
@@ -27,6 +37,11 @@ export function LibraryResumeCard({
   const setResumeState = useResumeStore((s) => s.setResumeState);
   const [isRenameOpen, setIsRenameOpen] = useState(false);
   const [newLabel, setNewLabel] = useState(resume.label);
+  const [isRendering, setIsRendering] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [isStyleDialogOpen, setIsStyleDialogOpen] = useState(false);
+
+  const { data: templates } = useSWR("templates", templateApi.list);
 
   const handleRenameSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,6 +74,26 @@ export function LibraryResumeCard({
       }
     } else {
       window.open(resume.pdf_url, "_blank");
+    }
+  };
+
+  const handleStyleConfirm = async (mode: "inplace" | "copy") => {
+    if (!selectedTemplateId) return;
+    try {
+      setIsRendering(true);
+      if (mode === "inplace") {
+        await resumeApi.render(resume.id, selectedTemplateId);
+      } else {
+        const newResume = await resumeApi.create(resume.label + " (Copy)", resume.tex_source || "", resume.content);
+        await resumeApi.render(newResume.id, selectedTemplateId);
+      }
+      window.location.reload();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsRendering(false);
+      setIsStyleDialogOpen(false);
+      setSelectedTemplateId(null);
     }
   };
 
@@ -146,7 +181,59 @@ export function LibraryResumeCard({
         >
           Edit
         </button>
+        <Select
+          onValueChange={(val) => {
+            setSelectedTemplateId(val);
+            setIsStyleDialogOpen(true);
+          }}
+          disabled={isRendering || !templates}
+          value=""
+        >
+          <SelectTrigger className="flex-1 inline-flex items-center justify-center px-3 py-2 text-sm font-medium rounded-lg border border-border bg-background hover:bg-muted text-foreground transition-colors disabled:opacity-50 h-[38px]">
+            {isRendering ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <span>Style</span>
+            )}
+          </SelectTrigger>
+          <SelectContent>
+            {templates?.map((t) => (
+              <SelectItem key={t.id} value={String(t.id)}>
+                {t.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
+
+      {/* STYLE DIALOG */}
+      <Dialog open={isStyleDialogOpen} onOpenChange={setIsStyleDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change Resume Style</DialogTitle>
+            <DialogDescription>
+              Do you want to update this resume in-place, or create a copy with the new style?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:justify-center mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isRendering}
+              onClick={() => handleStyleConfirm("copy")}
+            >
+              Make a Copy
+            </Button>
+            <Button
+              type="button"
+              disabled={isRendering}
+              onClick={() => handleStyleConfirm("inplace")}
+            >
+              Save In-place
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* RENAME DIALOG */}
       <Dialog open={isRenameOpen} onOpenChange={setIsRenameOpen}>

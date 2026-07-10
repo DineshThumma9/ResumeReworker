@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { type StreamLine } from "../../hooks/useResumeAnalysis";
 import {

@@ -3,6 +3,7 @@ import { create } from "zustand";
 interface ResumeState {
   resumeId: number | null;
   latexCode: string;
+  diffLatexCode: string;
   pdfUrl: string | null;
   label: string;
   templateId: string;
@@ -16,6 +17,7 @@ interface ResumeState {
 const initialState = {
   resumeId: null,
   latexCode: "",
+  diffLatexCode: "",
   pdfUrl: null,
   label: "",
   templateId: "",
