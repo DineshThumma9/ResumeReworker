@@ -139,7 +139,7 @@ export function LandingView({
     if (isNew) {
       navigate("/onboarding", { replace: true });
     } else {
-      navigate("/library", { replace: true });
+      navigate("/analyze", { replace: true });
     }
   };
 
@@ -316,7 +316,7 @@ export function LandingView({
               if (mode === "signup") {
                 navigate("/onboarding");
               } else {
-                navigate("/library");
+                navigate("/analyze");
               }
             }}
           />

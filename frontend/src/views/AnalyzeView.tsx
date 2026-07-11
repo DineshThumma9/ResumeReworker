@@ -17,10 +17,13 @@ import {
 } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
 import { ProgressStream } from "../components/analyze/ProgressStream";
+import Ai from "../components/ai-input";
 
 export function AnalyzeView() {
-  const { latexCode, setResumeState, pdfUrl, resumeId, label } =
+  const { latexCode, setResumeState, pdfUrl, diffPdfUrl, resumeId, label } =
     useResumeStore();
+
+  const [showDiff, setShowDiff] = useState(false);
 
   const {
     running,
@@ -67,28 +70,6 @@ export function AnalyzeView() {
     company_name: true,
     education: true,
   });
-
-  const handleDownloadPdf = async () => {
-    if (!latexCode) return;
-    try {
-      // Modify latexCode to disable highlights dynamically
-      let cleanLatex = latexCode;
-      if (cleanLatex.includes("\\begin{document}")) {
-        cleanLatex = cleanLatex.replace(
-          "\\begin{document}",
-          "\\renewcommand{\\highlight}[1]{#1}\n\\renewcommand{\\added}[1]{#1}\n\\renewcommand{\\deleted}[1]{}\n\\begin{document}",
-        );
-      }
-
-      const res = await resumeApi.compile(cleanLatex, resumeId);
-      const a = document.createElement("a");
-      a.href = res.pdfUrl;
-      a.download = `${label || "resume"}.pdf`;
-      a.click();
-    } catch (err) {
-      console.error("Failed to download clean PDF:", err);
-    }
-  };
 
   const handleDownloadTex = () => {
     if (latexCode) {
@@ -185,12 +166,12 @@ export function AnalyzeView() {
   };
 
   return (
-    <div className="flex flex-1 w-full bg-background overflow-hidden font-sans h-full relative">
+    <div className="flex flex-col md:flex-row flex-1 w-full bg-background overflow-hidden font-sans h-full relative">
       {/* LEFT PANEL: Tabs (Analysis, Editor) */}
       <div
         className={
           activeTab === "editor"
-            ? "w-1/2 flex flex-col bg-background h-full"
+            ? "w-full md:w-1/2 flex flex-col bg-background h-[50vh] md:h-full shrink-0"
             : "w-full flex flex-col bg-background h-full"
         }
       >
@@ -220,7 +201,6 @@ export function AnalyzeView() {
             {activeTab === "editor" && (
               <EditorToolbar
                 onCompile={handleCompile}
-                onDownloadPdf={handleDownloadPdf}
                 onDownloadTex={handleDownloadTex}
                 onUploadTex={handleUploadTex}
                 onSave={handleSave}
@@ -228,8 +208,10 @@ export function AnalyzeView() {
                 onShareAnonymous={() => setShowShareModal(true)}
                 isCompiling={isCompiling}
                 isSaving={isSaving}
-                hasPdf={!!pdfUrl}
                 hasResumeId={!!resumeId}
+                showDiff={showDiff}
+                onToggleDiff={() => setShowDiff(!showDiff)}
+                hasDiff={!!diffPdfUrl}
               />
             )}
           </div>
@@ -264,7 +246,7 @@ export function AnalyzeView() {
 
           <TabsContent
             value="editor"
-            className="flex-1 m-0 bg-[#1e1e1e] h-full overflow-hidden"
+            className="flex-1 m-0 bg-[#1e1e1e] h-full overflow-hidden relative"
           >
             <Editor
               height="100%"
@@ -280,17 +262,25 @@ export function AnalyzeView() {
                 folding: true,
                 scrollBeyondLastLine: false,
                 smoothScrolling: true,
-                padding: { top: 16 },
+                padding: { top: 16, bottom: 80 },
               }}
             />
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-10 pointer-events-none">
+              <div className="pointer-events-auto">
+                <Ai provider={provider} model={model} />
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
 
       {/* RIGHT PANEL: PDF Preview */}
       {activeTab === "editor" && (
-        <div className="w-1/2 flex flex-col h-full bg-[#525659]">
-          <PdfPreviewPanel pdfUrl={pdfUrl} isCompiling={isCompiling} />
+        <div className="w-full md:w-1/2 flex flex-col h-[50vh] md:h-full bg-[#525659]">
+          <PdfPreviewPanel
+            pdfUrl={showDiff ? diffPdfUrl || pdfUrl : pdfUrl}
+            isCompiling={isCompiling}
+          />
         </div>
       )}
 
@@ -395,13 +385,13 @@ export function AnalyzeView() {
       {/* COMPILATION ERROR MODAL */}
       {compileError && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs">
-          <div className="bg-background rounded-xl shadow-xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-2xl p-6 animate-in fade-in zoom-in-95 duration-200">
             <h3 className="font-['EB_Garamond'] text-2xl font-semibold text-red-500 mb-2">
               Compilation Failed
             </h3>
-            <p className="text-sm text-foreground/80 mb-6 whitespace-pre-wrap">
+            <div className="text-xs text-foreground/90 bg-muted/50 border border-border rounded-lg p-3 max-h-[50vh] overflow-y-auto font-mono mb-6 whitespace-pre-wrap">
               {compileError}
-            </p>
+            </div>
             <div className="flex justify-end">
               <Button
                 variant="default"
@@ -418,13 +408,13 @@ export function AnalyzeView() {
       {/* API ERROR MODAL */}
       {apiError && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs">
-          <div className="bg-background rounded-xl shadow-xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-2xl p-6 animate-in fade-in zoom-in-95 duration-200">
             <h3 className="font-['EB_Garamond'] text-2xl font-semibold text-red-500 mb-2">
               API Error
             </h3>
-            <p className="text-sm text-foreground/80 mb-6 whitespace-pre-wrap">
+            <div className="text-xs text-foreground/90 bg-muted/50 border border-border rounded-lg p-3 max-h-[50vh] overflow-y-auto font-mono mb-6 whitespace-pre-wrap">
               {apiError}
-            </p>
+            </div>
             <div className="flex justify-end">
               <Button
                 variant="default"

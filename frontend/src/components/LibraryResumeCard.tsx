@@ -16,12 +16,7 @@ import {
 } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from "./ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "./ui/select";
 import { Loader2 } from "lucide-react";
 
 export function LibraryResumeCard({
@@ -38,7 +33,9 @@ export function LibraryResumeCard({
   const [isRenameOpen, setIsRenameOpen] = useState(false);
   const [newLabel, setNewLabel] = useState(resume.label);
   const [isRendering, setIsRendering] = useState(false);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
+    null,
+  );
   const [isStyleDialogOpen, setIsStyleDialogOpen] = useState(false);
 
   const { data: templates } = useSWR("templates", templateApi.list);
@@ -84,7 +81,11 @@ export function LibraryResumeCard({
       if (mode === "inplace") {
         await resumeApi.render(resume.id, selectedTemplateId);
       } else {
-        const newResume = await resumeApi.create(resume.label + " (Copy)", resume.tex_source || "", resume.content);
+        const newResume = await resumeApi.create(
+          resume.label + " (Copy)",
+          resume.tex_source || "",
+          resume.content,
+        );
         await resumeApi.render(newResume.id, selectedTemplateId);
       }
       window.location.reload();
@@ -186,10 +187,17 @@ export function LibraryResumeCard({
             setSelectedTemplateId(val);
             setIsStyleDialogOpen(true);
           }}
-          disabled={isRendering || !templates}
+          disabled={isRendering || !templates || !resume.tex_source}
           value=""
         >
-          <SelectTrigger className="flex-1 inline-flex items-center justify-center px-3 py-2 text-sm font-medium rounded-lg border border-border bg-background hover:bg-muted text-foreground transition-colors disabled:opacity-50 h-[38px]">
+          <SelectTrigger
+            className="flex-1 inline-flex items-center justify-center px-3 py-2 text-sm font-medium rounded-lg border border-border bg-background hover:bg-muted text-foreground transition-colors disabled:opacity-50 h-[38px]"
+            title={
+              !resume.tex_source
+                ? "Style conversion requires a LaTeX-generated resume"
+                : "Change Style"
+            }
+          >
             {isRendering ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
@@ -212,7 +220,8 @@ export function LibraryResumeCard({
           <DialogHeader>
             <DialogTitle>Change Resume Style</DialogTitle>
             <DialogDescription>
-              Do you want to update this resume in-place, or create a copy with the new style?
+              Do you want to update this resume in-place, or create a copy with
+              the new style?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex gap-2 sm:justify-center mt-4">

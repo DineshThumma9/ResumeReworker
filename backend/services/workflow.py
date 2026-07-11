@@ -1,5 +1,8 @@
+import asyncio
 import base64
+import json
 import logging
+import re
 import subprocess
 from typing import Literal
 
@@ -101,7 +104,7 @@ class ResumeWorkflowService:
             analysis = response.model_dump()
         except Exception as e:
             logger.exception(f"Error in match_jd node: {e}")
-            return {**state, "analysis": None}
+            raise e
 
         return {**state, "analysis": analysis}
 
@@ -138,7 +141,11 @@ class ResumeWorkflowService:
         try:
             analysis = state["analysis"]  # type: ignore
             if not isinstance(analysis, dict):
-                analysis = analysis.model_dump()  # type: ignore
+                analysis_dict = analysis.model_dump()  # type: ignore
+            else:
+                analysis_dict = analysis
+
+            analysis_str = json.dumps(analysis_dict, indent=2)
 
             llm = await self._get_llm(state)
 
@@ -158,17 +165,23 @@ class ResumeWorkflowService:
                 logger.warning(
                     f"Details extraction failed (will rely on validator fallback): {details_err}"
                 )
-            
+
             # Robust URL fallback extraction from the entire resume text
             import re
+
             if details_obj:
                 for full_url in re.findall(r"https?://[^\s\"\'\>]+", resume):
                     m = re.search(r"https?://(?:www\.)?([\w\-\.]+)", full_url)
                     if m:
                         domain = m.group(1).lower()
-                        if domain.endswith(".com") or domain.endswith(".org") or domain.endswith(".net") or domain.endswith(".io"):
+                        if (
+                            domain.endswith(".com")
+                            or domain.endswith(".org")
+                            or domain.endswith(".net")
+                            or domain.endswith(".io")
+                        ):
                             domain = domain[:-4]
-                        
+
                         if domain not in details_obj.profile_links:
                             details_obj.profile_links[domain] = full_url
 
@@ -189,11 +202,15 @@ class ResumeWorkflowService:
             if judgements:
                 all_requests = []
                 for i, j in enumerate(judgements, 1):
-                    req = j.get("request_changes", []) if isinstance(j, dict) else getattr(j, "request_changes", [])
+                    req = (
+                        j.get("request_changes", [])
+                        if isinstance(j, dict)
+                        else getattr(j, "request_changes", [])
+                    )
                     if req:
                         changes_str = "\n- ".join(req)
                         all_requests.append(f"Iteration {i} feedback:\n- {changes_str}")
-                
+
                 if all_requests:
                     history_str = "\n\n".join(all_requests)
                     judgement_hint = (
@@ -210,7 +227,7 @@ class ResumeWorkflowService:
                         f"Candidate Resume:\n{resume}"
                         f"{details_hint}\n"
                         f"{judgement_hint}\n"
-                        f"Analysis Report:\n{analysis}\n"
+                        f"Analysis Report:\n{analysis_str}\n"
                         f"Tone: {tone}\n"
                         f"Exclude Sections: {exclude_sections}\n"
                     )
@@ -220,7 +237,7 @@ class ResumeWorkflowService:
             response = await structured_llm.ainvoke(messages)
 
             if response is None:
-                return {**state, "changes_content": None}
+                return {**state, "changes_content": None, "iteration": iteration}
 
             # If the response has empty profile_links but Call 1 gave us links, merge them
             if details_obj and not response.details.profile_links:
@@ -229,27 +246,33 @@ class ResumeWorkflowService:
             return {**state, "changes_content": response, "iteration": iteration}
         except Exception as e:
             logger.exception(f"Error in rewrite_resume node: {e}")
-            return {**state, "changes_content": None, "iteration": iteration}
+            raise e
 
     async def judge_rewrite(self, state: "ResumeState"):
         try:
-            changes = state["changes_content"]
-            resume = state["resume"]
-            jd = state["jd"]
-            analysis = state["analysis"]
+            changes = state.get("changes_content")
+            resume = state.get("resume")
+            jd = state.get("jd")
+            analysis = state.get("analysis")
 
             from utils.prompts import judge_prompt
-            
+
             judgements = state.get("judgements", [])
             judgement_history = ""
             if judgements:
                 all_requests = []
                 for i, j in enumerate(judgements, 1):
-                    req = j.get("request_changes", []) if isinstance(j, dict) else getattr(j, "request_changes", [])
+                    req = (
+                        j.get("request_changes", [])
+                        if isinstance(j, dict)
+                        else getattr(j, "request_changes", [])
+                    )
                     if req:
                         changes_str = "\n- ".join(req)
-                        all_requests.append(f"Iteration {i} requested changes:\n- {changes_str}")
-                
+                        all_requests.append(
+                            f"Iteration {i} requested changes:\n- {changes_str}"
+                        )
+
                 if all_requests:
                     history_str = "\n\n".join(all_requests)
                     judgement_history = (
@@ -259,6 +282,30 @@ class ResumeWorkflowService:
                         f"If they have adequately addressed it or properly omitted skills they shouldn't hallucinate, do not keep requesting the same changes.\n"
                     )
 
+            # Serialize changes to JSON
+            changes_str = ""
+            if changes:
+                if hasattr(changes, "model_dump"):
+                    changes_str = json.dumps(changes.model_dump(), indent=2)
+                elif isinstance(changes, dict):
+                    changes_str = json.dumps(changes, indent=2)
+                else:
+                    changes_str = str(changes)
+            else:
+                changes_str = "None (No changes have been generated yet)"
+
+            # Serialize analysis to JSON
+            analysis_str = ""
+            if analysis:
+                if hasattr(analysis, "model_dump"):
+                    analysis_str = json.dumps(analysis.model_dump(), indent=2)
+                elif isinstance(analysis, dict):
+                    analysis_str = json.dumps(analysis, indent=2)
+                else:
+                    analysis_str = str(analysis)
+            else:
+                analysis_str = "None"
+
             messages = [
                 SystemMessage(content=judge_prompt),
                 HumanMessage(
@@ -266,8 +313,8 @@ class ResumeWorkflowService:
                         f"Job Description:\n{jd}\n\n"
                         f"Candidate Resume:\n{resume}"
                         f"{judgement_history}"
-                        f"\n\nCandidate Changed Resume:\n{changes}"
-                        f"\n\nCandidate Analysis:\n{analysis}"
+                        f"\n\nCandidate Changed Resume:\n{changes_str}"
+                        f"\n\nCandidate Analysis:\n{analysis_str}"
                         f"\n\nRewrite Score: "
                     )
                 ),
@@ -278,20 +325,13 @@ class ResumeWorkflowService:
             response = await structured_llm.ainvoke(messages)
             if response is None:
                 return {**state}
-            
+
             new_judgements = judgements.copy()
             new_judgements.append(response)
             return {**state, "judgements": new_judgements}
         except Exception as e:
             logger.exception(f"Error in judge_rewrite node: {e}")
-            fallback = JudgeResume(
-                should_rewrite=False,
-                request_changes=[f"Judge failed with error: {str(e)}"]
-            )
-            judgements = state.get("judgements", [])
-            new_judgements = judgements.copy()
-            new_judgements.append(fallback)
-            return {**state, "judgements": new_judgements}
+            raise e
 
     # =========================================================================
     # OPTIONAL LOCAL COMPILATION ENGINES (Commented out)
@@ -434,6 +474,17 @@ class ResumeWorkflowService:
         Compile LaTeX locally using a container compiler (tries Docker first, falls back to Podman).
         """
 
+        # Pre-process latex_string to escape '%' inside \href{...} to prevent LaTeX comment errors
+        def escape_href_percent(latex_code: str) -> str:
+            def repl(match):
+                url = match.group(1)
+                escaped_url = re.sub(r"(?<!\\)%", r"\%", url)
+                return f"\\href{{{escaped_url}}}"
+
+            return re.sub(r"\\href\{([^{}]+)\}", repl, latex_code)
+
+        latex_string = escape_href_percent(latex_string)
+
         cmd = ["docker", "run", "-i", "--rm", "latex-compiler"]
         try:
             # Check if docker command is available
@@ -443,13 +494,15 @@ class ResumeWorkflowService:
             cmd[0] = "podman"
 
         try:
-            process = subprocess.Popen(
-                cmd,
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
-            pdf_bytes, stderr = process.communicate(input=latex_string.encode("utf-8"))
+            pdf_bytes, stderr = await process.communicate(
+                input=latex_string.encode("utf-8")
+            )
             if process.returncode != 0:
                 raise Exception(
                     f"Container compilation error: {stderr.decode('utf-8', errors='ignore')}"
@@ -469,11 +522,13 @@ class ResumeWorkflowService:
             # Convert schema to dict
             data_dict = suggesting_changes.model_dump()
             import copy
+
             clean_data_dict = copy.deepcopy(data_dict)
 
             # Apply programmatic diff to inject ** and ~~ tags
             original_resume_text = state.get("resume", "")
             from utils.diff_engine import apply_diff_to_data
+
             diff_data_dict = apply_diff_to_data(original_resume_text, data_dict)
 
             # Apply exclude_sections logic by removing keys
@@ -493,8 +548,12 @@ class ResumeWorkflowService:
                     template_source, diff_data_dict, diff=True
                 )
             else:
-                latex_code = render_resume_template("jakes1.tex", clean_data_dict, diff=False)
-                diff_latex_code = render_resume_template("jakes1.tex", diff_data_dict, diff=True)
+                latex_code = render_resume_template(
+                    "jakes1.tex", clean_data_dict, diff=False
+                )
+                diff_latex_code = render_resume_template(
+                    "jakes1.tex", diff_data_dict, diff=True
+                )
 
             try:
                 filename = (
@@ -507,10 +566,16 @@ class ResumeWorkflowService:
                 # Compile diff latex_code
                 try:
                     diff_filename = f"{suggesting_changes.details.name.replace(' ', '_')}_resume_diff.pdf"
-                    diff_pdf_bytes = await self.latex_to_pdf(diff_latex_code, diff_filename)
+                    diff_pdf_bytes = await self.latex_to_pdf(
+                        diff_latex_code, diff_filename
+                    )
                     if diff_pdf_bytes and len(diff_pdf_bytes) >= 100:
-                        diff_pdf_base64 = base64.b64encode(diff_pdf_bytes).decode("utf-8")
-                        diff_pdf_base64_str = f"data:application/pdf;base64,{diff_pdf_base64}"
+                        diff_pdf_base64 = base64.b64encode(diff_pdf_bytes).decode(
+                            "utf-8"
+                        )
+                        diff_pdf_base64_str = (
+                            f"data:application/pdf;base64,{diff_pdf_base64}"
+                        )
                 except Exception as diff_compile_err:
                     logger.error(f"Failed to compile diff resume: {diff_compile_err}")
 
@@ -532,6 +597,9 @@ class ResumeWorkflowService:
                 }
 
             except Exception as pdf_error:
+                logger.error(
+                    f"LaTeX Compilation PDF Error inside rewrite_latex: {pdf_error}"
+                )
                 return {
                     **state,
                     "latex_code": latex_code,

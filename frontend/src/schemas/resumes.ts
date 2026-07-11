@@ -78,6 +78,7 @@ export const AnalyzeEventSchema = z.discriminatedUnion("event", [
     latexCode: z.string().optional(),
     diffLatexCode: z.string().optional(),
     pdfUrl: z.string().optional(),
+    diffPdfUrl: z.string().optional(),
     resumeId: z.number().optional(),
     label: z.string().optional(),
     error: z.string().optional(), // LaTeX compile or upstream error surfaced in complete event

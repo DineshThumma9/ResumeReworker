@@ -108,14 +108,9 @@ export function useResumeAnalysis() {
     });
   };
 
-  const addLine = (line: StreamLine) => {
-    setLines((prev) => [...prev, line]);
-  };
-
   const clearLines = () => setLines([]);
 
   const submitAnalysis = (fd: FormData, onSuccess: () => void) => {
-
     setLines([]);
     setRunning(true);
     setLines([
@@ -282,6 +277,7 @@ export function useResumeAnalysis() {
           latexCode: latex || "% No LaTeX was generated.",
           diffLatexCode: ev.diffLatexCode || "",
           pdfUrl: isError ? null : ev.pdfUrl || pdfUrl,
+          diffPdfUrl: isError ? null : ev.diffPdfUrl || null,
           resumeId: ev.resumeId || resumeId,
           label: ev.label || label,
         });
@@ -321,14 +317,36 @@ export function useResumeAnalysis() {
       }
       if (ev.event === "error") {
         const msg = ev.message || "An unknown error occurred.";
-        addLine({ type: "error", text: msg });
+        setLines((prev) => {
+          const n = [...prev];
+          const last = n.length - 1;
+          if (last >= 0 && n[last].type === "progress") {
+            n[last] = {
+              ...n[last],
+              type: "error",
+              text: "Failed.",
+            };
+          }
+          return [...n, { type: "error", text: msg }];
+        });
         setApiError(msg); // Show in modal so it's impossible to miss
         setRunning(false);
       }
     }).catch((err) => {
       console.error("Analysis failed:", err);
       const msg = err instanceof Error ? err.message : String(err);
-      addLine({ type: "error", text: msg });
+      setLines((prev) => {
+        const n = [...prev];
+        const last = n.length - 1;
+        if (last >= 0 && n[last].type === "progress") {
+          n[last] = {
+            ...n[last],
+            type: "error",
+            text: "Failed.",
+          };
+        }
+        return [...n, { type: "error", text: msg }];
+      });
       setApiError(msg); // Network down / server unreachable errors shown in modal
       setRunning(false);
     });
@@ -339,7 +357,7 @@ export function useResumeAnalysis() {
       setIsCompiling(true);
       setCompileError(null);
       const res = await resumeApi.compile(latexCode, resumeId);
-      setResumeState({ pdfUrl: res.pdfUrl });
+      setResumeState({ pdfUrl: res.pdfUrl, diffPdfUrl: null });
     } catch (e: unknown) {
       setCompileError(e instanceof Error ? e.message : String(e));
     } finally {

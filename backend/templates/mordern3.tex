@@ -1,11 +1,5 @@
 \documentclass[letterpaper,11pt]{article}
 
-\usepackage{xcolor}
-\usepackage[normalem]{ulem}
-\providecommand{\added}[1]{{\color[HTML]{2E7D32}#1}}
-\providecommand{\deleted}[1]{{\color[HTML]{C62828}\sout{#1}}}
-\providecommand{\highlight}[1]{{\color[HTML]{2E7D32}#1}}
-
 \usepackage{latexsym}
 \usepackage[empty]{fullpage}
 \usepackage{titlesec}
@@ -17,7 +11,7 @@
 \usepackage{fancyhdr}
 \usepackage[english]{babel}
 \usepackage{tabularx}
-\usepackage{fontawesome}
+\usepackage{fontawesome5}
 \usepackage{multicol}
 \setlength{\multicolsep}{-3.0pt}
 \setlength{\columnsep}{-1pt}
@@ -82,18 +76,25 @@
 %----------HEADING----------
 \begin{center}
     {\Huge \scshape [[ details.name | escape_latex ]]} \\ \vspace{1pt}
-    \small
+    \small 
     [% if details.profile_links.get('phone') %]
     \raisebox{-0.1\height}\faPhone\ [[ details.profile_links.get('phone') | escape_latex ]] ~
     [% endif %]
     [% if details.profile_links.get('email') %]
-    \href{mailto:[[ details.profile_links.get('email') ]]}{\raisebox{-0.2\height}\faEnvelope\ \underline{Email}} ~
+    \href{mailto:[[ details.profile_links.get('email') | escape_latex ]]}{\raisebox{-0.2\height}\faEnvelope\ \underline{[[ details.profile_links.get('email') | escape_latex ]]}} ~
     [% endif %]
-    [% for platform, url in details.profile_links.items() %]
-    [% if platform not in ['phone', 'email', 'location'] and url %]
-    \href{[% if url.startswith('http') %][[ url ]][% else %]https://[[ url ]][% endif %]}{\raisebox{-0.2\height}\faLink\ \underline{[[ platform | capitalize ]]}} ~
+    [% if details.profile_links.get('github') %]
+    \href{[[ details.profile_links.get('github') | escape_latex ]]}{\raisebox{-0.2\height}\faGithub\ \underline{GitHub}} ~
     [% endif %]
-    [% endfor %]
+    [% if details.profile_links.get('linkedin') %]
+    \href{[[ details.profile_links.get('linkedin') | escape_latex ]]}{\raisebox{-0.2\height}\faLinkedin\ \underline{LinkedIn}} ~
+    [% endif %]
+    [% if details.profile_links.get('leetcode') %]
+    \href{[[ details.profile_links.get('leetcode') | escape_latex ]]}{\raisebox{-0.2\height}\faCode\ \underline{LeetCode}} ~
+    [% endif %]
+    [% if details.profile_links.get('portfolio') %]
+    \href{[[ details.profile_links.get('portfolio') | escape_latex ]]}{\raisebox{-0.2\height}\faGlobe\ \underline{Portfolio}}
+    [% endif %]
     \vspace{-8pt}
 \end{center}
 
@@ -196,7 +197,7 @@
     \resumeSubHeadingListStart
     [% for project in projects %]
     \resumeProjectHeading
-      {\textbf{[% if project.link %]\href{[[ project.link ]]}{[[ project.name | escape_latex ]]}[% else %][[ project.name | escape_latex ]][% endif %]}[% if project.technologies %] $|$ \emph{[[ project.technologies | join(', ') | escape_latex ]]}[% endif %]}{[[ project.date | escape_latex ]]}
+      {\textbf{[% if project.link %]\href{[[ project.link | escape_latex ]]}{[[ project.name | escape_latex ]]}[% else %][[ project.name | escape_latex ]][% endif %]}[% if project.technologies %] $|$ \emph{[[ project.technologies | join(', ') | escape_latex ]]}[% endif %]}{[[ project.date | escape_latex ]]}
       \resumeItemListStart
         [% for bullet in project.highlights %]
         \resumeItem{[[ bullet | escape_latex ]]}

@@ -19,10 +19,8 @@ async def get_current_user(
     db: AsyncSession = Depends(get_session),
 ) -> User:
     """
-    FastAPI dependency that resolves the authenticated user.
-
-    DEV_MODE=true  → always returns a mock user, no token needed.
-    DEV_MODE=false → validates JWT and fetches user from DB.
+    FastAPI dependency that resolves the authenticated user by validating
+    the JWT token and fetching the user from the database.
     """
     if credentials is None:
         raise HTTPException(

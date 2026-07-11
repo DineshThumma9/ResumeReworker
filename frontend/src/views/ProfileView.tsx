@@ -318,7 +318,7 @@ export function ProfileView() {
   const avatarBg = getAvatarBgColor(firstLetter);
 
   return (
-    <div className="px-6 py-10 flex flex-col gap-10 overflow-y-auto h-full w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="px-4 py-6 md:px-6 md:py-10 flex flex-col gap-6 md:gap-10 overflow-y-auto h-full w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col items-center text-center gap-4">
         <div
           className="w-20 h-20 rounded-full flex items-center justify-center text-white text-3xl font-semibold shadow-xs select-none"

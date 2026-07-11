@@ -22,7 +22,7 @@ export function AuthView() {
     const token = params.get("token");
     if (token) {
       useAuthStore.getState().setToken(token);
-      navigate("/library");
+      navigate("/analyze");
     }
   }, [navigate]);
 
@@ -34,11 +34,11 @@ export function AuthView() {
       if (mode === "signup") {
         const res = await authApi.signup(name, email, password);
         useAuthStore.getState().setToken(res.access_token);
-        navigate("/library");
+        navigate("/analyze");
       } else {
         const res = await authApi.login(email, password);
         useAuthStore.getState().setToken(res.access_token);
-        navigate("/library");
+        navigate("/analyze");
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "An error occurred");

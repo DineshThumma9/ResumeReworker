@@ -48,10 +48,14 @@ async def save_and_upload(
     latex_code: str, user: User, resume_id: int, pdf_base64: Optional[str] = None
 ) -> tuple[str, Optional[str]]:
     """Helper to compile LaTeX source to PDF, upload it, and return URLs."""
-    if pdf_base64 and pdf_base64.startswith("data:application/pdf;base64,"):
-        b64_str = pdf_base64.split(",")[1]
+    if pdf_base64 and "base64," in pdf_base64:
+        b64_str = pdf_base64.split("base64,")[1]
         pdf_bytes = base64.b64decode(b64_str)
         pdf_url = pdf_base64
+    elif not latex_code or not latex_code.strip():
+        # Prevent hanging compiler with empty latex code
+        pdf_bytes = b""
+        pdf_url = ""
     else:
         service = ResumeWorkflowService()
         pdf_bytes = await service.latex_to_pdf(latex_code, "resume.pdf")
@@ -443,7 +447,7 @@ def resolve_resume_label(label: str, analysis_data: dict | None, user: User) -> 
         if not clean_company:
             clean_company = "Company"
 
-        resolved_label = f"{clean_name}_{clean_company}"
+        resolved_label = f"{clean_name}{clean_company}"
 
     return resolved_label
 
@@ -453,7 +457,7 @@ async def analyze(
     user: CurrentUser,
     db: DB,
     jd: str = Form(...),
-    label: str = Form(...),
+    label: str = Form(""),
     tone: str = Form("Professional"),
     template_id: str = Form("1"),
     provider: str = Form("groq"),
@@ -500,8 +504,10 @@ async def analyze(
             )
         except Exception as graph_err:
             import traceback
+
             tb = traceback.format_exc()
             import logging
+
             logging.getLogger(__name__).error(f"GRAPH ERROR: {tb}")
             yield f"data: {json.dumps({'event': 'error', 'message': f'Internal Error: {str(graph_err)}\nTraceback:\n{tb}'})}\n\n"
             return
@@ -510,125 +516,256 @@ async def analyze(
         graph = service.graph
 
         analysis_data = None
-        async for event in graph.astream(initial_state, stream_mode="updates"):  # type: ignore
-            if "match_jd" in event:
-                analysis_data = event["match_jd"].get("analysis")
-                if analysis_data:
-                    # 1. Score & match — instant
-                    yield f"data: {json.dumps({'event': 'analysis_score', 'score': analysis_data.get('score'), 'match': analysis_data.get('match'), 'urgency': analysis_data.get('urgency')})}\n\n"
+        try:
+            async for event in graph.astream(initial_state, stream_mode="updates"):  # type: ignore
+                if "match_jd" in event:
+                    analysis_data = event["match_jd"].get("analysis")
+                    if analysis_data:
+                        # 1. Score & match — instant
+                        yield f"data: {json.dumps({'event': 'analysis_score', 'score': analysis_data.get('score'), 'match': analysis_data.get('match'), 'urgency': analysis_data.get('urgency')})}\n\n"
 
-                    # 2. Resume quality — stream word by word
-                    quality = analysis_data.get("resume_quality") or ""
-                    if quality:
-                        words = quality.split()
-                        for i, _ in enumerate(words):
-                            partial = " ".join(words[: i + 1])
-                            yield f"data: {json.dumps({'event': 'analysis_quality', 'text': partial})}\n\n"
+                        # 2. Resume quality — stream word by word
+                        quality = analysis_data.get("resume_quality") or ""
+                        if quality:
+                            words = quality.split()
+                            for i, _ in enumerate(words):
+                                partial = " ".join(words[: i + 1])
+                                yield f"data: {json.dumps({'event': 'analysis_quality', 'text': partial})}\n\n"
 
-                    # 3. Explanation — stream word by word
-                    explanation = analysis_data.get("match_explanation") or ""
-                    if explanation:
-                        words = explanation.split()
-                        for i, _ in enumerate(words):
-                            partial = " ".join(words[: i + 1])
-                            yield f"data: {json.dumps({'event': 'analysis_explanation', 'text': partial})}\n\n"
+                        # 3. Explanation — stream word by word
+                        explanation = analysis_data.get("match_explanation") or ""
+                        if explanation:
+                            words = explanation.split()
+                            for i, _ in enumerate(words):
+                                partial = " ".join(words[: i + 1])
+                                yield f"data: {json.dumps({'event': 'analysis_explanation', 'text': partial})}\n\n"
 
-                    # 4. Missing keywords — one per event
-                    for kw in analysis_data.get("missing_keywords") or []:
-                        yield f"data: {json.dumps({'event': 'analysis_keyword', 'keyword': kw})}\n\n"
+                        # 4. Missing keywords — one per event
+                        for kw in analysis_data.get("missing_keywords") or []:
+                            yield f"data: {json.dumps({'event': 'analysis_keyword', 'keyword': kw})}\n\n"
 
-                    # 5. Negative points — one per event
-                    for pt in analysis_data.get("negative_points") or []:
-                        yield f"data: {json.dumps({'event': 'analysis_negative', 'text': pt})}\n\n"
+                        # 5. Negative points — one per event
+                        for pt in analysis_data.get("negative_points") or []:
+                            yield f"data: {json.dumps({'event': 'analysis_negative', 'text': pt})}\n\n"
 
-                    # 6. Improvements — one per event
-                    for imp in analysis_data.get("potential_improvements") or []:
-                        yield f"data: {json.dumps({'event': 'analysis_improvement', 'text': imp})}\n\n"
+                        # 6. Improvements — one per event
+                        for imp in analysis_data.get("potential_improvements") or []:
+                            yield f"data: {json.dumps({'event': 'analysis_improvement', 'text': imp})}\n\n"
 
-                    # 7. Done — triggers UI to flip to success state
-                    yield f"data: {json.dumps({'event': 'analysis_done'})}\n\n"
-                else:
-                    yield f"data: {json.dumps({'event': 'analysis_done'})}\n\n"
-            elif "rewrite_resume" in event:
-                yield f"data: {json.dumps({'event': 'progress', 'step': 'rewrite_resume', 'message': 'Finished rewriting resume...'})}\n\n"
-            elif "judge_resume" in event:
-                judgement = event["judge_resume"].get("judgement")
-                iteration = event["judge_resume"].get("iteration", 1)
-                if judgement:
-                    if isinstance(judgement, dict):
-                        should_rewrite = judgement.get("should_rewrite", False)
-                        req_changes = judgement.get("request_changes", [])
+                        # 7. Done — triggers UI to flip to success state
+                        yield f"data: {json.dumps({'event': 'analysis_done'})}\n\n"
                     else:
-                        should_rewrite = getattr(judgement, "should_rewrite", False)
-                        req_changes = getattr(judgement, "request_changes", [])
-                    
-                    if should_rewrite:
-                        msg = f"Judge requested changes (Iteration {iteration}). Rewriting again..."
-                        if req_changes:
-                            msg += f" Feedback: {'; '.join(req_changes)}"
+                        yield f"data: {json.dumps({'event': 'analysis_done'})}\n\n"
+                elif "rewrite_resume" in event:
+                    yield f"data: {json.dumps({'event': 'progress', 'step': 'rewrite_resume', 'message': 'Finished rewriting resume...'})}\n\n"
+                elif "judge_resume" in event:
+                    judgement = event["judge_resume"].get("judgement")
+                    iteration = event["judge_resume"].get("iteration", 1)
+                    if judgement:
+                        if isinstance(judgement, dict):
+                            should_rewrite = judgement.get("should_rewrite", False)
+                            req_changes = judgement.get("request_changes", [])
+                        else:
+                            should_rewrite = getattr(judgement, "should_rewrite", False)
+                            req_changes = getattr(judgement, "request_changes", [])
+
+                        if should_rewrite:
+                            msg = f"Judge requested changes (Iteration {iteration}). Rewriting again..."
+                            if req_changes:
+                                msg += f" Feedback: {'; '.join(req_changes)}"
+                        else:
+                            msg = f"Judge approved rewrite (Iteration {iteration}). Proceeding to PDF generation..."
+                        yield f"data: {json.dumps({'event': 'progress', 'step': 'judge_resume', 'message': msg})}\n\n"
                     else:
-                        msg = f"Judge approved rewrite (Iteration {iteration}). Proceeding to PDF generation..."
-                    yield f"data: {json.dumps({'event': 'progress', 'step': 'judge_resume', 'message': msg})}\n\n"
-                else:
-                    yield f"data: {json.dumps({'event': 'progress', 'step': 'judge_resume', 'message': f'Evaluating rewritten resume (Iteration {iteration})...'})}\n\n"
-            elif "rewrite_latex" in event:
-                data = event["rewrite_latex"]
-                latex_code = data.get("latex_code", "")
-                diff_latex_code = data.get("diff_latex_code", "")
-                pdf_base64 = data.get("pdf_base64", "")
-                error_msg = data.get("error", None)
+                        yield f"data: {json.dumps({'event': 'progress', 'step': 'judge_resume', 'message': f'Evaluating rewritten resume (Iteration {iteration})...'})}\n\n"
+                elif "rewrite_latex" in event:
+                    data = event["rewrite_latex"]
+                    latex_code = data.get("latex_code", "")
+                    diff_latex_code = data.get("diff_latex_code", "")
+                    pdf_base64 = data.get("pdf_base64", "")
+                    diff_pdf_base64 = data.get("diff_pdf_base64", "")
+                    error_msg = data.get("error", None)
 
-                resume_id = None
-                if latex_code and not latex_code.startswith("Error:") and not error_msg:
-                    try:
-                        changes_content = data.get("changes_content")
-                        content_dict = None
-                        if changes_content:
-                            if hasattr(changes_content, "model_dump"):
-                                content_dict = changes_content.model_dump()
-                            elif isinstance(changes_content, dict):
-                                content_dict = changes_content
-
-                        resolved_label = resolve_resume_label(
-                            label, analysis_data, user
-                        )
-
+                    resume_id = None
+                    if (
+                        latex_code
+                        and not latex_code.startswith("Error:")
+                        and not error_msg
+                    ):
                         try:
-                            body = ResumeCreate(
-                                label=resolved_label,
-                                tex_source=latex_code,
-                                jd_snippet=jd,
-                                template_id=int(initial_state.get("template_id"))
-                                if initial_state.get("template_id")
-                                else None,
-                                pdf_url=pdf_base64,
-                                content=content_dict,
+                            changes_content = data.get("changes_content")
+                            content_dict = None
+                            if changes_content:
+                                if hasattr(changes_content, "model_dump"):
+                                    content_dict = changes_content.model_dump()
+                                elif isinstance(changes_content, dict):
+                                    content_dict = changes_content
+
+                            resolved_label = resolve_resume_label(
+                                label, analysis_data, user
                             )
-                            resume = await create_resume(body, user, db)
-                            resume_id = resume.id
-                            pdf_base64 = (
-                                resume.pdf_url
-                            )  # Use the uploaded Cloudinary URL instead!
+
+                            try:
+                                body = ResumeCreate(
+                                    label=resolved_label,
+                                    tex_source=latex_code,
+                                    jd_snippet=jd,
+                                    template_id=int(initial_state.get("template_id"))
+                                    if initial_state.get("template_id")
+                                    else None,
+                                    pdf_url=pdf_base64,
+                                    content=content_dict,
+                                )
+                                resume = await create_resume(body, user, db)
+                                resume_id = resume.id
+                                pdf_base64 = (
+                                    resume.pdf_url
+                                )  # Use the uploaded Cloudinary URL instead!
+                            except Exception as db_err:
+                                print(
+                                    f"Failed to save resume to DB via create_resume: {db_err}"
+                                )
+
                         except Exception as db_err:
-                            print(
-                                f"Failed to save resume to DB via create_resume: {db_err}"
-                            )
+                            print(f"Failed to save resume to DB: {db_err}")
 
-                    except Exception as db_err:
-                        print(f"Failed to save resume to DB: {db_err}")
+                    payload = {
+                        "event": "complete",
+                        "message": "Done!",
+                        "latexCode": latex_code,
+                        "diffLatexCode": diff_latex_code,
+                        "pdfUrl": pdf_base64,
+                        "diffPdfUrl": diff_pdf_base64,
+                    }
+                    if error_msg:
+                        payload["error"] = error_msg
+                    if resume_id is not None:
+                        payload["resumeId"] = resume_id
 
-                payload = {
-                    "event": "complete",
-                    "message": "Done!",
-                    "latexCode": latex_code,
-                    "diffLatexCode": diff_latex_code,
-                    "pdfUrl": pdf_base64,
-                }
-                if error_msg:
-                    payload["error"] = error_msg
-                if resume_id is not None:
-                    payload["resumeId"] = resume_id
+                    yield f"data: {json.dumps(payload)}\n\n"
 
-                yield f"data: {json.dumps(payload)}\n\n"
+        except Exception as stream_err:
+            import traceback
+
+            tb = traceback.format_exc()
+            import logging
+
+            logging.getLogger(__name__).error(f"STREAM ERROR: {tb}")
+            error_msg = str(stream_err)
+            if (
+                "429" in error_msg
+                or "RESOURCE_EXHAUSTED" in error_msg
+                or "quota" in error_msg.lower()
+            ):
+                error_msg = "API Error: You have exceeded your API quota. Please check your billing or plan."
+            elif "401" in error_msg or "403" in error_msg or "API_KEY" in error_msg:
+                error_msg = (
+                    "API Error: Invalid API key. Please check your API key in Settings."
+                )
+            else:
+                error_msg = f"Internal Error: {error_msg}"
+            yield f"data: {json.dumps({'event': 'error', 'message': error_msg})}\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+class ModifyRequest(BaseModel):
+    latex_code: str
+    instruction: str
+    provider: str = "groq"
+    model: str = "llama-3.3-70b-versatile"
+
+
+@router.post("/modify")
+async def modify_latex(
+    req: ModifyRequest,
+    user: CurrentUser,
+    db: DB,
+):
+    """
+    Modifies raw LaTeX code based on user instruction and streams the updated code.
+    """
+    import logging
+
+    from langchain.chat_models import init_chat_model
+    from langchain_core.messages import HumanMessage, SystemMessage
+
+    from core.config import settings
+
+    # 1. Get user's custom API key if it exists
+    auth_service = AuthService(db)
+    api_key = ""
+    try:
+        api_key = await auth_service.get_api_key(req.provider, user)
+    except Exception:
+        pass
+
+    # 2. Fallback keys from settings
+    provider_keys = {
+        "openai": settings.openai_api_key,
+        "anthropic": settings.anthropic_api_key,
+        "google_genai": settings.google_api_key,
+        "groq": settings.groq_api_key,
+        "mistralai": settings.mistral_api_key,
+        "openrouter": settings.openrouter_api_key,
+        "huggingface": settings.huggingface_api_key,
+    }
+
+    selected_key = api_key or provider_keys.get(req.provider)
+    llm_kwargs = {}
+    if selected_key:
+        llm_kwargs["api_key"] = selected_key
+
+    try:
+        llm = init_chat_model(req.model, model_provider=req.provider, **llm_kwargs)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to initialize model '{req.model}' with provider '{req.provider}': {str(e)}",
+        )
+
+    async def modify_stream():
+        try:
+            system_prompt = (
+                "You are an expert LaTeX editor.\n"
+                "Your task is to modify the provided LaTeX code according to the user's instructions.\n"
+                "CRITICAL RULES:\n"
+                "1. Return ONLY valid LaTeX code.\n"
+                "2. Do NOT wrap your output in markdown code blocks (e.g. do not write ```latex ... ```). Start directly with the LaTeX code.\n"
+                "3. Preserve the structure, design, packages, and formatting of the original LaTeX document. Only change what is requested.\n"
+                "4. If the instruction is empty or irrelevant, return the original LaTeX document unchanged."
+            )
+
+            messages = [
+                SystemMessage(content=system_prompt),
+                HumanMessage(
+                    content=f"Original LaTeX:\n{req.latex_code}\n\nUser Instruction:\n{req.instruction}"
+                ),
+            ]
+
+            async for chunk in llm.astream(messages):
+                yield f"data: {json.dumps({'event': 'chunk', 'text': chunk.content})}\n\n"
+
+        except Exception as stream_err:
+            import traceback
+
+            tb = traceback.format_exc()
+            logging.getLogger(__name__).error(f"MODIFY STREAM ERROR: {tb}")
+
+            error_msg = str(stream_err)
+            if (
+                "429" in error_msg
+                or "RESOURCE_EXHAUSTED" in error_msg
+                or "quota" in error_msg.lower()
+            ):
+                error_msg = "API Error: You have exceeded your API quota. Please check your billing or plan."
+            elif "401" in error_msg or "403" in error_msg or "API_KEY" in error_msg:
+                error_msg = (
+                    "API Error: Invalid API key. Please check your API key in Settings."
+                )
+            else:
+                error_msg = f"Error modifying LaTeX: {error_msg}"
+
+            yield f"data: {json.dumps({'event': 'error', 'message': error_msg})}\n\n"
+
+    return StreamingResponse(modify_stream(), media_type="text/event-stream")

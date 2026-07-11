@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import func, select
+from sqlmodel import func, or_, select
 
 from core.database import get_session
 from models.models import Template
@@ -27,12 +27,17 @@ class TemplateUpdate(BaseModel):
 
 
 @router.get("", response_model=PaginatedTemplateResponse)
-async def list_templates(db: DB, skip: int = 0, limit: int = 100):
-    # Depending on requirements, we can filter templates by user_id or list public/builtin templates.
-    # Currently returning all templates for the sake of simplicity.
-    result = await db.execute(select(Template).offset(skip).limit(limit))
+async def list_templates(
+    current_user: CurrentUser, db: DB, skip: int = 0, limit: int = 100
+):
+    query = select(Template).where(
+        or_(Template.is_builtin, Template.user_id == current_user.id)
+    )
+    result = await db.execute(query.offset(skip).limit(limit))
     templates = result.scalars().all()
-    count_result = await db.execute(select(func.count(Template.id)))  # type: ignore
+
+    count_query = select(func.count()).select_from(query.subquery())
+    count_result = await db.execute(count_query)
     total_count = count_result.scalar() or 0
 
     return PaginatedTemplateResponse(

@@ -82,8 +82,8 @@ export function TemplatesView() {
   };
 
   return (
-    <div className="px-6 py-10 flex flex-col gap-6 overflow-y-auto h-full w-full">
-      <div className="flex items-end justify-between">
+    <div className="px-4 py-6 md:px-6 md:py-10 flex flex-col gap-4 md:gap-6 overflow-y-auto h-full w-full">
+      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 sm:gap-0">
         <div>
           <h1 className="font-['EB_Garamond'] text-[36px] font-semibold text-foreground tracking-tight">
             My Templates
@@ -92,7 +92,7 @@ export function TemplatesView() {
             Built-in and custom LaTeX templates for your resumes.
           </p>
         </div>
-        <Button className="flex items-center gap-2 text-sm font-semibold shadow-sm">
+        <Button className="flex items-center justify-center gap-2 text-sm font-semibold shadow-sm w-full sm:w-auto">
           <Upload size={15} />
           Upload .tex
         </Button>

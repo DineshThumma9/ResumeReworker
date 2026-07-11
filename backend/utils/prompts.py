@@ -152,4 +152,3 @@ Your task is to optimize the provided candidate resume content to better align w
 5. **Concise Phrasing**: Improve clarity and impact using strong action verbs (e.g., 'Architected', 'Optimized', 'Engineered').
 6. **No Markdown Bold/Italics**: DO NOT wrap any words in `**` or `__`. Just output plain text.
 """
-

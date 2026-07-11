@@ -5,12 +5,6 @@
 
 \documentclass[letterpaper,11pt]{article}
 
-\usepackage{xcolor}
-\usepackage[normalem]{ulem}
-\providecommand{\added}[1]{{\color[HTML]{2E7D32}#1}}
-\providecommand{\deleted}[1]{{\color[HTML]{C62828}\sout{#1}}}
-\providecommand{\highlight}[1]{{\color[HTML]{2E7D32}#1}}
-
 \usepackage{latexsym}
 \usepackage[empty]{fullpage}
 \usepackage{titlesec}
@@ -77,25 +71,20 @@
 %----------HEADING----------
 \begin{center}
   \textbf{\Huge \scshape [[ details.name | escape_latex ]]} \\ \vspace{1pt}
-  \small
-    [% if details.profile_links.get('phone') %]
-    \href{tel:[[ details.profile_links.get('phone') ]]}{[[ details.profile_links.get('phone') | escape_latex ]]}
-    [% endif %]
-    [% if details.profile_links.get('email') %] $|$
-    \href{mailto:[[ details.profile_links.get('email') ]]}{\underline{[[ details.profile_links.get('email') | escape_latex ]]}}
-    [% endif %]
-    [% for platform, url in details.profile_links.items() %]
-    [% if platform not in ['phone', 'email', 'location'] and url %] $|$
-    \href{[% if url.startswith('http') %][[ url ]][% else %]https://[[ url ]][% endif %]}{\underline{[[ platform | capitalize ]]}}
-    [% endif %]
-    [% endfor %]
+  \small 
+  [% if details.profile_links.get('phone') %][[ details.profile_links.get('phone') | escape_latex ]] $|$ [% endif %]
+  [% if details.profile_links.get('email') %]\href{mailto:[[ details.profile_links.get('email') | escape_latex ]]}{[[ details.profile_links.get('email') | escape_latex ]]} $|$ [% endif %]
+  [% if details.profile_links.get('github') %]\href{[[ details.profile_links.get('github') | escape_latex ]]}{\underline{GitHub}} $|$ [% endif %]
+  [% if details.profile_links.get('linkedin') %]\href{[[ details.profile_links.get('linkedin') | escape_latex ]]}{\underline{LinkedIn}} $|$ [% endif %]
+  [% if details.profile_links.get('leetcode') %]\href{[[ details.profile_links.get('leetcode') | escape_latex ]]}{\underline{LeetCode}} $|$ [% endif %]
+  [% if details.profile_links.get('portfolio') %]\href{[[ details.profile_links.get('portfolio') | escape_latex ]]}{\underline{Portfolio}}[% endif %]
 \end{center}
 
 [% if details.profile_summary %]
 %-----------SUMMARY-----------
 \section{Summary}
 \small [[ details.profile_summary | escape_latex ]]
-\vspace{-5pt}
+\vspace{-10pt}
 [% endif %]
 
 %-----------EDUCATION-----------
@@ -104,8 +93,8 @@
   \resumeSubHeadingListStart
     [% for edu in education %]
     \resumeSubheading
-      {[[ edu.institution | escape_latex ]]}{[[ edu.location | escape_latex ]]}
-      {[[ edu.course | escape_latex ]]}{[[ edu.year | escape_latex ]]}
+      {[[ edu.institution | escape_latex ]]}{[[ edu.year | escape_latex ]]}
+      {[[ edu.course | escape_latex ]]}{[[ edu.location | escape_latex ]]}
     [% endfor %]
   \resumeSubHeadingListEnd
 [% endif %]
@@ -129,6 +118,7 @@
  \begin{itemize}[leftmargin=0.15in, label={}]
     \small{\item{[[ coursework | join(', ') | escape_latex ]]}}
  \end{itemize}
+ \vspace{-16pt}
 [% endif %]
 
 %-----------EXPERIENCE-----------
@@ -170,7 +160,7 @@
 \section{Open Source Contributions}
 \resumeSubHeadingListStart
   \resumeProjectHeading
-      {Open Source}{}
+      {\textbf{Open Source} $|$ \emph{Various Projects}}{}
       \resumeItemListStart
         [% for item in open_source %]
         \resumeItem{[[ item | escape_latex ]]}
@@ -183,57 +173,59 @@
 [% if projects %]
 \section{Projects}
 \resumeSubHeadingListStart
-  [% for project in projects %]
-  \resumeProjectHeading
-    {\textbf{[% if project.link %]\href{[[ project.link ]]}{[[ project.name | escape_latex ]]}[% else %][[ project.name | escape_latex ]][% endif %]}[% if project.technologies %] $|$ \emph{[[ project.technologies | join(', ') | escape_latex ]]}[% endif %]}{\href{[[ project.link ]]}{[% if project.link %]\underline{GitHub}[% endif %]}}
-    \resumeItemListStart
-      [% for bullet in project.highlights %]
-      \resumeItem{[[ bullet | escape_latex ]]}
-      [% endfor %]
-      [% if project.description and not project.highlights %]
-      \resumeItem{[[ project.description | escape_latex ]]}
-      [% endif %]
-    \resumeItemListEnd
-  [% endfor %]
+[% for project in projects %]
+\resumeProjectHeading
+  {\textbf{[% if project.link %]\href{[[ project.link | escape_latex ]]}{[[ project.name | escape_latex ]]}[% else %][[ project.name | escape_latex ]][% endif %]}[% if project.technologies %] $|$ \emph{[[ project.technologies | join(', ') | escape_latex ]]}[% endif %]}{[[ project.date | escape_latex ]]}
+  \resumeItemListStart
+    [% for bullet in project.highlights %]
+    \resumeItem{[[ bullet | escape_latex ]]}
+    [% endfor %]
+    [% if project.description and not project.highlights %]
+    \resumeItem{[[ project.description | escape_latex ]]}
+    [% endif %]
+  \resumeItemListEnd
+[% endfor %]
 \resumeSubHeadingListEnd
 [% endif %]
 
 [% if achivements %]
 %-----------ACHIEVEMENTS-----------
 \section{Achievements}
-\resumeSubHeadingListStart
-  [% for item in achivements %]
-  \resumeItem{[[ item | escape_latex ]]}
-  [% endfor %]
-\resumeSubHeadingListEnd
+  \resumeSubHeadingListStart
+    [% for item in achivements %]
+    \resumeItem{[[ item | escape_latex ]]}
+    [% endfor %]
+  \resumeSubHeadingListEnd
 [% endif %]
 
 [% if certifications %]
+%-----------CERTIFICATIONS-----------
 \section{Certifications}
-\resumeSubHeadingListStart
-  [% for cert in certifications %]
-  \resumeItem{[[ cert | escape_latex ]]}
-  [% endfor %]
-\resumeSubHeadingListEnd
+  \resumeSubHeadingListStart
+    [% for cert in certifications %]
+    \resumeItem{[[ cert | escape_latex ]]}
+    [% endfor %]
+  \resumeSubHeadingListEnd
 [% endif %]
 
 [% if hackathons %]
+%-----------HACKATHONS-----------
 \section{Hackathons}
-\resumeSubHeadingListStart
-  [% for item in hackathons %]
-  \resumeItem{[[ item | escape_latex ]]}
-  [% endfor %]
-\resumeSubHeadingListEnd
+  \resumeSubHeadingListStart
+    [% for item in hackathons %]
+    \resumeItem{[[ item | escape_latex ]]}
+    [% endfor %]
+  \resumeSubHeadingListEnd
 [% endif %]
 
 [% if extracircular_activities %]
+%-----------EXTRACURRICULAR-----------
 \section{Extracurricular Activities}
-\resumeSubHeadingListStart
-  [% for item in extracircular_activities %]
-  \resumeItem{[[ item | escape_latex ]]}
-  [% endfor %]
-\resumeSubHeadingListEnd
+  \resumeSubHeadingListStart
+    [% for item in extracircular_activities %]
+    \resumeItem{[[ item | escape_latex ]]}
+    [% endfor %]
+  \resumeSubHeadingListEnd
 [% endif %]
 
 \end{document}
-

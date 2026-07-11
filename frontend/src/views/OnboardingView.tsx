@@ -154,7 +154,7 @@ export function OnboardingView() {
         raw_resume: serializedSections || null,
       });
       // Redirect to Main Library Dashboard
-      navigate("/library");
+      navigate("/analyze");
     } catch (err: any) {
       console.error("Profile save error:", err);
       setStep2Error(err.message || "Failed to save profile.");
@@ -497,7 +497,7 @@ export function OnboardingView() {
                 <Button
                   variant="ghost"
                   type="button"
-                  onClick={() => navigate("/library")}
+                  onClick={() => navigate("/analyze")}
                   className="font-['EB_Garamond'] text-xs font-semibold tracking-wider uppercase text-muted-foreground/60 hover:text-foreground"
                 >
                   Skip Profile Setup

@@ -1,16 +1,11 @@
 %-------------------------
 % Resume in Latex
-% Author : Sourabh Bajaj (layout adapted)
+% Author : Sourabh Bajaj
+% Website: https://github.com/sb2nov/resume
 % License : MIT
 %------------------------
 
 \documentclass[letterpaper,11pt]{article}
-
-\usepackage{xcolor}
-\usepackage[normalem]{ulem}
-\providecommand{\added}[1]{{\color[HTML]{2E7D32}#1}}
-\providecommand{\deleted}[1]{{\color[HTML]{C62828}\sout{#1}}}
-\providecommand{\highlight}[1]{{\color[HTML]{2E7D32}#1}}
 
 \usepackage{latexsym}
 \usepackage[empty]{fullpage}
@@ -89,21 +84,16 @@
 \begin{document}
 
 %----------HEADING-----------------
-\begin{center}
-  \textbf{\Huge \scshape [[ details.name | escape_latex ]]} \\ \vspace{1pt}
-  \small
-  [% if details.profile_links.get('phone') %][[ details.profile_links.get('phone') | escape_latex ]][% endif %]
-  [% if details.profile_links.get('email') %] $|$
-  \href{mailto:[[ details.profile_links.get('email') ]]}{\underline{[[ details.profile_links.get('email') | escape_latex ]]}}[% endif %]
-  [% for platform, url in details.profile_links.items() %]
-  [% if platform not in ['phone', 'email', 'location'] and url %] $|$
-  \href{[% if url.startswith('http') %][[ url ]][% else %]https://[[ url ]][% endif %]}{\underline{[[ platform | capitalize ]]}}[% endif %][% endfor %]
-\end{center}
+\begin{tabular*}{\textwidth}{l@{\extracolsep{\fill}}r}
+  \textbf{\Large [[ details.name | escape_latex ]]} & [% if details.profile_links.get('email') %]Email: \href{mailto:[[ details.profile_links.get('email') | escape_latex ]]}{[[ details.profile_links.get('email') | escape_latex ]]}[% endif %] \\
+  [% if details.profile_links.get('github') %]\href{[[ details.profile_links.get('github') | escape_latex ]]}{[[ details.profile_links.get('github') | escape_latex ]]}[% endif %] & [% if details.profile_links.get('phone') %]Mobile: [[ details.profile_links.get('phone') | escape_latex ]][% endif %] \\
+\end{tabular*}
 
 [% if details.profile_summary %]
 %-----------SUMMARY-----------
 \section{Summary}
 \small [[ details.profile_summary | escape_latex ]]
+\vspace{-10pt}
 [% endif %]
 
 %-----------EDUCATION-----------------
@@ -117,7 +107,6 @@
     [% endfor %]
   \resumeSubHeadingListEnd
 [% endif %]
-
 
 %--------TECHNICAL SKILLS------------
 [% if technical_skills %]
@@ -142,14 +131,14 @@
  \vspace{-16pt}
 [% endif %]
 
-%-----------EXPERIENCE-----------------
+%-----------EXPERIENCE-----------
 [% if experience %]
 \section{Experience}
   \resumeSubHeadingListStart
     [% for job in experience %]
     \resumeSubheading
-      {[[ job.company | escape_latex ]]}{[[ job.location | escape_latex ]]}
-      {[[ job.role | escape_latex ]]}{[[ job.duration | escape_latex ]]}
+      {[[ job.company | escape_latex ]]}{[[ job.duration | escape_latex ]]}
+      {[[ job.role | escape_latex ]]}{[[ job.location | escape_latex ]]}
       \resumeItemListStart
         [% for bullet in job.responsibilities %]
         \resumeItemPlain{[[ bullet | escape_latex ]]}
@@ -157,6 +146,7 @@
       \resumeItemListEnd
     [% endfor %]
   \resumeSubHeadingListEnd
+\vspace{-16pt}
 [% endif %]
 
 [% if internships %]
@@ -165,8 +155,8 @@
   \resumeSubHeadingListStart
     [% for job in internships %]
     \resumeSubheading
-      {[[ job.company | escape_latex ]]}{[[ job.location | escape_latex ]]}
-      {[[ job.role | escape_latex ]]}{[[ job.duration | escape_latex ]]}
+      {[[ job.company | escape_latex ]]}{[[ job.duration | escape_latex ]]}
+      {[[ job.role | escape_latex ]]}{[[ job.location | escape_latex ]]}
       \resumeItemListStart
         [% for bullet in job.responsibilities %]
         \resumeItemPlain{[[ bullet | escape_latex ]]}
@@ -174,23 +164,22 @@
       \resumeItemListEnd
     [% endfor %]
   \resumeSubHeadingListEnd
+\vspace{-16pt}
 [% endif %]
 
 [% if open_source %]
 %-----------OPEN SOURCE CONTRIBUTIONS-----------------
 \section{Open Source Contributions}
   \resumeSubHeadingListStart
-    \resumeSubheading
-      {Open Source Contributions}{}
-      {}{}
-      \resumeItemListStart
-        [% for item in open_source %]
-        \resumeItemPlain{[[ item | escape_latex ]]}
-        [% endfor %]
-      \resumeItemListEnd
+    \resumeProjectHeading
+        {\textbf{Open Source} $|$ \emph{Various Projects}}{}
+        \resumeItemListStart
+          [% for item in open_source %]
+          \resumeItemPlain{[[ item | escape_latex ]]}
+          [% endfor %]
+        \resumeItemListEnd
   \resumeSubHeadingListEnd
 [% endif %]
-
 
 %-----------PROJECTS-----------------
 [% if projects %]
@@ -198,7 +187,7 @@
   \resumeSubHeadingListStart
     [% for project in projects %]
     \resumeProjectHeading
-      {[% if project.link %]\href{[[ project.link ]]}{[[ project.name | escape_latex ]]}[% else %][[ project.name | escape_latex ]][% endif %][% if project.technologies %] $|$ \small\emph{[[ project.technologies | join(', ') | escape_latex ]]}[% endif %]}{[[ project.date | escape_latex ]]}
+      {\textbf{[% if project.link %]\href{[[ project.link | escape_latex ]]}{[[ project.name | escape_latex ]]}[% else %][[ project.name | escape_latex ]][% endif %]}[% if project.technologies %] $|$ \small\emph{[[ project.technologies | join(', ') | escape_latex ]]}[% endif %]}{[[ project.date | escape_latex ]]}
       \resumeItemListStart
         [% for bullet in project.highlights %]
         \resumeItemPlain{[[ bullet | escape_latex ]]}
@@ -212,6 +201,7 @@
 [% endif %]
 
 [% if achivements %]
+%-----------ACHIEVEMENTS-----------
 \section{Achievements}
   \resumeSubHeadingListStart
     [% for item in achivements %]
@@ -221,6 +211,7 @@
 [% endif %]
 
 [% if certifications %]
+%-----------CERTIFICATIONS-----------
 \section{Certifications}
   \resumeSubHeadingListStart
     [% for cert in certifications %]
@@ -230,6 +221,7 @@
 [% endif %]
 
 [% if hackathons %]
+%-----------HACKATHONS-----------
 \section{Hackathons}
   \resumeSubHeadingListStart
     [% for item in hackathons %]
@@ -239,6 +231,7 @@
 [% endif %]
 
 [% if extracircular_activities %]
+%-----------EXTRACURRICULAR-----------
 \section{Extracurricular Activities}
   \resumeSubHeadingListStart
     [% for item in extracircular_activities %]

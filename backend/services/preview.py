@@ -35,11 +35,35 @@ async def generate_template_preview_task(template_id: int):
                 )
                 return
 
+            # Determine data to render
+            from sqlalchemy import desc
+
+            from models.models import Resume
+
+            resume_data = DUMMY_RESUME_DATA
+            if template.user_id:
+                # Get the user's most recent resume
+                res = await session.execute(
+                    select(Resume)
+                    .where(Resume.user_id == template.user_id)
+                    .order_by(desc(Resume.created_at))
+                    .limit(1)  # type: ignore
+                )
+                latest_resume = res.scalar_one_or_none()
+                if latest_resume and latest_resume.content:
+                    # Check if it has sufficient data (e.g. at least one experience or project)
+                    content = latest_resume.content
+                    exp = content.get("experience", [])
+                    proj = content.get("projects", [])
+                    # Make sure they have a bit of meat on the bone
+                    if (isinstance(exp, list) and len(exp) >= 1) or (
+                        isinstance(proj, list) and len(proj) >= 2
+                    ):
+                        resume_data = content
+
             # 2. Render LaTeX
             tex_source = template.tex_source
-            latex_code = render_resume_template_from_string(
-                tex_source, DUMMY_RESUME_DATA
-            )
+            latex_code = render_resume_template_from_string(tex_source, resume_data)
 
             # 3. Compile to PDF
             workflow_service = ResumeWorkflowService()

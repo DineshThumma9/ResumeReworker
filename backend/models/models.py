@@ -57,22 +57,6 @@ class Resume(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=naive_utcnow)
 
 
-class ShareLink(SQLModel, table=True):
-    __tablename__ = "share_links"  # type: ignore
-
-    id: Optional[int] = Field(default=None, primary_key=True)
-    # resume_id:  int           = Field(foreign_key="resumes.id")
-    # Actually, for an anonymous share, we just want to save the tex_source and compiled pdf_url,
-    # instead of linking to a resume directly? Wait, if we link to a resume_id, that's fine too. But we generated an ANONYMIZED tex_source.
-    # Let's save the anonymized tex_source directly in ShareLink.
-    tex_source: str = Field(sa_column=Column(Text))
-    pdf_url: Optional[str] = None
-    token: str = Field(unique=True)
-    is_active: bool = Field(default=True)
-    view_count: int = Field(default=0)
-    created_at: datetime = Field(default_factory=naive_utcnow)
-
-
 class APIKEYS(SQLModel, table=True):
     __tablename__ = "api_keys"  # type: ignore
     user_id: int = Field(foreign_key="users.id", ondelete="CASCADE", primary_key=True)

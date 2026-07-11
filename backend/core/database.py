@@ -48,7 +48,7 @@ async def seed_templates(session: AsyncSession):
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     templates_dir = os.path.join(base_dir, "templates")
 
-    allowed_builtin_names = {"jakes1", "jakes2", "jakes3"}
+    allowed_builtin_names = {"modern1", "mordern2", "mordern3"}
 
     # Find stale builtin templates (builtins not in the allowed set)
     stale_result = await session.execute(select(Template).where(Template.is_builtin))

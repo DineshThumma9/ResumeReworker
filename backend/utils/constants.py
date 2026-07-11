@@ -2,11 +2,13 @@ DUMMY_RESUME_DATA = {
     "details": {
         "name": "Alex Applicant",
         "profile_summary": "Resourceful and driven software engineer with 5+ years of experience developing robust web applications and scalable backend systems. Proven ability to lead teams and deliver high-quality solutions on time.",
-        "contact": "+1 (555) 123-4567",
-        "email": "alex.applicant@example.com",
-        "linkedin": "linkedin.com/in/alexapplicant",
-        "github": "github.com/alexapplicant",
-        "location": "San Francisco, CA",
+        "profile_links": {
+            "phone": "+1 (555) 123-4567",
+            "email": "alex.applicant@example.com",
+            "linkedin": "linkedin.com/in/alexapplicant",
+            "github": "github.com/alexapplicant",
+            "location": "San Francisco, CA",
+        },
     },
     "education": [
         {

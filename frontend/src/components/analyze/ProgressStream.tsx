@@ -247,11 +247,21 @@ export function ProgressStream({
                           Fit status:
                         </span>
                         <span
-                          className={`px-3 py-1 rounded-full font-bold uppercase tracking-wider text-[10px] ${analysis.match ? "bg-green-500/10 text-green-600 dark:text-green-400" : "bg-amber-500/10 text-amber-600 dark:text-amber-400"}`}
+                          className={`px-3 py-1 rounded-full font-bold uppercase tracking-wider text-[10px] ${
+                            analysis.score !== undefined && analysis.score >= 75
+                              ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                              : analysis.score !== undefined &&
+                                  analysis.score >= 50
+                                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                                : "bg-destructive/10 text-destructive"
+                          }`}
                         >
-                          {analysis.match
+                          {analysis.score !== undefined && analysis.score >= 75
                             ? "Strong match"
-                            : "Weak / Misaligned"}
+                            : analysis.score !== undefined &&
+                                analysis.score >= 50
+                              ? "Moderate match"
+                              : "Weak / Misaligned"}
                         </span>
                       </div>
                       {analysis.urgency && (

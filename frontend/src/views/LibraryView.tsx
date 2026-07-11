@@ -6,12 +6,8 @@ import { LibraryResumeCard } from "../components/LibraryResumeCard";
 import { resumeApi } from "../apis/resumes";
 import { Button } from "../components/ui/button";
 import { Plus } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { useResumeStore } from "../store/resumeStore";
 
 export function LibraryView() {
-  const navigate = useNavigate();
-  const resetResumeState = useResumeStore((s) => s.resetResumeState);
   const {
     data: resumes = [],
     isLoading,
@@ -20,12 +16,49 @@ export function LibraryView() {
 
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [fileToAdd, setFileToAdd] = useState<File | null>(null);
+  const [fileLabel, setFileLabel] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      resetResumeState();
-      useResumeStore.getState().setResumeState({ file: e.target.files[0] });
-      navigate("/analyze");
+      const file = e.target.files[0];
+      setFileToAdd(file);
+      setFileLabel(file.name.replace(/\.[^/.]+$/, ""));
+    }
+  };
+
+  const handleConfirmSave = async () => {
+    if (!fileToAdd) return;
+    setIsUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const base64 = event.target?.result as string;
+        try {
+          await resumeApi.create(
+            fileLabel || "Untitled",
+            "",
+            undefined,
+            base64,
+          );
+          mutate(); // Revalidate library
+          setFileToAdd(null);
+          setFileLabel("");
+          if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+          }
+        } catch (err) {
+          console.error("Failed to upload resume:", err);
+          alert("Failed to upload resume");
+        } finally {
+          setIsUploading(false);
+        }
+      };
+      reader.readAsDataURL(fileToAdd);
+    } catch (err) {
+      console.error(err);
+      setIsUploading(false);
     }
   };
 
@@ -66,8 +99,8 @@ export function LibraryView() {
   };
 
   return (
-    <div className="px-6 py-10 flex flex-col gap-6 overflow-y-auto h-full w-full">
-      <div className="flex items-start justify-between">
+    <div className="px-4 py-6 md:px-6 md:py-10 flex flex-col gap-4 md:gap-6 overflow-y-auto h-full w-full">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0">
         <div>
           <h1 className="font-['EB_Garamond'] text-[36px] font-semibold text-foreground tracking-tight">
             My Library
@@ -87,7 +120,7 @@ export function LibraryView() {
           onClick={() => {
             fileInputRef.current?.click();
           }}
-          className="gap-2"
+          className="gap-2 w-full sm:w-auto"
         >
           <Plus className="w-4 h-4" />
           Add Resume
@@ -154,6 +187,55 @@ export function LibraryView() {
                 onClick={handleConfirmDelete}
               >
                 Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ADD RESUME MODAL */}
+      {fileToAdd && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-sm p-6 animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="font-['EB_Garamond'] text-2xl font-semibold mb-2">
+              Save to Library
+            </h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              Do you want to save "{fileToAdd.name}" directly to your library?
+            </p>
+            <div className="mb-6">
+              <label className="text-xs font-semibold text-muted-foreground mb-1 block">
+                Label
+              </label>
+              <input
+                type="text"
+                className="w-full text-sm p-2 rounded-md border bg-background"
+                value={fileLabel}
+                onChange={(e) => setFileLabel(e.target.value)}
+                disabled={isUploading}
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={isUploading}
+                onClick={() => {
+                  setFileToAdd(null);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                disabled={isUploading || !fileLabel.trim()}
+                onClick={handleConfirmSave}
+              >
+                {isUploading ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : null}
+                Save Resume
               </Button>
             </div>
           </div>

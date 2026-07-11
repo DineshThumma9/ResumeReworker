@@ -166,7 +166,7 @@ class Details(BaseModel):
             return data
 
         links: Dict[str, Optional[str]] = data.get("profile_links") or {}
-        
+
         # Normalize keys in case LLM used the URL as the key
         normalized_links = {}
         for k, v in links.items():
@@ -177,7 +177,12 @@ class Details(BaseModel):
                 m = re.search(r"https?://(?:www\.)?([\w\-\.]+)", v)
                 if m:
                     domain = m.group(1).lower()
-                    if domain.endswith(".com") or domain.endswith(".org") or domain.endswith(".net") or domain.endswith(".io"):
+                    if (
+                        domain.endswith(".com")
+                        or domain.endswith(".org")
+                        or domain.endswith(".net")
+                        or domain.endswith(".io")
+                    ):
                         domain = domain[:-4]
                     normalized_links[domain] = v
                 else:
@@ -198,13 +203,22 @@ class Details(BaseModel):
         for domain in urls:
             if domain.endswith(".com"):
                 domain = domain[:-4]
-            elif domain.endswith(".org") or domain.endswith(".net") or domain.endswith(".io"):
+            elif (
+                domain.endswith(".org")
+                or domain.endswith(".net")
+                or domain.endswith(".io")
+            ):
                 domain = domain[:-4]
             # normalize domain to generic key, e.g. linkedin, github
             key = domain.lower()
             if key not in links:
                 # Find the full match in text
-                match = re.search(r"https?://(?:www\.)?" + re.escape(domain) + r"[a-zA-Z]{0,4}[/\w\-\.\?\=\&\%]*", raw_text)
+                match = re.search(
+                    r"https?://(?:www\.)?"
+                    + re.escape(domain)
+                    + r"[a-zA-Z]{0,4}[/\w\-\.\?\=\&\%]*",
+                    raw_text,
+                )
                 if match:
                     links[key] = match.group(0)
 
@@ -691,5 +705,35 @@ class BatchedRewriteResponse(BaseModel):
 
 
 class JudgeResume(BaseModel):
-    request_changes: List[str]
-    should_rewrite: bool
+    request_changes: List[str] = Field(
+        description="If should_rewrite is true, list the specific, actionable changes the rewriter must make. If should_rewrite is false, this must be an empty list."
+    )
+    should_rewrite: bool = Field(
+        description="True if the rewritten resume has false info, forced keywords, or still has significant room for improvement. False if it is optimal and ready."
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def fix_typos(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            # Fix should_rewite typo
+            if "should_rewite" in data and "should_rewrite" not in data:
+                data["should_rewrite"] = data.pop("should_rewite")
+
+            # Clean up request_changes from LLM hallucinations (nested lists, booleans, etc.)
+            if "request_changes" in data:
+                req_changes = data["request_changes"]
+                if isinstance(req_changes, list):
+                    cleaned = []
+                    for item in req_changes:
+                        if isinstance(item, list):
+                            cleaned.extend([str(x) for x in item])
+                        elif isinstance(item, bool):
+                            # Skip booleans (LLMs sometimes output True/False for evaluation checks)
+                            continue
+                        elif item is not None:
+                            cleaned.append(str(item))
+                    data["request_changes"] = cleaned
+                elif isinstance(req_changes, str):
+                    data["request_changes"] = [req_changes]
+        return data

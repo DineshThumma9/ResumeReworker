@@ -5,6 +5,7 @@ interface ResumeState {
   latexCode: string;
   diffLatexCode: string;
   pdfUrl: string | null;
+  diffPdfUrl: string | null;
   label: string;
   templateId: string;
   jd: string;
@@ -19,6 +20,7 @@ const initialState = {
   latexCode: "",
   diffLatexCode: "",
   pdfUrl: null,
+  diffPdfUrl: null,
   label: "",
   templateId: "",
   jd: "",
