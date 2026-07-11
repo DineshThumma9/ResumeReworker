@@ -559,8 +559,9 @@ class ResumeState(TypedDict, total=False):
     api_key: str
     exclude_sections: Dict[str, bool]
     output_path: str
-    judgement: Any
+    judgements: List[Any]
     pdf_base64: str
+    diff_pdf_base64: str
     template_source: str
     template_id: Optional[int]
     error: Optional[str]  # propagated from any node on failure

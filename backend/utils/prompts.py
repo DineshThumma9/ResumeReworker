@@ -10,6 +10,7 @@ Analyze the candidate's resume against the provided job description and deliver 
 - Extract essential keywords from the job description, including technical skills, tools, qualifications, and soft skills.
 - Compare with the resume content to identify which are present or missing.
 - Highlight missing or weakly represented keywords that could meaningfully improve ATS matching.
+- **IMPORTANT**: Only suggest adding missing keywords if there is reasonable evidence in the resume that the candidate actually possesses that skill or experience. Do NOT suggest adding skills the candidate clearly does not have.
 - Briefly note keyword density and whether the terms are used in relevant contexts.
 
 ### 2. ALIGNMENT SCORE (0–100)
@@ -84,11 +85,13 @@ When evaluating, you MUST check for the following:
 1. False Information: Ensure no skills, experiences, or qualifications were fabricated. Everything must be grounded in the original resume.
 2. Forced Keywords: Ensure that any keywords added from the job description are integrated naturally. If keywords look "stuffed" or forced without proper context, this must be fixed.
 3. Optimal State: Have we reached the best possible version of this resume given the original content? If the resume is as good as it can realistically get without making things up, you should consider it optimal.
-4. NO HALLUCINATIONS: DO NOT request the rewriter to add new skills, tools, or experiences that are not already present in the original resume. If the JD requires a skill (e.g. Node.js) but the original resume does not have it, DO NOT ask the rewriter to add it.
+4. NO HALLUCINATIONS: DO NOT request the rewriter to add new skills, tools, or experiences that are not already present in the original resume. If the initial analysis lists missing keywords (e.g., Application Security, Kubernetes), but the original resume does not support them, DO NOT penalize the rewriter for omitting them and DO NOT ask the rewriter to add them. Acknowledge that the original resume lacks these skills and move on.
 
-If the rewritten resume has false information, forced keywords, or still has significant room for realistic improvement, set `should_rewrite` to true and provide a detailed list of `request_changes`.
+If the rewritten resume has false information, forced keywords, or still has significant room for realistic improvement, set `should_rewrite` to true and provide a detailed list of `request_changes`. 
+Crucially, if the rewriter hallucinates skills, tell them to remove them. But if they correctly omitted a skill they don't have, DO NOT tell them to add it.
 If the rewritten resume is in an optimal state, excellent, and needs no further changes, set `should_rewrite` to false and leave `request_changes` empty.
 """
+
 rewrite_content_prompt = """
 You are a professional resume writer optimizing a candidate's resume to match a job description.
 
@@ -96,7 +99,7 @@ You are a professional resume writer optimizing a candidate's resume to match a 
 1. **profile_links**: Populate ALL keys: phone, email, github, linkedin, leetcode, codechef, portfolio, website, location. Copy verbatim from resume. Set missing keys to null. Never leave this empty if the resume has contact info.
 2. **Project links**: If a project has a link, find the exact matching URL from the [HYPERLINKS FOUND IN RESUME] list and put it in the project's 'link' field.
 3. **Bullet count is sacred**: If a job/project has 4 bullets → return exactly 4. If it has 2 → return exactly 2. Never add or remove bullets.
-4. **No fabrication**: Only use technologies, companies, dates, and skills that appear in the original resume.
+4. **No fabrication**: Only use technologies, companies, dates, and skills that appear in the original resume. DO NOT add skills or tools that the candidate does not have, even if the analysis suggests them.
 5. **Education/certs/hackathons**: Copy verbatim. Never modify.
 
 ## WHAT TO DO WITH EACH BULLET:
@@ -106,16 +109,10 @@ You are a professional resume writer optimizing a candidate's resume to match a 
 - **IMPORTANT**: When you add new keywords, phrases, or make significant improvements to a bullet point, wrap the new/changed words in double asterisks (e.g., `Optimized the backend using **Redis**, improving latency by 20%`). This acts as a diff highlight.
 
 ## REWRITE GOALS (in priority order):
-1. Naturally weave in missing keywords from the analysis report
+1. Naturally weave in missing keywords from the analysis report ONLY IF supported by the original resume context.
 2. Use strong action verbs: Architected, Engineered, Optimized, Reduced, Increased, Built
 3. Add metrics if the original has them; do NOT invent metrics if there are none
 4. Keep sentences concise — match or shorten the original word count per bullet
-
-## SPECIFIC CONTENT GUIDELINES (Highly Recommended):
-- **Technical Skills**: Explicitly include Node.js in the languages/skills section to ensure ATS keyword matching if it is relevant to the JD (even if the candidate's experience with it is limited).
-- **Collaboration**: In the DevConnect project description (or experience bullets), explicitly highlight collaboration with frontend developers or designers.
-- **System Architecture**: In the NexusGPT or DevConnect project/experience descriptions, explicitly mention participating in system architecture or design discussions.
-- **Product & Technical Decisions**: In the projects or achievements section, explicitly emphasize how the candidate contributed to product or technical decisions (e.g., decisions about scalability or AI integration in NexusGPT).
 
 ## PROFILE SUMMARY:
 - ONLY include a summary if the original resume has one. If the original has NO summary, leave this field blank/null. Do NOT invent a summary.
@@ -155,3 +152,4 @@ Your task is to optimize the provided candidate resume content to better align w
 5. **Concise Phrasing**: Improve clarity and impact using strong action verbs (e.g., 'Architected', 'Optimized', 'Engineered').
 6. **No Markdown Bold/Italics**: DO NOT wrap any words in `**` or `__`. Just output plain text.
 """
+

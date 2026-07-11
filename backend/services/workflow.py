@@ -45,10 +45,12 @@ class ResumeWorkflowService:
         self, state: "ResumeState"
     ) -> Literal["rewrite_resume", "rewrite_latex"]:
         iteration = int(state.get("iteration", 1))
-        judgement = state.get("judgement")
-        if not judgement or iteration >= 5:
+        judgements = state.get("judgements", [])
+        if not judgements or iteration >= 5:
             logger.info(f"Proceeding to rewrite_latex. Iteration: {iteration}")
             return "rewrite_latex"
+
+        judgement = judgements[-1]
 
         if isinstance(judgement, dict):
             should_rewrite = judgement.get("should_rewrite", False)
@@ -160,7 +162,6 @@ class ResumeWorkflowService:
             # Robust URL fallback extraction from the entire resume text
             import re
             if details_obj:
-                urls = re.findall(r"https?://(?:www\.)?([\w\-\.]+)[/\w\-\.\?\=\&\%]*", resume)
                 for full_url in re.findall(r"https?://[^\s\"\'\>]+", resume):
                     m = re.search(r"https?://(?:www\.)?([\w\-\.]+)", full_url)
                     if m:
@@ -183,18 +184,22 @@ class ResumeWorkflowService:
                     f"Links: {details_obj.profile_links}\n"
                 )
 
-            judgement = state.get("judgement")
+            judgements = state.get("judgements", [])
             judgement_hint = ""
-            if judgement:
-                if isinstance(judgement, dict):
-                    req_changes = judgement.get("request_changes", [])
-                else:
-                    req_changes = getattr(judgement, "request_changes", [])
-                if req_changes:
-                    changes_str = "\n- ".join(req_changes)
+            if judgements:
+                all_requests = []
+                for i, j in enumerate(judgements, 1):
+                    req = j.get("request_changes", []) if isinstance(j, dict) else getattr(j, "request_changes", [])
+                    if req:
+                        changes_str = "\n- ".join(req)
+                        all_requests.append(f"Iteration {i} feedback:\n- {changes_str}")
+                
+                if all_requests:
+                    history_str = "\n\n".join(all_requests)
                     judgement_hint = (
-                        f"\n\n[PREVIOUS FEEDBACK TO INCORPORATE]\n"
-                        f"The previous rewrite was rejected. Please make the following changes:\n- {changes_str}\n"
+                        f"\n\n[PREVIOUS FEEDBACK HISTORY TO INCORPORATE]\n"
+                        f"You have been asked to revise this resume multiple times. Here is the history of requested changes:\n{history_str}\n"
+                        f"Ensure you address ALL unresolved feedback from previous iterations.\n"
                     )
 
             messages = [
@@ -227,32 +232,66 @@ class ResumeWorkflowService:
             return {**state, "changes_content": None, "iteration": iteration}
 
     async def judge_rewrite(self, state: "ResumeState"):
-        changes = state["changes_content"]
-        resume = state["resume"]
-        jd = state["jd"]
-        analysis = state["analysis"]
+        try:
+            changes = state["changes_content"]
+            resume = state["resume"]
+            jd = state["jd"]
+            analysis = state["analysis"]
 
-        from utils.prompts import judge_prompt
+            from utils.prompts import judge_prompt
+            
+            judgements = state.get("judgements", [])
+            judgement_history = ""
+            if judgements:
+                all_requests = []
+                for i, j in enumerate(judgements, 1):
+                    req = j.get("request_changes", []) if isinstance(j, dict) else getattr(j, "request_changes", [])
+                    if req:
+                        changes_str = "\n- ".join(req)
+                        all_requests.append(f"Iteration {i} requested changes:\n- {changes_str}")
+                
+                if all_requests:
+                    history_str = "\n\n".join(all_requests)
+                    judgement_history = (
+                        f"\n\n[YOUR PREVIOUS FEEDBACK HISTORY TO REWRITER]\n"
+                        f"You previously evaluated earlier versions and requested the following changes:\n{history_str}\n"
+                        f"Please evaluate if the rewriter has addressed your feedback in the new 'Candidate Changed Resume'.\n"
+                        f"If they have adequately addressed it or properly omitted skills they shouldn't hallucinate, do not keep requesting the same changes.\n"
+                    )
 
-        messages = [
-            SystemMessage(content=judge_prompt),
-            HumanMessage(
-                content=(
-                    f"Job Description:\n{jd}\n\n"
-                    f"Candidate Resume:\n{resume}"
-                    f"\n\nCandidate Changed Resume:\n{changes}"
-                    f"\n\nCandidate Analysis:\n{analysis}"
-                    f"\n\nRewrite Score: "
-                )
-            ),
-        ]
+            messages = [
+                SystemMessage(content=judge_prompt),
+                HumanMessage(
+                    content=(
+                        f"Job Description:\n{jd}\n\n"
+                        f"Candidate Resume:\n{resume}"
+                        f"{judgement_history}"
+                        f"\n\nCandidate Changed Resume:\n{changes}"
+                        f"\n\nCandidate Analysis:\n{analysis}"
+                        f"\n\nRewrite Score: "
+                    )
+                ),
+            ]
 
-        llm = await self._get_llm(state)
-        structured_llm = llm.with_structured_output(JudgeResume)
-        response = await structured_llm.ainvoke(messages)
-        if response is None:
-            return {**state, "judgement": None}
-        return {**state, "judgement": response}
+            llm = await self._get_llm(state)
+            structured_llm = llm.with_structured_output(JudgeResume)
+            response = await structured_llm.ainvoke(messages)
+            if response is None:
+                return {**state}
+            
+            new_judgements = judgements.copy()
+            new_judgements.append(response)
+            return {**state, "judgements": new_judgements}
+        except Exception as e:
+            logger.exception(f"Error in judge_rewrite node: {e}")
+            fallback = JudgeResume(
+                should_rewrite=False,
+                request_changes=[f"Judge failed with error: {str(e)}"]
+            )
+            judgements = state.get("judgements", [])
+            new_judgements = judgements.copy()
+            new_judgements.append(fallback)
+            return {**state, "judgements": new_judgements}
 
     # =========================================================================
     # OPTIONAL LOCAL COMPILATION ENGINES (Commented out)
@@ -448,14 +487,14 @@ class ResumeWorkflowService:
             template_source = state.get("template_source")
             if template_source and template_source.strip():
                 latex_code = render_resume_template_from_string(
-                    template_source, clean_data_dict
+                    template_source, clean_data_dict, diff=False
                 )
                 diff_latex_code = render_resume_template_from_string(
-                    template_source, diff_data_dict
+                    template_source, diff_data_dict, diff=True
                 )
             else:
-                latex_code = render_resume_template("jakes1.tex", clean_data_dict)
-                diff_latex_code = render_resume_template("jakes1.tex", diff_data_dict)
+                latex_code = render_resume_template("jakes1.tex", clean_data_dict, diff=False)
+                diff_latex_code = render_resume_template("jakes1.tex", diff_data_dict, diff=True)
 
             try:
                 filename = (
@@ -464,8 +503,24 @@ class ResumeWorkflowService:
                 # Compile clean latex_code
                 pdf_bytes = await self.latex_to_pdf(latex_code, filename)
 
+                diff_pdf_base64_str = ""
+                # Compile diff latex_code
+                try:
+                    diff_filename = f"{suggesting_changes.details.name.replace(' ', '_')}_resume_diff.pdf"
+                    diff_pdf_bytes = await self.latex_to_pdf(diff_latex_code, diff_filename)
+                    if diff_pdf_bytes and len(diff_pdf_bytes) >= 100:
+                        diff_pdf_base64 = base64.b64encode(diff_pdf_bytes).decode("utf-8")
+                        diff_pdf_base64_str = f"data:application/pdf;base64,{diff_pdf_base64}"
+                except Exception as diff_compile_err:
+                    logger.error(f"Failed to compile diff resume: {diff_compile_err}")
+
                 if not pdf_bytes or len(pdf_bytes) < 100:
-                    return {**state, "latex_code": latex_code, "diff_latex_code": diff_latex_code}
+                    return {
+                        **state,
+                        "latex_code": latex_code,
+                        "diff_latex_code": diff_latex_code,
+                        "diff_pdf_base64": diff_pdf_base64_str,
+                    }
 
                 pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
                 return {
@@ -473,6 +528,7 @@ class ResumeWorkflowService:
                     "latex_code": latex_code,
                     "diff_latex_code": diff_latex_code,
                     "pdf_base64": f"data:application/pdf;base64,{pdf_base64}",
+                    "diff_pdf_base64": diff_pdf_base64_str,
                 }
 
             except Exception as pdf_error:
