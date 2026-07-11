@@ -69,3 +69,12 @@ class UserLLMConfig(SQLModel, table=True):
     user_id: int = Field(foreign_key="users.id", ondelete="CASCADE", primary_key=True)
     provider: str = Field(index=True)
     model: str
+
+
+class OAuthCode(SQLModel, table=True):
+    __tablename__ = "oauth_codes"  # type: ignore
+    code: str = Field(primary_key=True)
+    user_id: int = Field(foreign_key="users.id", ondelete="CASCADE")
+    is_new: bool
+    created_at: datetime = Field(default_factory=naive_utcnow)
+

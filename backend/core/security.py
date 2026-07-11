@@ -46,6 +46,9 @@ def decode_access_token(token: str) -> int | None:
         return None
 
 
+from urllib.parse import urlencode
+
+
 def google_auth_url(state: str = "") -> str:
     params = {
         "client_id": settings.google_client_id,
@@ -55,8 +58,7 @@ def google_auth_url(state: str = "") -> str:
         "access_type": "offline",
         "state": state,
     }
-    query = "&".join(f"{k}={v}" for k, v in params.items())
-    return f"{settings.google_auth_url}?{query}"
+    return f"{settings.google_auth_url}?{urlencode(params)}"
 
 
 async def exchange_google_code(code: str) -> dict:

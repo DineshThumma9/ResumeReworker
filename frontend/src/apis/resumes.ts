@@ -4,6 +4,7 @@ import {
   ResumeSchema,
   type Resume,
   type AnalyzeEvent,
+  API_URL,
 } from "./api";
 import { useAuthStore } from "../store/authStore";
 
@@ -87,7 +88,7 @@ export const analyzeResume = async (
 
   let res: Response;
   try {
-    res = await fetch("http://localhost:8000/api/resumes/analyze", {
+    res = await fetch(`${API_URL}/resumes/analyze`, {
       method: "POST",
       body: formData,
       headers,

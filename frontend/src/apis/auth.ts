@@ -1,4 +1,4 @@
-import { fetchJSON } from "./api";
+import { fetchJSON, API_URL } from "./api";
 import { useAuthStore } from "../store/authStore";
 
 export const authApi = {
@@ -24,7 +24,13 @@ export const authApi = {
     });
   },
   googleLoginUrl: () => {
-    return "http://localhost:8000/api/auth/google";
+    return `${API_URL}/auth/google`;
+  },
+  googleExchange: async (code: string) => {
+    return await fetchJSON("/auth/google/exchange", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    }) as { access_token: string; token_type: string; new: boolean };
   },
   getProfile: async (): Promise<UserProfile> => {
     return await fetchJSON("/auth/profile");
@@ -56,7 +62,7 @@ export const authApi = {
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await fetch("http://localhost:8000/api/auth/profile/autofill", {
+    const res = await fetch(`${API_URL}/auth/profile/autofill`, {
       method: "POST",
       headers,
       body: formData,

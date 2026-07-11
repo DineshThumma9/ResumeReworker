@@ -1,8 +1,11 @@
+import logging
 import cloudinary
 import cloudinary.uploader
 from cloudinary.utils import cloudinary_url
 
 from core.config import settings
+
+logger = logging.getLogger(__name__)
 
 cloudinary.config()._load_from_url(settings.cloudinary_url)
 cloudinary.config(secure=True)
@@ -30,5 +33,5 @@ async def upload_pdf_to_cloudinary(pdf_bytes: bytes, filename: str) -> dict:
 
         return {"pdf_url": pdf_url, "preview_image_url": image_url}
     except Exception as e:
-        print(f"Cloudinary Upload Error: {e}")
+        logger.error(f"Cloudinary Upload Error: {e}")
         return {"pdf_url": None, "preview_image_url": None}

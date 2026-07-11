@@ -38,11 +38,35 @@ services:
       # Redis is reachable at the service name "redis" inside Docker network,
       # not localhost. Set this so the FastAPI lifespan picks it up.
       - REDIS_URL=redis://redis:6379
+    volumes:
+      # Sibling container control: let the backend run docker commands on the host daemon
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_started
+
+  latex-compiler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.latex
+    image: latex-compiler
+    # This service builds and tags the image for the host docker daemon.
+    # It does not need to run continuously in compose.
+    restart: "no"
+    entrypoint: ["echo", "LaTeX compiler image built and tagged successfully"]
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: resumereworker-frontend
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      - web
 
   caddy:
     image: caddy:latest
@@ -54,6 +78,7 @@ services:
       - caddy_config:/config
     depends_on:
       - web
+      - frontend
     ports:
       - "80:80"
       - "443:443"

@@ -19,10 +19,23 @@ export function AuthView() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
-    if (token) {
-      useAuthStore.getState().setToken(token);
-      navigate("/analyze");
+    const code = params.get("code");
+    if (code) {
+      setLoading(true);
+      authApi
+        .googleExchange(code)
+        .then((res) => {
+          useAuthStore.getState().setToken(res.access_token);
+          navigate("/analyze");
+        })
+        .catch((err) => {
+          setError(
+            err instanceof Error ? err.message : "Google authentication failed"
+          );
+        })
+        .finally(() => {
+          setLoading(false);
+        });
     }
   }, [navigate]);
 

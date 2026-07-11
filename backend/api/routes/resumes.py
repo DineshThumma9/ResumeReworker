@@ -1,16 +1,19 @@
 import base64
 import json
+import logging
 from datetime import datetime, timezone
 from typing import Annotated, Optional
 
 import fitz
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
+from fastapi_limiter.depends import RateLimiter
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from core.config import settings
 from core.database import get_session
 from models.models import Resume, Template, User
 from schemas.schema import PaginatedResume, ResumeOut, ResumeUpdate
@@ -19,6 +22,8 @@ from services.renderer import render_resume_template, render_resume_template_fro
 from services.resume_service import CurrentUser
 from services.storage import upload_pdf_to_cloudinary
 from services.workflow import ResumeWorkflowService
+
+logger = logging.getLogger(__name__)
 
 
 def naive_utcnow() -> datetime:
@@ -70,7 +75,7 @@ async def save_and_upload(
             pdf_url = upload_res.get("pdf_url") or pdf_url
             preview_url = upload_res.get("preview_image_url")
     except Exception as preview_err:
-        print(f"Failed to generate preview: {preview_err}")
+        logger.error(f"Failed to generate preview: {preview_err}")
 
     return pdf_url, preview_url
 
@@ -452,7 +457,7 @@ def resolve_resume_label(label: str, analysis_data: dict | None, user: User) -> 
     return resolved_label
 
 
-@router.post("/analyze")
+@router.post("/analyze", dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def analyze(
     user: CurrentUser,
     db: DB,
@@ -506,10 +511,13 @@ async def analyze(
             import traceback
 
             tb = traceback.format_exc()
-            import logging
-
-            logging.getLogger(__name__).error(f"GRAPH ERROR: {tb}")
-            yield f"data: {json.dumps({'event': 'error', 'message': f'Internal Error: {str(graph_err)}\nTraceback:\n{tb}'})}\n\n"
+            logger.error(f"GRAPH ERROR: {tb}")
+            err_msg = f"Internal Error: {str(graph_err)}"
+            if settings.dev_mode:
+                err_msg += f"\nTraceback:\n{tb}"
+            else:
+                err_msg += "\nPlease try again or contact support."
+            yield f"data: {json.dumps({'event': 'error', 'message': err_msg})}\n\n"
             return
 
         service = ResumeWorkflowService()
@@ -559,7 +567,7 @@ async def analyze(
                 elif "rewrite_resume" in event:
                     yield f"data: {json.dumps({'event': 'progress', 'step': 'rewrite_resume', 'message': 'Finished rewriting resume...'})}\n\n"
                 elif "judge_resume" in event:
-                    judgement = event["judge_resume"].get("judgement")
+                    judgement = event["judge_resume"].get("judgements", [])[-1] if event["judge_resume"].get("judgements") else None
                     iteration = event["judge_resume"].get("iteration", 1)
                     if judgement:
                         if isinstance(judgement, dict):
@@ -606,13 +614,12 @@ async def analyze(
                             )
 
                             try:
+                                template_id_val = initial_state.get("template_id")
                                 body = ResumeCreate(
                                     label=resolved_label,
                                     tex_source=latex_code,
                                     jd_snippet=jd,
-                                    template_id=int(initial_state.get("template_id"))
-                                    if initial_state.get("template_id")
-                                    else None,
+                                    template_id=int(template_id_val) if template_id_val is not None else None,
                                     pdf_url=pdf_base64,
                                     content=content_dict,
                                 )
@@ -622,12 +629,12 @@ async def analyze(
                                     resume.pdf_url
                                 )  # Use the uploaded Cloudinary URL instead!
                             except Exception as db_err:
-                                print(
+                                logger.error(
                                     f"Failed to save resume to DB via create_resume: {db_err}"
                                 )
 
                         except Exception as db_err:
-                            print(f"Failed to save resume to DB: {db_err}")
+                            logger.error(f"Failed to save resume to DB: {db_err}")
 
                     payload = {
                         "event": "complete",
@@ -676,7 +683,7 @@ class ModifyRequest(BaseModel):
     model: str = "llama-3.3-70b-versatile"
 
 
-@router.post("/modify")
+@router.post("/modify", dependencies=[Depends(RateLimiter(times=20, seconds=60))])
 async def modify_latex(
     req: ModifyRequest,
     user: CurrentUser,

@@ -1,9 +1,11 @@
+import logging
 import secrets
 from typing import Annotated, Any, Dict
 
 import fitz
 from fastapi import APIRouter, Cookie, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import RedirectResponse, Response
+from fastapi_limiter.depends import RateLimiter
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,7 +21,9 @@ from core.security import (
     verify_password,
 )
 from models import User
-from models.models import UserLLMConfig
+from models.models import OAuthCode, UserLLMConfig, naive_utcnow
+
+logger = logging.getLogger(__name__)
 from schemas.schema import (
     LoginBody,
     ProfileOut,
@@ -35,7 +39,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 DB = Annotated[AsyncSession, Depends(get_session)]
 
 
-@router.post("/signup", status_code=status.HTTP_201_CREATED)
+from pydantic import BaseModel
+
+class GoogleExchangeBody(BaseModel):
+    code: str
+
+
+@router.post("/signup", status_code=status.HTTP_201_CREATED, dependencies=[Depends(RateLimiter(times=5, seconds=60))])
 async def signup(body: SignupBody, db: DB):
     existing = await db.execute(
         select(User).where(
@@ -58,9 +68,13 @@ async def signup(body: SignupBody, db: DB):
     return {"access_token": create_access_token(user.id), "token_type": "bearer"}  # type: ignore
 
 
-@router.post("/login")
+@router.post("/login", dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def login(body: LoginBody, db: DB):
-    result = await db.execute(select(User).where(User.email == body.email_or_username))
+    result = await db.execute(
+        select(User).where(
+            (User.email == body.email_or_username) | (User.username == body.email_or_username)
+        )
+    )
     user = result.scalar_one_or_none()
 
     if not user or not verify_password(body.password, user.hashed_password):
@@ -131,12 +145,48 @@ async def google_callback(
         await db.flush()
         await db.refresh(user)
 
-    token = create_access_token(user.id)  # type: ignore
-    new_str = "true" if is_new else "false"
+    if user.id is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate user ID",
+        )
+
+    exchange_code = secrets.token_urlsafe(32)
+    db.add(OAuthCode(code=exchange_code, user_id=user.id, is_new=is_new))
+    await db.commit()
 
     return RedirectResponse(
-        url=f"{settings.frontend_url}/login?token={token}&new={new_str}"
+        url=f"{settings.frontend_url}/login?code={exchange_code}"
     )
+
+
+@router.post("/google/exchange", dependencies=[Depends(RateLimiter(times=10, seconds=60))])
+async def google_exchange(body: GoogleExchangeBody, db: DB):
+    result = await db.execute(select(OAuthCode).where(OAuthCode.code == body.code))
+    oauth_code = result.scalar_one_or_none()
+    if not oauth_code:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Invalid or expired authorization code"
+        )
+
+    # Check expiration (e.g. 1 minute)
+    age = (naive_utcnow() - oauth_code.created_at).total_seconds()
+    if age > 60:
+        await db.delete(oauth_code)
+        await db.commit()
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Authorization code expired"
+        )
+
+    token = create_access_token(oauth_code.user_id)
+    is_new = oauth_code.is_new
+
+    # Delete code to prevent reuse
+    await db.delete(oauth_code)
+    await db.commit()
+
+    return {"access_token": token, "token_type": "bearer", "new": is_new}
+
 
 
 @router.get("/profile", response_model=ProfileOut)
@@ -298,7 +348,7 @@ def map_llm_to_profile(parsed: Any) -> Dict[str, Any]:
     return profile_data
 
 
-@router.post("/profile/autofill", response_model=Dict[str, Any])
+@router.post("/profile/autofill", response_model=Dict[str, Any], dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def autofill_profile(
     user: CurrentUser,
     db: DB,
@@ -372,8 +422,8 @@ async def autofill_profile(
                 HumanMessage(content=f"Resume text:\n{resume_text}"),
             ]
             details_obj = await details_llm.ainvoke(details_messages)
-        except Exception:
-            pass
+        except Exception as details_err:
+            logger.warning(f"Autofill details extraction failed: {details_err}")
 
         structured_llm = llm.with_structured_output(RewriteResume)
 
@@ -403,7 +453,7 @@ async def autofill_profile(
             parsed = RewriteResume.model_validate(parsed)
 
         if details_obj:
-            if getattr(parsed, "details", None):
+            if parsed.details is not None:
                 # Merge name
                 if not parsed.details.name and details_obj.name:
                     parsed.details.name = details_obj.name

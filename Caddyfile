@@ -1,0 +1,7 @@
+:80 {
+    # Reverse proxy backend API requests
+    reverse_proxy /api/* web:8000
+
+    # Reverse proxy all other requests to frontend
+    reverse_proxy /* frontend:80
+}

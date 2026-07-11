@@ -1,5 +1,8 @@
 # syntax=docker/dockerfile:1
-FROM python:3.14-slim
+FROM python:3.12-slim
+
+# Copy docker CLI from official docker image for sibling container access
+COPY --from=docker:27-cli /usr/local/bin/docker /usr/local/bin/docker
 
 # Install system dependencies needed by some Python packages
 RUN apt-get update && apt-get install -y --no-install-recommends \

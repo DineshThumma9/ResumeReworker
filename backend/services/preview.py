@@ -45,8 +45,8 @@ async def generate_template_preview_task(template_id: int):
                 # Get the user's most recent resume
                 res = await session.execute(
                     select(Resume)
-                    .where(Resume.user_id == template.user_id)
-                    .order_by(desc(Resume.created_at))
+                    .where(Resume.user_id == template.user_id)  # type: ignore
+                    .order_by(desc(Resume.created_at))  # type: ignore
                     .limit(1)  # type: ignore
                 )
                 latest_resume = res.scalar_one_or_none()

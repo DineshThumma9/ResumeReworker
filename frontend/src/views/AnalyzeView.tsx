@@ -4,6 +4,7 @@ import Editor from "@monaco-editor/react";
 import { useResumeStore } from "../store/resumeStore";
 import { useAuthStore } from "../store/authStore";
 import { useResumeAnalysis } from "../hooks/useResumeAnalysis";
+import { API_URL } from "../apis/api";
 import { resumeApi } from "../apis/resumes";
 import { templateApi } from "../apis/templates";
 import { AnalysisForm } from "../components/analyze/AnalysisForm";
@@ -122,7 +123,7 @@ export function AnalyzeView() {
     try {
       const token = useAuthStore.getState().token;
       const response = await fetch(
-        `http://localhost:8000/api/share/${resumeId}/download-anonymous`,
+        `${API_URL}/share/${resumeId}/download-anonymous`,
         {
           method: "POST",
           headers: {

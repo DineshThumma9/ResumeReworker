@@ -12,8 +12,7 @@ export class APIError extends Error {
   }
 }
 
-// Ensure your backend is running on 8000 or adjust this url.
-const API_URL = "http://localhost:8000/api";
+export const API_URL = "/api";
 
 export async function fetchJSON(url: string, options?: RequestInit) {
   const token = useAuthStore.getState().token;

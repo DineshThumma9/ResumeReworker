@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlmodel import SQLModel, select
 
 from core.config import settings
-from models.models import Resume, Template
+from models.models import Resume, Template, OAuthCode
 
 logger = logging.getLogger(__name__)
 
