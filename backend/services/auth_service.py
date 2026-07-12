@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import Dict, List, Tuple
 
 import httpx
@@ -9,10 +10,8 @@ from sqlmodel import select
 
 from core.config import settings
 from models.models import APIKEYS, User
-from utils.constants import _VALIDATION_URLS
-from utils.constants import STATIC_MODELS
-from utils.constants import STATIC_MODELS
-from collections import defaultdict
+from utils.constants import _VALIDATION_URLS, STATIC_MODELS
+
 
 class CryptoService:
     def __init__(self):
@@ -46,6 +45,7 @@ class AuthService:
 
     async def _validate_api_key(self, provider: str, api_key: str) -> Tuple[bool, str]:
         from utils.http_client import get_http_client
+
         url = _VALIDATION_URLS.get(provider)
         if not url:
             return True, ""  # Unknown provider — don't block
@@ -60,7 +60,9 @@ class AuthService:
                     headers={"x-api-key": api_key, "anthropic-version": "2023-06-01"},
                 )
             else:
-                r = await client.get(url, headers={"Authorization": f"Bearer {api_key}"})
+                r = await client.get(
+                    url, headers={"Authorization": f"Bearer {api_key}"}
+                )
         except httpx.TimeoutException:
             logger.warning(f"Key validation timeout for {provider} (5s)")
             return True, ""
@@ -115,8 +117,6 @@ class AuthService:
     async def get_valid_models(self, user: User) -> Dict[str, List[str]]:
         """Return available models by fetching them dynamically from provider endpoints."""
         valid_models: Dict[str, List[str]] = defaultdict(list)
-
-
 
         # Check centralized environment keys
         provider_keys = {

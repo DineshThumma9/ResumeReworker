@@ -12,15 +12,21 @@ from langgraph.constants import END, START
 from langgraph.graph import StateGraph
 
 from core.config import settings
-from schemas.schema import Details, JudgeResume, ResumeAnalysis, ResumeState, RewriteResume
+from schemas.schema import (
+    Details,
+    JudgeResume,
+    ResumeAnalysis,
+    ResumeState,
+    RewriteResume,
+)
+from services.llm_service import get_llm_client
 from services.renderer import render_resume_template, render_resume_template_from_string
+from utils.constants import MAX_REWRITE_ITERATIONS
 from utils.prompts import (
     extract_details_prompt,
     resume_analysis_prompt,
     rewrite_content_prompt,
 )
-from utils.constants import MAX_REWRITE_ITERATIONS
-from services.llm_service import get_llm_client
 
 logger = logging.getLogger(__name__)
 
@@ -64,10 +70,14 @@ class ResumeWorkflowService:
             req_changes = getattr(judgement, "request_changes", [])
 
         if should_rewrite:
-            logger.info(f"Judge rejected rewrite (iteration {iteration}). {len(req_changes)} changes requested:")
+            logger.info(
+                f"Judge rejected rewrite (iteration {iteration}). {len(req_changes)} changes requested:"
+            )
             for idx, change in enumerate(req_changes):
                 change_str = str(change)
-                truncated = change_str[:150] + "..." if len(change_str) > 150 else change_str
+                truncated = (
+                    change_str[:150] + "..." if len(change_str) > 150 else change_str
+                )
                 logger.info(f"  - {truncated}")
         else:
             logger.info(
@@ -117,7 +127,7 @@ class ResumeWorkflowService:
         return await get_llm_client(
             provider=state.get("provider"),
             model=state.get("model"),
-            api_key=state.get("api_key")
+            api_key=state.get("api_key"),
         )
 
     async def rewrite_resume(self, state: "ResumeState"):

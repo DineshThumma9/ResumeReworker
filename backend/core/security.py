@@ -1,12 +1,12 @@
 import logging
 from datetime import datetime, timedelta, timezone
+from urllib.parse import urlencode
+
 import bcrypt
 import httpx
 from jose import JWTError, jwt
+
 from .config import settings
-from urllib.parse import urlencode
-
-
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,6 @@ def decode_access_token(token: str) -> int | None:
     except (JWTError, KeyError, ValueError) as e:
         logger.error(f"Error :{e}")
         return None
-
 
 
 def google_auth_url(state: str = "") -> str:

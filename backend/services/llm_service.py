@@ -28,7 +28,7 @@ async def get_llm_client(
     If api_key is not provided, it will attempt to fetch the user's custom key or fallback
     to system settings.
     """
-    
+
     # 1. Resolve Provider and Model
     if db and user and (not provider or not model):
         result = await db.execute(

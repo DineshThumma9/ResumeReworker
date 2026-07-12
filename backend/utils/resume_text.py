@@ -17,9 +17,7 @@ def extract_profile_details(user: User) -> str:
     Used so the LLM has the candidate's actual contact details regardless of what the
     PDF contained.
     """
-    profile = (
-        f"\n\nCandidate Contact Details:\nName: {user.name}\nEmail: {user.email}"
-    )
+    profile = f"\n\nCandidate Contact Details:\nName: {user.name}\nEmail: {user.email}"
     if user.phone:
         profile += f"\nPhone: {user.phone}"
     if user.location:
@@ -98,12 +96,18 @@ def resolve_resume_label(label: str, analysis_data: dict | None, user: User) -> 
     if analysis_data and isinstance(analysis_data, dict):
         company_name = analysis_data.get("company_name", "Company") or "Company"
 
-    clean_name = "".join(
-        c for c in user.name if c.isalnum() or c in (" ", "_", "-")
-    ).strip().replace(" ", "") or "User"
+    clean_name = (
+        "".join(c for c in user.name if c.isalnum() or c in (" ", "_", "-"))
+        .strip()
+        .replace(" ", "")
+        or "User"
+    )
 
-    clean_company = "".join(
-        c for c in company_name if c.isalnum() or c in (" ", "_", "-")
-    ).strip().replace(" ", "") or "Company"
+    clean_company = (
+        "".join(c for c in company_name if c.isalnum() or c in (" ", "_", "-"))
+        .strip()
+        .replace(" ", "")
+        or "Company"
+    )
 
     return f"{clean_name}{clean_company}"

@@ -8,14 +8,14 @@ from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
-
+from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from core.config import settings
 from core.database import get_session
-from models.models import Resume, Template, User
+from models.models import Resume, Template
 from schemas.schema import (
     CompileRequest,
     ModifyRequest,
@@ -24,23 +24,24 @@ from schemas.schema import (
     ResumeOut,
     ResumeUpdate,
 )
-from services.auth_service import AuthService
+from services.llm_service import get_llm_client
 from services.renderer import render_resume_template, render_resume_template_from_string
 from services.resume_service import CurrentUser, build_graph_state, save_and_upload
 from services.workflow import ResumeWorkflowService
-from services.llm_service import get_llm_client
+from utils.constants import DEFAULT_LLM_MODEL, DEFAULT_LLM_PROVIDER
 from utils.error_helpers import classify_llm_error
 from utils.pdf_extractor import extract_resume_text_and_links
-from utils.resume_text import extract_profile_details, extract_resume_details, resolve_resume_label
-from utils.constants import DEFAULT_LLM_PROVIDER, DEFAULT_LLM_MODEL
-from langchain_core.messages import HumanMessage, SystemMessage
+from utils.resume_text import (
+    extract_profile_details,
+    extract_resume_details,
+    resolve_resume_label,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/resumes", tags=["resumes"])
 
 DB = Annotated[AsyncSession, Depends(get_session)]
-
 
 
 @router.get("", response_model=PaginatedResume)
@@ -235,9 +236,6 @@ async def render_resume(
         )
 
 
-
-
-
 @router.post("/analyze")
 async def analyze(
     user: CurrentUser,
@@ -289,7 +287,6 @@ async def analyze(
                 resume_text,
             )
         except Exception as graph_err:
-        
             tb = traceback.format_exc()
             logger.error(f"GRAPH ERROR: {tb}")
             err_msg = classify_llm_error(graph_err, dev_mode=settings.dev_mode, tb=tb)
@@ -312,7 +309,9 @@ async def analyze(
                         quality = analysis_data.get("resume_quality") or ""
                         if quality:
                             chunk_size = 5
-                            for i in range(chunk_size, len(quality) + chunk_size, chunk_size):
+                            for i in range(
+                                chunk_size, len(quality) + chunk_size, chunk_size
+                            ):
                                 yield f"data: {json.dumps({'event': 'analysis_quality', 'text': quality[:i]})}\n\n"
                                 await asyncio.sleep(0.01)
                             if not quality or len(quality) % chunk_size != 0:
@@ -322,7 +321,9 @@ async def analyze(
                         explanation = analysis_data.get("match_explanation") or ""
                         if explanation:
                             chunk_size = 5
-                            for i in range(chunk_size, len(explanation) + chunk_size, chunk_size):
+                            for i in range(
+                                chunk_size, len(explanation) + chunk_size, chunk_size
+                            ):
                                 yield f"data: {json.dumps({'event': 'analysis_explanation', 'text': explanation[:i]})}\n\n"
                                 await asyncio.sleep(0.01)
                             if not explanation or len(explanation) % chunk_size != 0:
@@ -347,7 +348,11 @@ async def analyze(
                 elif "rewrite_resume" in event:
                     yield f"data: {json.dumps({'event': 'progress', 'step': 'rewrite_resume', 'message': 'Finished rewriting resume...'})}\n\n"
                 elif "judge_resume" in event:
-                    judgement = event["judge_resume"].get("judgements", [])[-1] if event["judge_resume"].get("judgements") else None
+                    judgement = (
+                        event["judge_resume"].get("judgements", [])[-1]
+                        if event["judge_resume"].get("judgements")
+                        else None
+                    )
                     iteration = event["judge_resume"].get("iteration", 1)
                     if judgement:
                         if isinstance(judgement, dict):
@@ -399,7 +404,9 @@ async def analyze(
                                     label=resolved_label,
                                     tex_source=latex_code,
                                     jd_snippet=jd,
-                                    template_id=int(template_id_val) if template_id_val is not None else None,
+                                    template_id=int(template_id_val)
+                                    if template_id_val is not None
+                                    else None,
                                     pdf_url=pdf_base64,
                                     content=content_dict,
                                 )
@@ -450,7 +457,9 @@ async def modify_latex(
     Modifies raw LaTeX code based on user instruction and streams the updated code.
     """
     try:
-        llm = await get_llm_client(db, user=user, provider=req.provider, model=req.model)
+        llm = await get_llm_client(
+            db, user=user, provider=req.provider, model=req.model
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

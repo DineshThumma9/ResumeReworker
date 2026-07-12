@@ -1,5 +1,7 @@
 from typing import Any, Dict
+
 from schemas.schema import RewriteResume
+
 
 def map_llm_to_profile(parsed: Any) -> Dict[str, Any]:
     if isinstance(parsed, dict):

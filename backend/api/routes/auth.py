@@ -4,7 +4,6 @@ from typing import Annotated, Any, Dict
 
 from fastapi import APIRouter, Cookie, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import RedirectResponse, Response
-
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -24,14 +23,10 @@ from schemas.schema import (
     LoginBody,
     ProfileOut,
     ProfileUpdate,
-    RewriteResume,
     SignupBody,
 )
-from services.auth_service import AuthService
 from services.resume_service import CurrentUser, autofill_resume_profile
-from services.llm_service import get_llm_client
 from utils.pdf_extractor import extract_resume_text_and_links
-from utils.mappers import map_llm_to_profile
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +62,8 @@ async def signup(body: SignupBody, db: DB):
 async def login(body: LoginBody, db: DB):
     result = await db.execute(
         select(User).where(
-            (User.email == body.email_or_username) | (User.username == body.email_or_username)
+            (User.email == body.email_or_username)
+            | (User.username == body.email_or_username)
         )
     )
     user = result.scalar_one_or_none()
@@ -150,9 +146,7 @@ async def google_callback(
     db.add(OAuthCode(code=exchange_code, user_id=user.id, is_new=is_new))
     await db.commit()
 
-    return RedirectResponse(
-        url=f"{settings.frontend_url}/login?code={exchange_code}"
-    )
+    return RedirectResponse(url=f"{settings.frontend_url}/login?code={exchange_code}")
 
 
 @router.post("/google/exchange")
@@ -169,9 +163,7 @@ async def google_exchange(body: GoogleExchangeBody, db: DB):
     if age > 60:
         await db.delete(oauth_code)
         await db.commit()
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST, "Authorization code expired"
-        )
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Authorization code expired")
 
     token = create_access_token(oauth_code.user_id)
     is_new = oauth_code.is_new
@@ -181,7 +173,6 @@ async def google_exchange(body: GoogleExchangeBody, db: DB):
     await db.commit()
 
     return {"access_token": token, "token_type": "bearer", "new": is_new}
-
 
 
 @router.get("/profile", response_model=ProfileOut)
@@ -204,9 +195,6 @@ async def update_profile(body: ProfileUpdate, user: CurrentUser, db: DB):
     await db.commit()
     await db.refresh(user)
     return user
-
-
-
 
 
 @router.post("/profile/autofill", response_model=Dict[str, Any])

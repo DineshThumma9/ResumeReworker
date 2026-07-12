@@ -32,8 +32,9 @@ Analyze the candidate's resume against the provided job description and deliver 
 ### 4. RESUME QUALITY
 - Evaluate structure, readability, and logical flow.
 - Identify any ATS-unfriendly elements (tables, images, icons, non-standard formatting).
-- Assess content quality: clarity, quantifiable impact, and strength of phrasing.
+- Assess content quality: clarity, quantifiable impact, and phrasing strength.
 - Evaluate tone and professionalism (concise, results-driven vs vague or generic).
+- **CRITICAL**: Assess if the resume exceeds a single page. Flag any formatting choices or wordy descriptions that cause layout spillover onto a second page.
 
 ### 5. NEGATIVE POINTS
 - List clear weaknesses or red flags (e.g., lack of metrics, poor keyword placement, irrelevant experience, inconsistent formatting).
@@ -45,17 +46,12 @@ Analyze the candidate's resume against the provided job description and deliver 
 - Suggest missing keywords or phrases to integrate naturally.
 - Highlight how to improve ATS parsing (section headers, plain text formatting, etc.).
 - Optionally include examples of improved line rewrites.
+- **CRITICAL**: Give explicit recommendations on how to compress, shorten, or format the resume so it fits strictly on exactly 1 page, ensuring no text or layout overflows horizontally (page width) or vertically (page height).
 
 ### 7. URGENCY ASSESSMENT (if applicable)
 - If the job description includes a deadline or limited application window, estimate urgency level.
 - Include number of days remaining and how that impacts resume submission timing.
 
-### 8. SECTION CLASSIFICATION & BOUNDARIES
-- STRICT ISOLATION: Treat each section of the original resume as a strictly independent entity. There must be ZERO overlap or duplication of information between sections.
-- NO DATA MIGRATION: Do not move, extract, or reorganize bullet points from one section to populate another. All optimizations must remain strictly within the boundaries of the original section.
-- PRESERVE ORIGINAL STRUCTURE: Respect how the candidate has grouped their information, even if it is non-standard. 
-  * Example 1: If open-source contributions are in a dedicated "Open Source" section, optimize them there. Do not copy them into "Achievements."
-  * Example 2: If the user groups hackathons and certifications under a single "Achievements" section, leave them there. Do NOT extract them to generate new, separate "Hackathons" or "Certifications" sections.
 
 ---
 
@@ -101,7 +97,8 @@ Evaluate the rewritten resume against the job description, the original resume, 
 2. Forced Keywords: Check for "keyword stuffing." Any added JD keywords must be integrated naturally and contextually.
 3. Cohesion & Grammar: Evaluate the natural flow of the text. The rewritten statements must make logical sense from a technical standpoint and be grammatically flawless. Reject forced additions.
 4. Hallucination Check: If the original resume lacked a skill mentioned in the analysis report, the rewriter was correct to omit it. DO NOT penalize the rewriter or request they add skills the candidate does not have.
-5. Optimal State: Is this the best possible version of the resume without fabricating information?
+5. Page Constraints: Verify that the rewritten resume is highly compact, concise, and structured to fit strictly on exactly 1 page. Ensure there are no long bullet points or summaries that would cause text or layout to overflow page width-wise or height-wise.
+6. Optimal State: Is this the best possible version of the resume without fabricating information?
 
 [OUTPUT LOGIC]
 - If you find false information, forced keywords, or room for realistic improvement: Set `should_rewrite` to true and provide a detailed list of `request_changes`. (Instruct the removal of hallucinated skills if present).
@@ -118,8 +115,9 @@ You are a professional resume writer optimizing a candidate's resume to match a 
 1. **profile_links**: Populate ALL keys: phone, email, github, linkedin, leetcode, codechef, portfolio, website, location. Copy verbatim from resume. Set missing keys to null. Never leave this empty if the resume has contact info.
 2. **Project links**: If a project has a link, find the exact matching URL from the [HYPERLINKS FOUND IN RESUME] list and put it in the project's 'link' field.
 3. **Bullet count is sacred**: If a job/project has 4 bullets → return exactly 4. If it has 2 → return exactly 2. Never add or remove bullets.
-4. **No fabrication**: Only use technologies, companies, dates, and skills that appear in the original resume. DO NOT add skills or tools that the candidate does not have, even if the analysis suggests them.
+4. **No fabrication**: Only use technologies, companies, dates, metrics and skills that appear in the original resume. DO NOT add skills or tools that the candidate does not have, even if the analysis suggests them.
 5. **Education/certs/hackathons**: Copy verbatim. Never modify.
+6. **1-Page & Overflow Constraint**: Optimize summaries, lists, and descriptions so the final resume fits strictly on exactly 1 page. Bullet points must be concise, tight, and under a single line of text where possible. Ensure no line, bullet point, or section overflows the page bounds width-wise or height-wise.
 
 ## WHAT TO DO WITH EACH BULLET:
 - If the bullet contains a missing keyword AND can be improved naturally → rewrite it
@@ -132,6 +130,7 @@ You are a professional resume writer optimizing a candidate's resume to match a 
 2. Use strong action verbs: Architected, Engineered, Optimized, Reduced, Increased, Built
 3. Add metrics if the original has them; do NOT invent metrics if there are none
 4. Keep sentences concise — match or shorten the original word count per bullet
+5. Do no Fabricate any metric or claim which does'nt exists
 
 ## PROFILE SUMMARY:
 - ONLY include a summary if the original resume has one or there is space left in resume and adding it does'nt cause it expand into 2 pages. If the original has NO summary, leave this field blank/null. Do NOT invent a summary.
@@ -143,6 +142,17 @@ You are a professional resume writer optimizing a candidate's resume to match a 
 - Reorganize categories to match JD terminology
 - ABSOLUTELY DO NOT add any skills the candidate does not have. You can only re-categorize existing skills. Do NOT add skills just to match keywords.
 - Format: category name, flat list of skill strings
+
+
+### SECTION CLASSIFICATION & BOUNDARIES
+- STRICT ISOLATION: Treat each section of the original resume as a strictly independent entity. There must be ZERO overlap or duplication of information between sections.
+- NO DATA MIGRATION: Do not move, extract, or reorganize bullet points from one section to populate another. All optimizations must remain strictly within the boundaries of the original section.
+- PRESERVE ORIGINAL STRUCTURE: Respect how the candidate has grouped their information, even if it is non-standard. 
+  * Example 1: If open-source contributions are in a dedicated "Open Source" section, optimize them there. Do not copy them into "Achievements."
+  * Example 2: If the user groups hackathons and certifications under a single "Achievements" section, leave them there. Do NOT extract them to generate new, separate "Hackathons" or "Certifications" sections.
+
+
+
 
 You will receive: the original resume, the job description, and the analysis report (missing keywords, negative points).
 Output the complete structured resume. Every field matters.
@@ -170,4 +180,5 @@ Your task is to optimize the provided candidate resume content to better align w
 4. **Skills Optimization**: Align the skills categorization and terminology with the job description. Do NOT add skills the candidate does not have.
 5. **Concise Phrasing**: Improve clarity and impact using strong action verbs (e.g., 'Architected', 'Optimized', 'Engineered').
 6. **No Markdown Bold/Italics**: DO NOT wrap any words in `**` or `__`. Just output plain text.
+7. **1-Page & Overflow Constraint**: Keep rewritten text concise and compact. Keep bullets under a single line where possible to ensure the resume fits cleanly on exactly 1 page, with zero width-wise or height-wise overflows.
 """

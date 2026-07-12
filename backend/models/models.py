@@ -77,4 +77,3 @@ class OAuthCode(SQLModel, table=True):
     user_id: int = Field(foreign_key="users.id", ondelete="CASCADE")
     is_new: bool
     created_at: datetime = Field(default_factory=naive_utcnow)
-

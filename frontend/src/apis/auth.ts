@@ -27,10 +27,10 @@ export const authApi = {
     return `${API_URL}/auth/google`;
   },
   googleExchange: async (code: string) => {
-    return await fetchJSON("/auth/google/exchange", {
+    return (await fetchJSON("/auth/google/exchange", {
       method: "POST",
       body: JSON.stringify({ code }),
-    }) as { access_token: string; token_type: string; new: boolean };
+    })) as { access_token: string; token_type: string; new: boolean };
   },
   getProfile: async (): Promise<UserProfile> => {
     return await fetchJSON("/auth/profile");

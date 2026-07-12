@@ -226,7 +226,9 @@ For each section:
 """
 
 
-async def autofill_resume_profile(resume_text: str, user: User, db: AsyncSession) -> Dict[str, Any]:
+async def autofill_resume_profile(
+    resume_text: str, user: User, db: AsyncSession
+) -> Dict[str, Any]:
     """
     Parse a resume's raw text into a structured profile dictionary using the LLM.
     This is a pure resume-domain operation: it has no HTTP or authentication concerns.
@@ -238,9 +240,10 @@ async def autofill_resume_profile(resume_text: str, user: User, db: AsyncSession
 
     Returns a plain dict suitable for the autofill profile API response.
     """
+    import logging
+
     from services.llm_service import get_llm_client
     from utils.mappers import map_llm_to_profile
-    import logging
 
     logger = logging.getLogger(__name__)
 
@@ -293,6 +296,7 @@ async def autofill_resume_profile(resume_text: str, user: User, db: AsyncSession
 
 # ── Infrastructure helpers ────────────────────────────────────────────────────
 
+
 async def save_and_upload(
     latex_code: str,
     user: User,
@@ -308,6 +312,7 @@ async def save_and_upload(
     """
     import base64
     from datetime import datetime, timezone
+
     from services.storage import upload_pdf_to_cloudinary
     from services.workflow import ResumeWorkflowService
 
@@ -322,6 +327,7 @@ async def save_and_upload(
         service = ResumeWorkflowService()
         pdf_bytes = await service.latex_to_pdf(latex_code, "resume.pdf")
         import base64 as _b64
+
         pdf_url = f"data:application/pdf;base64,{_b64.b64encode(pdf_bytes).decode()}"
 
     preview_url = None
@@ -334,6 +340,7 @@ async def save_and_upload(
             preview_url = upload_res.get("preview_image_url")
     except Exception as err:
         import logging as _log
+
         _log.getLogger(__name__).error(f"Failed to upload resume: {err}")
 
     return pdf_url, preview_url
@@ -358,7 +365,9 @@ async def build_graph_state(
     This replaces the ad-hoc `start_graph` helper that used to live in the route file.
     """
     import json
+
     from sqlmodel import select as _select
+
     from models.models import Template
     from services.auth_service import AuthService
 
@@ -395,4 +404,3 @@ async def build_graph_state(
         "template_source": template_source or "",
         "template_id": db_template_id,
     }
-

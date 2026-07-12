@@ -12,88 +12,86 @@ import {
   AlertTriangle,
   Lightbulb,
   Target,
-  ArrowRight
 } from "lucide-react";
 
-// Beautiful, standard, cohesive typography for markdown rendering
-const Markdown = ({ children }: { children: string }) => (
+// Beautiful, custom markdown typography aligned with design theme
+const Markdown = ({
+  children,
+  variant = "normal",
+}: {
+  children: string;
+  variant?: "normal" | "tight";
+}) => (
   <ReactMarkdown
     remarkPlugins={[remarkGfm, remarkBreaks]}
     components={{
       p: ({ children }) => (
-        <p className="mb-4 text-[15px] sm:text-base leading-[1.7] text-slate-700 dark:text-slate-300 last:mb-0">
+        <p
+          className={`${variant === "tight" ? "mb-1 text-sm sm:text-[15px]" : "mb-4 text-[15px] sm:text-base"} leading-[1.6] text-foreground/80 dark:text-foreground/80 last:mb-0`}
+        >
           {children}
         </p>
       ),
       h1: ({ children }) => (
-        <h1 className="text-2xl font-bold mt-8 mb-4 text-slate-900 dark:text-slate-50 tracking-tight">
+        <h1 className="text-xl font-bold mt-6 mb-3 text-foreground tracking-tight">
           {children}
         </h1>
       ),
       h2: ({ children }) => (
-        <h2 className="text-xl font-semibold mt-8 mb-4 text-slate-900 dark:text-slate-50 tracking-tight">
+        <h2 className="text-lg font-semibold mt-5 mb-2.5 text-foreground tracking-tight">
           {children}
         </h2>
       ),
       h3: ({ children }) => (
-        <h3 className="text-lg font-semibold mt-6 mb-3 text-slate-900 dark:text-slate-50 tracking-tight">
+        <h3 className="text-base font-semibold mt-4 mb-2 text-foreground tracking-tight">
           {children}
         </h3>
       ),
       h4: ({ children }) => (
-        <h4 className="text-base font-semibold mt-4 mb-2 text-slate-900 dark:text-slate-50">
+        <h4 className="text-sm font-semibold mt-3 mb-1 text-foreground">
           {children}
         </h4>
       ),
       ul: ({ children }) => (
-        <ul className="list-disc pl-5 mb-5 space-y-2 text-[15px] sm:text-base text-slate-700 dark:text-slate-300">
+        <ul className="list-disc pl-5 mb-3 space-y-1 text-sm sm:text-[15px] text-foreground/85">
           {children}
         </ul>
       ),
       ol: ({ children }) => (
-        <ol className="list-decimal pl-5 mb-5 space-y-2 text-[15px] sm:text-base text-slate-700 dark:text-slate-300">
+        <ol className="list-decimal pl-5 mb-3 space-y-1 text-sm sm:text-[15px] text-foreground/85">
           {children}
         </ol>
       ),
       li: ({ children }) => (
-        <li className="leading-[1.7] pl-1">{children}</li>
+        <li className="leading-relaxed pl-1">{children}</li>
       ),
       strong: ({ children }) => (
-        <strong className="font-semibold text-slate-900 dark:text-slate-100">
-          {children}
-        </strong>
+        <span className="font-medium text-foreground/95">{children}</span>
       ),
       blockquote: ({ children }) => (
-        <blockquote className="border-l-4 border-slate-300 dark:border-slate-700 pl-4 py-1 italic my-5 text-slate-600 dark:text-slate-400">
+        <blockquote className="border-l-4 border-primary/20 pl-4 py-1 italic my-4 text-foreground/60 dark:text-foreground/45">
           {children}
         </blockquote>
       ),
-      code: ({ children }) => (
-        <code className="bg-slate-100 dark:bg-slate-800/80 px-1.5 py-0.5 rounded text-[0.9em] font-mono text-slate-800 dark:text-slate-200">
-          {children}
-        </code>
-      ),
+      code: ({ className, children }) => {
+        const isBlock = className && className.includes("language-");
+        if (isBlock) {
+          return (
+            <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-[0.85em] font-mono border border-border/60 my-4">
+              <code className={className}>{children}</code>
+            </pre>
+          );
+        }
+        return (
+          <code className="font-medium text-[0.9em] px-1.5 py-0.5 rounded bg-muted/65 text-foreground/90 border border-border/40 font-sans">
+            {children}
+          </code>
+        );
+      },
     }}
   >
     {children}
   </ReactMarkdown>
-);
-
-// Cohesive Section Wrapper
-const Section = ({ title, icon, children }: { title: string, icon: React.ReactNode, children: React.ReactNode }) => (
-  <div className="mt-10 mb-6">
-    <div className="flex items-center gap-3 mb-5">
-      <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-300">
-        {icon}
-      </div>
-      <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-        {title}
-      </h2>
-    </div>
-    <div className="ml-1 sm:ml-2">
-      {children}
-    </div>
-  </div>
 );
 
 interface ProgressStreamProps {
@@ -121,12 +119,11 @@ export function ProgressStream({
   const analysis = analysisLog?.analysis;
 
   return (
-    <div className="w-full max-w-3xl mx-auto flex flex-col gap-8 animate-in fade-in duration-300 mt-6 pb-24 px-4 sm:px-6">
-      
+    <div className="w-full max-w-full flex flex-col gap-6 animate-in fade-in duration-300 mt-4 pb-24 px-4 sm:px-6 lg:px-8">
       {/* Top Header */}
       <div className="flex items-center justify-between border-b border-border/40 pb-5 w-full">
         <div className="flex items-center gap-3">
-          <h3 className="font-['EB_Garamond'] text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">
+          <h3 className="font-heading text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
             Analysis Report
           </h3>
           {running ? (
@@ -150,7 +147,7 @@ export function ProgressStream({
         {!running && onReset && (
           <button
             onClick={onReset}
-            className="flex items-center gap-2 bg-transparent text-foreground border border-border/60 rounded-lg px-4 py-2 text-xs font-semibold tracking-wider hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="flex items-center gap-2 bg-transparent text-foreground border border-border/60 rounded-lg px-4 py-2 text-xs font-semibold tracking-wider hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
             Start Over
           </button>
@@ -159,150 +156,286 @@ export function ProgressStream({
 
       {/* Main Analysis Body */}
       {analysis ? (
-        <div className="flex flex-col animate-in slide-in-from-bottom-4 duration-500">
-          
-          {/* Score Hero Card */}
-          {analysis.score !== undefined && (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 p-6 sm:p-8 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800 mb-4">
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+        <div className="flex flex-col gap-6 animate-in slide-in-from-bottom-4 duration-500">
+          {/* Score & Dashboard Summary Card Grid (Full Width on top) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* ATS Score Card */}
+            {analysis.score !== undefined && (
+              <div className="flex flex-col justify-between p-6 bg-card border border-border rounded-2xl shadow-xs">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
                   ATS Match Score
                 </span>
-                <div className="flex items-baseline gap-2">
-                  <span className="font-['EB_Garamond'] text-5xl sm:text-6xl font-bold text-slate-900 dark:text-white">
+                <div className="mt-4 flex items-baseline gap-2">
+                  <span className="font-heading text-5xl sm:text-6xl font-bold text-foreground">
                     {analysis.score}
                   </span>
-                  <span className="text-xl text-slate-400">/ 100</span>
+                  <span className="text-lg text-muted-foreground">/ 100</span>
+                </div>
+                <div className="mt-3">
+                  <span
+                    className={`inline-flex items-center justify-center px-3 py-1 rounded-full font-bold uppercase tracking-wider text-[10px] ${
+                      analysis.score >= 75
+                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                        : analysis.score >= 50
+                          ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                          : "bg-destructive/10 text-destructive"
+                    }`}
+                  >
+                    {analysis.score >= 75
+                      ? "Excellent Fit"
+                      : analysis.score >= 50
+                        ? "Moderate Fit"
+                        : "Weak Fit"}
+                  </span>
                 </div>
               </div>
-              
-              <div className="flex flex-col gap-3">
-                <span
-                  className={`inline-flex items-center justify-center px-4 py-2 rounded-full font-bold uppercase tracking-wider text-xs w-fit ${
-                    analysis.score >= 75
-                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
-                      : analysis.score >= 50
-                        ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400"
-                        : "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400"
-                  }`}
-                >
-                  {analysis.score >= 75
-                    ? "Excellent Fit"
-                    : analysis.score >= 50
-                      ? "Moderate Fit"
-                      : "Weak Fit"}
+            )}
+
+            {/* Urgency & Status Card */}
+            <div className="flex flex-col justify-between p-6 bg-card border border-border rounded-2xl shadow-xs">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                Priority Assessment
+              </span>
+              <div className="mt-4 flex items-center gap-2">
+                <Target className="w-5 h-5 text-primary shrink-0" />
+                <span className="font-medium text-foreground text-[15px] leading-tight">
+                  {analysis.urgency || "Standard Priority"}
                 </span>
-                {analysis.urgency && (
-                  <span className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                    <Target size={14} />
-                    {analysis.urgency}
-                  </span>
-                )}
+              </div>
+              <div className="mt-3">
+                <span className="text-xs text-muted-foreground">
+                  {analysis.urgency
+                    ? "Requires timely attention"
+                    : "No deadline constraints identified"}
+                </span>
               </div>
             </div>
-          )}
 
-          {/* Core Sections */}
-          {analysis.resume_quality && (
-            <Section title="Resume Quality" icon={<FileText size={20} />}>
-              <Markdown>{analysis.resume_quality}</Markdown>
-            </Section>
-          )}
-
-          {analysis.match_explanation && (
-            <Section title="Analysis Breakdown" icon={<ArrowRight size={20} />}>
-              <Markdown>{analysis.match_explanation}</Markdown>
-            </Section>
-          )}
-
-          {/* Missing Keywords Tag Cloud */}
-          {analysis.missing_keywords && analysis.missing_keywords.length > 0 && (
-            <Section title="Missing Keywords" icon={<Sparkles size={20} />}>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {analysis.missing_keywords.map((kw, idx) => (
-                  <span
-                    key={idx}
-                    className="text-sm font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700"
-                  >
-                    {kw}
+            {/* Assessment Quick Stats Card */}
+            <div className="flex flex-col justify-between p-6 bg-card border border-border rounded-2xl shadow-xs">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                Quick Analysis Stats
+              </span>
+              <div className="mt-4 space-y-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground">
+                    Missing Keywords:
                   </span>
-                ))}
+                  <span className="font-bold text-primary px-1.5 py-0.5 rounded-md bg-primary/10">
+                    {analysis.missing_keywords?.length || 0}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground">Critical Gaps:</span>
+                  <span className="font-bold text-red-500 px-1.5 py-0.5 rounded-md bg-red-500/10">
+                    {analysis.negative_points?.length || 0}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground">
+                    Suggested Actions:
+                  </span>
+                  <span className="font-bold text-amber-500 px-1.5 py-0.5 rounded-md bg-amber-500/10">
+                    {analysis.potential_improvements?.length || 0}
+                  </span>
+                </div>
               </div>
-            </Section>
-          )}
+            </div>
+          </div>
 
-          {/* Highlighted Warning Cards */}
-          {analysis.negative_points && analysis.negative_points.length > 0 && (
-            <Section title="Critical Gaps" icon={<AlertTriangle size={20} className="text-red-500" />}>
-              <ul className="flex flex-col gap-3">
-                {analysis.negative_points.map((pt, idx) => {
-                  const content = pt.replace(/^[\-\*\•]\s*/, "");
-                  return (
-                    <li key={idx} className="flex items-start gap-3 p-4 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/50">
-                      <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-                      <div className="flex-1">
-                        <Markdown>{content}</Markdown>
+          {/* Widescreen 3-Column Dashboard Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start w-full">
+            {/* Column 1: Executive Summaries */}
+            <div className="flex flex-col gap-6 w-full">
+              {(analysis.resume_quality || analysis.match_explanation) && (
+                <div className="p-6 bg-card border border-border rounded-2xl shadow-xs">
+                  <div className="flex items-center gap-3 border-b border-border/60 pb-4 mb-4">
+                    <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                      <FileText size={20} />
+                    </div>
+                    <h3 className="font-heading text-2xl font-semibold text-foreground tracking-tight">
+                      Executive Summary
+                    </h3>
+                  </div>
+
+                  <div className="space-y-6">
+                    {analysis.resume_quality && (
+                      <div>
+                        <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                          Resume Quality & Structure
+                        </h4>
+                        <Markdown>{analysis.resume_quality}</Markdown>
                       </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </Section>
-          )}
+                    )}
 
-          {/* Highlighted Suggestion Cards */}
-          {analysis.potential_improvements && analysis.potential_improvements.length > 0 && (
-            <Section title="Suggested Actions" icon={<Lightbulb size={20} className="text-amber-500" />}>
-              <ul className="flex flex-col gap-3">
-                {analysis.potential_improvements.map((pt, idx) => {
-                  const content = pt.replace(/^[\-\*\•]\s*/, "");
-                  return (
-                    <li key={idx} className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/50">
-                      <Lightbulb className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                      <div className="flex-1">
-                        <Markdown>{content}</Markdown>
+                    {analysis.resume_quality && analysis.match_explanation && (
+                      <hr className="border-border/40" />
+                    )}
+
+                    {analysis.match_explanation && (
+                      <div>
+                        <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                          JD Alignment Analysis
+                        </h4>
+                        <Markdown>{analysis.match_explanation}</Markdown>
                       </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </Section>
-          )}
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
 
+            {/* Column 2: Critical Gaps */}
+            <div className="flex flex-col gap-6 w-full">
+              {analysis.negative_points &&
+                analysis.negative_points.length > 0 && (
+                  <div className="p-6 bg-red-500/5 dark:bg-red-500/10 border border-red-500/10 dark:border-red-900/20 rounded-2xl shadow-xs animate-in slide-in-from-bottom-4 duration-500 delay-100">
+                    <div className="flex items-center gap-3 mb-4 text-red-600 dark:text-red-400">
+                      <AlertTriangle size={20} />
+                      <h3 className="font-heading text-2xl font-semibold tracking-tight">
+                        Critical Gaps
+                      </h3>
+                    </div>
+                    <ul className="space-y-3">
+                      {analysis.negative_points.map((pt, idx) => {
+                        const content = pt.replace(/^[\-\*\•]\s*/, "");
+                        return (
+                          <li
+                            key={idx}
+                            className="flex items-start gap-3 text-sm sm:text-[15px] text-foreground/80 leading-relaxed"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0 mt-2" />
+                            <div className="flex-1 min-w-0">
+                              <Markdown variant="tight">{content}</Markdown>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+            </div>
+
+            {/* Column 3: Keywords & Suggested Actions */}
+            <div className="flex flex-col gap-6 w-full">
+              {/* Missing Keywords Card */}
+              {analysis.missing_keywords &&
+                analysis.missing_keywords.length > 0 && (
+                  <div className="p-6 bg-card border border-border rounded-2xl shadow-xs animate-in slide-in-from-bottom-4 duration-500 delay-150">
+                    <div className="flex items-center gap-3 border-b border-border/60 pb-4 mb-4">
+                      <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                        <Sparkles size={20} />
+                      </div>
+                      <h3 className="font-heading text-2xl font-semibold text-foreground tracking-tight">
+                        Missing Keywords
+                      </h3>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-4">
+                      ATS systems scan for these terms. Integrate them naturally
+                      into your experience bullets:
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {analysis.missing_keywords.map((kw, idx) => (
+                        <span
+                          key={idx}
+                          className="text-xs font-semibold bg-primary/5 text-primary border border-primary/20 dark:bg-primary/10 dark:text-primary-foreground/90 px-2.5 py-1 rounded-full transition-colors hover:bg-primary/10"
+                        >
+                          {kw}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              {/* Suggested Actions Card */}
+              {analysis.potential_improvements &&
+                analysis.potential_improvements.length > 0 && (
+                  <div className="p-6 bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/10 dark:border-amber-900/20 rounded-2xl shadow-xs animate-in slide-in-from-bottom-4 duration-500 delay-200">
+                    <div className="flex items-center gap-3 mb-4 text-amber-600 dark:text-amber-400">
+                      <Lightbulb size={20} />
+                      <h3 className="font-heading text-2xl font-semibold tracking-tight">
+                        Suggested Actions
+                      </h3>
+                    </div>
+                    <ul className="space-y-3">
+                      {analysis.potential_improvements.map((pt, idx) => {
+                        const content = pt.replace(/^[\-\*\•]\s*/, "");
+                        return (
+                          <li
+                            key={idx}
+                            className="flex items-start gap-3 text-sm sm:text-[15px] text-foreground/80 leading-relaxed"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 mt-2" />
+                            <div className="flex-1 min-w-0">
+                              <Markdown variant="tight">{content}</Markdown>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+            </div>
+          </div>
         </div>
       ) : (
-        /* The traditional timeline stream while loading/processing */
-        <div className="flex flex-col gap-6 max-w-2xl mt-4">
-          {logs.map((log, i) => {
-            const isProgress = log.type === "progress";
-            const isError = log.type === "error";
-            const isSuccess = log.type === "success";
+        /* The sleek step-by-step vertical timeline while processing */
+        <div className="w-full max-w-xl mx-auto py-8 px-4">
+          <div className="relative border-l border-border/80 pl-8 ml-4 space-y-8">
+            {logs.map((log, i) => {
+              const isProgress = log.type === "progress";
+              const isError = log.type === "error";
+              const isSuccess = log.type === "success";
 
-            return (
-              <div key={i} className="flex items-start gap-4 animate-in fade-in duration-200">
-                <div className="mt-0.5">
-                  {isProgress ? (
-                    <Loader2 size={18} className="animate-spin text-primary" />
-                  ) : isError ? (
-                    <AlertCircle size={18} className="text-destructive" />
-                  ) : (
-                    <CheckCircle2 size={18} className="text-emerald-500" />
+              return (
+                <div
+                  key={i}
+                  className="relative flex flex-col gap-1.5 animate-in fade-in slide-in-from-left-4 duration-300"
+                >
+                  {/* Timeline dot / icon */}
+                  <div className="absolute -left-[17px] top-0 flex items-center justify-center w-8 h-8 rounded-full bg-background border border-border shadow-xs z-10 animate-in zoom-in duration-300">
+                    {isProgress ? (
+                      <div className="relative flex items-center justify-center w-5 h-5">
+                        <span className="absolute inline-flex h-full w-full rounded-full bg-primary/20 animate-ping" />
+                        <Loader2
+                          size={14}
+                          className="animate-spin text-primary relative"
+                        />
+                      </div>
+                    ) : isError ? (
+                      <AlertCircle size={16} className="text-destructive" />
+                    ) : (
+                      <CheckCircle2 size={16} className="text-emerald-500" />
+                    )}
+                  </div>
+
+                  {/* Step content */}
+                  <span
+                    className={`text-sm sm:text-base font-semibold leading-none ${
+                      isError
+                        ? "text-destructive"
+                        : isSuccess
+                          ? "text-foreground"
+                          : "text-foreground animate-pulse"
+                    }`}
+                  >
+                    {log.text}
+                  </span>
+
+                  {isProgress && (
+                    <span className="text-xs text-muted-foreground animate-pulse">
+                      Analyzing content, please wait...
+                    </span>
+                  )}
+                  {isSuccess && (
+                    <span className="text-xs text-emerald-600 dark:text-emerald-500">
+                      Step completed successfully.
+                    </span>
                   )}
                 </div>
-                <span
-                  className={`text-base font-medium ${isError ? "text-destructive" : isSuccess ? "text-emerald-600 dark:text-emerald-500" : "text-slate-700 dark:text-slate-300"}`}
-                >
-                  {log.text}
-                </span>
-              </div>
-            );
-          })}
-
-          {running && logs.length > 0 && (
-            <div className="flex items-center gap-2 text-sm italic text-slate-400 ml-8 animate-pulse">
-              Generating insights...
-            </div>
-          )}
+              );
+            })}
+          </div>
         </div>
       )}
 

@@ -116,11 +116,11 @@ export function LandingView({
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
-    
+
     if (code) {
       // Clear the code from the URL so we don't exchange it again on refresh
       window.history.replaceState({}, document.title, window.location.pathname);
-      
+
       authApi
         .googleExchange(code)
         .then((res) => {
@@ -128,7 +128,8 @@ export function LandingView({
           if (res.new) {
             setNotification({
               title: "Account Created",
-              message: "Welcome! Your account has been successfully created via Google.",
+              message:
+                "Welcome! Your account has been successfully created via Google.",
               isNew: true,
             });
           } else {
@@ -143,7 +144,8 @@ export function LandingView({
           console.error("Google authentication failed:", err);
           setNotification({
             title: "Authentication Failed",
-            message: "There was a problem signing in with Google. Please try again.",
+            message:
+              "There was a problem signing in with Google. Please try again.",
             isNew: false,
           });
         });

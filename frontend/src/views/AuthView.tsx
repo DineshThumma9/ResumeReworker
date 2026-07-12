@@ -30,7 +30,7 @@ export function AuthView() {
         })
         .catch((err) => {
           setError(
-            err instanceof Error ? err.message : "Google authentication failed"
+            err instanceof Error ? err.message : "Google authentication failed",
           );
         })
         .finally(() => {

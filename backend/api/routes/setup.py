@@ -1,6 +1,5 @@
 from typing import Dict, List
 
-
 from dotenv import load_dotenv
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from loguru import logger
@@ -13,13 +12,11 @@ from models.models import APIKEYS, UserLLMConfig
 from schemas.schema import API_KEY_REQUEST, API_KEY_RESPONSE
 from services.auth_service import AuthService, CryptoService
 from services.resume_service import CurrentUser
-from utils.constants import _VALIDATION_URLS, VALID_PROVIDERS
+from utils.constants import VALID_PROVIDERS
 
 load_dotenv()
 router = APIRouter(prefix="/setup", tags=["setup"])
 crypto = CryptoService()
-
-
 
 
 @router.post("/init")
