@@ -113,7 +113,7 @@ export function AuthView() {
   return (
     <div className="min-h-screen w-full flex flex-col md:flex-row">
       {/* ── LEFT — editorial green, left-aligned like LandingView ────── */}
-      <div className="relative flex-1 bg-[#607456] flex flex-col justify-center px-12 py-20 overflow-hidden text-left z-10">
+      <div className="relative flex-1 bg-[#607456] flex-col justify-center px-12 py-20 overflow-hidden text-left z-10 hidden md:flex">
         {/* blobs */}
         <div className="pointer-events-none absolute top-[-15%] right-[-8%] w-[40vw] h-[40vw] rounded-full bg-white/6" />
         <div className="pointer-events-none absolute bottom-[-12%] left-[15%] w-[25vw] h-[25vw] rounded-full bg-white/4" />
@@ -166,8 +166,8 @@ export function AuthView() {
       </div>
 
       {/* ── RIGHT — dark auth panel ───────────────────────────────────── */}
-      <div className="w-full md:w-[480px] lg:w-[520px] xl:w-[560px] bg-[#2d3b28] flex items-center justify-center px-10 py-16 md:py-0">
-        <div className="w-full max-w-[480px] bg-white rounded-xl shadow-2xl px-10 py-9 flex flex-col">
+      <div className="w-full md:w-[480px] lg:w-[520px] xl:w-[560px] bg-[#2d3b28] flex items-center justify-center px-4 md:px-10 py-12 md:py-0">
+        <div className="w-full max-w-[480px] bg-white rounded-xl shadow-2xl px-6 md:px-10 py-8 md:py-9 flex flex-col">
           {/* Resume-style header */}
           <div className="font-['EB_Garamond'] text-[22px] font-semibold tracking-wider uppercase text-[#1a1a1a] text-center">
             {displayName}

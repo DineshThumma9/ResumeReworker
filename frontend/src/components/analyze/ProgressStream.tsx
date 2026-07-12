@@ -1,127 +1,100 @@
 import { useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import { type StreamLine } from "../../hooks/useResumeAnalysis";
 import {
   Loader2,
   CheckCircle2,
   AlertCircle,
   Sparkles,
-  ChevronRight,
-  Ban,
-  PlusCircle,
-  Bookmark,
-  Compass,
+  FileText,
+  AlertTriangle,
+  Lightbulb,
+  Target,
+  ArrowRight
 } from "lucide-react";
 
-// Markdown parser component for long text paragraphs
-function MarkdownText({
-  text,
-  className = "",
-}: {
-  text: string;
-  className?: string;
-}) {
-  if (!text) return null;
-  return (
-    <div
-      className={`space-y-4 text-[16px] leading-relaxed text-foreground ${className}`}
-    >
-      <ReactMarkdown
-        components={{
-          p: ({ children }) => (
-            <p className="text-[16px] leading-relaxed text-foreground">
-              {children}
-            </p>
-          ),
-          h3: ({ children }) => (
-            <h3 className="text-[19px] font-bold text-foreground mt-6 mb-3">
-              {children}
-            </h3>
-          ),
-          h4: ({ children }) => (
-            <h4 className="text-[17px] font-bold text-foreground mt-5 mb-2">
-              {children}
-            </h4>
-          ),
-          ul: ({ children }) => (
-            <ul className="space-y-2 list-none pl-3">{children}</ul>
-          ),
-          li: ({ children }) => (
-            <li className="flex gap-2.5 text-[16px] leading-relaxed text-foreground">
-              <span className="text-primary font-bold mt-0.5 select-none">
-                •
-              </span>
-              <span className="flex-1">{children}</span>
-            </li>
-          ),
-          strong: ({ children }) => (
-            <strong className="font-semibold text-foreground">
-              {children}
-            </strong>
-          ),
-        }}
-      >
-        {text}
-      </ReactMarkdown>
-    </div>
-  );
-}
+// Beautiful, standard, cohesive typography for markdown rendering
+const Markdown = ({ children }: { children: string }) => (
+  <ReactMarkdown
+    remarkPlugins={[remarkGfm, remarkBreaks]}
+    components={{
+      p: ({ children }) => (
+        <p className="mb-4 text-[15px] sm:text-base leading-[1.7] text-slate-700 dark:text-slate-300 last:mb-0">
+          {children}
+        </p>
+      ),
+      h1: ({ children }) => (
+        <h1 className="text-2xl font-bold mt-8 mb-4 text-slate-900 dark:text-slate-50 tracking-tight">
+          {children}
+        </h1>
+      ),
+      h2: ({ children }) => (
+        <h2 className="text-xl font-semibold mt-8 mb-4 text-slate-900 dark:text-slate-50 tracking-tight">
+          {children}
+        </h2>
+      ),
+      h3: ({ children }) => (
+        <h3 className="text-lg font-semibold mt-6 mb-3 text-slate-900 dark:text-slate-50 tracking-tight">
+          {children}
+        </h3>
+      ),
+      h4: ({ children }) => (
+        <h4 className="text-base font-semibold mt-4 mb-2 text-slate-900 dark:text-slate-50">
+          {children}
+        </h4>
+      ),
+      ul: ({ children }) => (
+        <ul className="list-disc pl-5 mb-5 space-y-2 text-[15px] sm:text-base text-slate-700 dark:text-slate-300">
+          {children}
+        </ul>
+      ),
+      ol: ({ children }) => (
+        <ol className="list-decimal pl-5 mb-5 space-y-2 text-[15px] sm:text-base text-slate-700 dark:text-slate-300">
+          {children}
+        </ol>
+      ),
+      li: ({ children }) => (
+        <li className="leading-[1.7] pl-1">{children}</li>
+      ),
+      strong: ({ children }) => (
+        <strong className="font-semibold text-slate-900 dark:text-slate-100">
+          {children}
+        </strong>
+      ),
+      blockquote: ({ children }) => (
+        <blockquote className="border-l-4 border-slate-300 dark:border-slate-700 pl-4 py-1 italic my-5 text-slate-600 dark:text-slate-400">
+          {children}
+        </blockquote>
+      ),
+      code: ({ children }) => (
+        <code className="bg-slate-100 dark:bg-slate-800/80 px-1.5 py-0.5 rounded text-[0.9em] font-mono text-slate-800 dark:text-slate-200">
+          {children}
+        </code>
+      ),
+    }}
+  >
+    {children}
+  </ReactMarkdown>
+);
 
-// Markdown parser component for list elements
-function MarkdownItem({
-  text,
-  markerClass = "text-primary",
-}: {
-  text: string;
-  markerClass?: string;
-}) {
-  if (!text) return null;
-  const trimmed = text.trim();
-  const isBullet =
-    trimmed.startsWith("- ") ||
-    trimmed.startsWith("* ") ||
-    trimmed.startsWith("• ");
-  const content = isBullet ? trimmed.slice(2).trim() : trimmed;
-
-  if (!isBullet) {
-    return (
-      <div className="text-[16px] text-foreground leading-relaxed mt-4 first:mt-0 font-medium">
-        <ReactMarkdown
-          components={{
-            p: ({ children }) => <>{children}</>,
-            strong: ({ children }) => (
-              <strong className="font-semibold text-foreground">
-                {children}
-              </strong>
-            ),
-          }}
-        >
-          {content}
-        </ReactMarkdown>
+// Cohesive Section Wrapper
+const Section = ({ title, icon, children }: { title: string, icon: React.ReactNode, children: React.ReactNode }) => (
+  <div className="mt-10 mb-6">
+    <div className="flex items-center gap-3 mb-5">
+      <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-300">
+        {icon}
       </div>
-    );
-  }
-
-  return (
-    <div className="flex gap-2.5 text-[16px] text-foreground leading-relaxed pl-3 mt-2">
-      <span className={`${markerClass} mt-1 font-bold select-none`}>•</span>
-      <span className="flex-1">
-        <ReactMarkdown
-          components={{
-            p: ({ children }) => <>{children}</>,
-            strong: ({ children }) => (
-              <strong className="font-semibold text-foreground">
-                {children}
-              </strong>
-            ),
-          }}
-        >
-          {content}
-        </ReactMarkdown>
-      </span>
+      <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+        {title}
+      </h2>
     </div>
-  );
-}
+    <div className="ml-1 sm:ml-2">
+      {children}
+    </div>
+  </div>
+);
 
 interface ProgressStreamProps {
   logs: StreamLine[];
@@ -144,22 +117,22 @@ export function ProgressStream({
 
   if (logs.length === 0 && !running) return null;
 
-  // Find the latest log item that contains the accumulated analysis data
   const analysisLog = [...logs].reverse().find((l) => l.analysis !== undefined);
   const analysis = analysisLog?.analysis;
 
   return (
-    <div className="w-full max-w-4xl mx-auto flex flex-col gap-8 animate-in fade-in duration-300 mt-6 pb-16 px-4">
+    <div className="w-full max-w-3xl mx-auto flex flex-col gap-8 animate-in fade-in duration-300 mt-6 pb-24 px-4 sm:px-6">
+      
       {/* Top Header */}
-      <div className="flex items-center justify-between border-b border-border/60 pb-5 w-full">
+      <div className="flex items-center justify-between border-b border-border/40 pb-5 w-full">
         <div className="flex items-center gap-3">
-          <h3 className="font-['EB_Garamond'] text-3xl font-semibold text-foreground tracking-tight">
-            Workflow Progress
+          <h3 className="font-['EB_Garamond'] text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">
+            Analysis Report
           </h3>
           {running ? (
             <span className="flex items-center gap-2 text-xs text-primary font-medium px-3 py-1 bg-primary/10 rounded-full animate-pulse">
               <Loader2 size={13} className="animate-spin" />
-              Processing
+              Analyzing
             </span>
           ) : logs.some((l) => l.type === "error") ? (
             <span className="flex items-center gap-2 text-xs text-destructive font-medium px-3 py-1 bg-destructive/10 rounded-full">
@@ -167,7 +140,7 @@ export function ProgressStream({
               Failed
             </span>
           ) : logs.some((l) => l.type === "success") ? (
-            <span className="flex items-center gap-2 text-xs text-green-600 dark:text-green-500 font-medium px-3 py-1 bg-green-500/10 rounded-full">
+            <span className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-500 font-medium px-3 py-1 bg-emerald-500/10 rounded-full">
               <CheckCircle2 size={13} />
               Complete
             </span>
@@ -177,212 +150,162 @@ export function ProgressStream({
         {!running && onReset && (
           <button
             onClick={onReset}
-            className="flex items-center gap-2 bg-transparent text-foreground border border-border rounded-lg px-5 py-2 text-xs font-semibold tracking-wider uppercase hover:bg-muted/40 transition-all cursor-pointer shadow-sm"
+            className="flex items-center gap-2 bg-transparent text-foreground border border-border/60 rounded-lg px-4 py-2 text-xs font-semibold tracking-wider hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
-            Back to Setup
+            Start Over
           </button>
         )}
       </div>
 
-      {/* Main Spacious Timeline Flow */}
-      <div className="flex flex-col gap-8">
-        {logs.map((log, i) => {
-          const isProgress = log.type === "progress";
-          const isError = log.type === "error";
-          const isSuccess = log.type === "success";
-
-          return (
-            <div
-              key={i}
-              className="flex flex-col gap-4 animate-in fade-in duration-200"
-            >
-              {/* Event Step Row */}
-              <div className="flex items-start gap-4">
-                <div className="mt-1">
-                  {isProgress ? (
-                    <div className="w-5 h-5 flex items-center justify-center rounded-full bg-primary/10 text-primary">
-                      <Loader2 size={13} className="animate-spin" />
-                    </div>
-                  ) : isError ? (
-                    <div className="w-5 h-5 flex items-center justify-center rounded-full bg-destructive/10 text-destructive">
-                      <AlertCircle size={13} />
-                    </div>
-                  ) : (
-                    <div className="w-5 h-5 flex items-center justify-center rounded-full bg-green-500/10 text-green-500">
-                      <CheckCircle2 size={13} />
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <span
-                    className={`text-[17px] font-semibold leading-normal ${isError ? "text-destructive" : isSuccess ? "text-green-600 dark:text-green-400" : "text-foreground"}`}
-                  >
-                    {log.text}
+      {/* Main Analysis Body */}
+      {analysis ? (
+        <div className="flex flex-col animate-in slide-in-from-bottom-4 duration-500">
+          
+          {/* Score Hero Card */}
+          {analysis.score !== undefined && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 p-6 sm:p-8 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800 mb-4">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                  ATS Match Score
+                </span>
+                <div className="flex items-baseline gap-2">
+                  <span className="font-['EB_Garamond'] text-5xl sm:text-6xl font-bold text-slate-900 dark:text-white">
+                    {analysis.score}
                   </span>
+                  <span className="text-xl text-slate-400">/ 100</span>
                 </div>
               </div>
-
-              {/* Streamed analysis details displayed directly in-line below the "JD Analysis" step */}
-              {log.text.includes("JD analysis") && analysis && (
-                <div className="ml-9 pl-6 border-l-2 border-border/60 flex flex-col gap-8 py-4 my-3 max-w-5xl animate-in slide-in-from-top-4 duration-300">
-                  {/* Score & Match */}
-                  {analysis.score !== undefined && (
-                    <div className="flex flex-wrap items-center gap-6 bg-card/60 border border-border/80 p-6 rounded-2xl shadow-xs">
-                      <div className="flex items-center gap-3">
-                        <Sparkles
-                          className="text-amber-500 animate-pulse"
-                          size={24}
-                        />
-                        <span className="font-['EB_Garamond'] text-4xl font-bold text-foreground">
-                          {analysis.score}%
-                        </span>
-                        <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
-                          Match score
-                        </span>
-                      </div>
-                      <div className="h-8 w-[1px] bg-border" />
-                      <div className="flex items-center gap-2 text-xs">
-                        <span className="text-muted-foreground uppercase tracking-wider font-bold">
-                          Fit status:
-                        </span>
-                        <span
-                          className={`px-3 py-1 rounded-full font-bold uppercase tracking-wider text-[10px] ${
-                            analysis.score !== undefined && analysis.score >= 75
-                              ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                              : analysis.score !== undefined &&
-                                  analysis.score >= 50
-                                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                                : "bg-destructive/10 text-destructive"
-                          }`}
-                        >
-                          {analysis.score !== undefined && analysis.score >= 75
-                            ? "Strong match"
-                            : analysis.score !== undefined &&
-                                analysis.score >= 50
-                              ? "Moderate match"
-                              : "Weak / Misaligned"}
-                        </span>
-                      </div>
-                      {analysis.urgency && (
-                        <>
-                          <div className="h-8 w-[1px] bg-border" />
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-semibold">
-                            <Compass size={14} className="text-primary" />
-                            <span>Deadline: {analysis.urgency}</span>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Quality summary */}
-                  {analysis.resume_quality && (
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-center gap-2.5 text-[13px] font-bold uppercase tracking-widest text-foreground/80">
-                        <Bookmark size={14} className="text-primary" />
-                        <span>Resume quality</span>
-                      </div>
-                      <div className="pl-1">
-                        <MarkdownText text={analysis.resume_quality} />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Detailed explanation */}
-                  {analysis.match_explanation && (
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-center gap-2.5 text-[13px] font-bold uppercase tracking-widest text-foreground/80">
-                        <ChevronRight size={14} className="text-primary" />
-                        <span>Analysis breakdown</span>
-                      </div>
-                      <div className="pl-1">
-                        <MarkdownText text={analysis.match_explanation} />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Missing Keywords */}
-                  {analysis.missing_keywords &&
-                    analysis.missing_keywords.length > 0 && (
-                      <div className="flex flex-col gap-3">
-                        <div className="flex items-center gap-2.5 text-[13px] font-bold uppercase tracking-widest text-foreground/80">
-                          <PlusCircle size={14} className="text-primary" />
-                          <span>Recommended keywords to add</span>
-                        </div>
-                        <div className="flex flex-wrap gap-2 pl-1">
-                          {analysis.missing_keywords.map((kw, idx) => (
-                            <span
-                              key={idx}
-                              className="text-xs font-semibold bg-secondary text-secondary-foreground border border-border px-3 py-1.5 rounded-lg shadow-2xs hover:bg-muted transition-colors"
-                            >
-                              {kw}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                  {/* Red flags */}
-                  {analysis.negative_points &&
-                    analysis.negative_points.length > 0 && (
-                      <div className="flex flex-col gap-3">
-                        <div className="flex items-center gap-2.5 text-[13px] font-bold uppercase tracking-widest text-foreground/80">
-                          <Ban size={14} className="text-destructive" />
-                          <span>Identified Gaps & Flags</span>
-                        </div>
-                        <div className="flex flex-col gap-2 pl-1">
-                          {analysis.negative_points.map((pt, idx) => (
-                            <MarkdownItem
-                              key={idx}
-                              text={pt}
-                              markerClass="text-destructive"
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                  {/* Suggested improvements */}
-                  {analysis.potential_improvements &&
-                    analysis.potential_improvements.length > 0 && (
-                      <div className="flex flex-col gap-3">
-                        <div className="flex items-center gap-2.5 text-[13px] font-bold uppercase tracking-widest text-foreground/80">
-                          <Sparkles size={14} className="text-amber-500" />
-                          <span>Suggested actions</span>
-                        </div>
-                        <div className="flex flex-col gap-2 pl-1">
-                          {analysis.potential_improvements.map((imp, idx) => (
-                            <MarkdownItem
-                              key={idx}
-                              text={imp}
-                              markerClass="text-amber-500"
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-
-        {running &&
-          logs.length > 0 &&
-          !logs[logs.length - 1].text.includes("JD analysis") && (
-            <div className="flex items-zinc-500 animate-pulse text-xs italic gap-3 ml-9 pl-4">
-              <span>Awaiting next backend workflow step</span>
-              <div className="flex gap-1">
-                <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" />
-                <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:0.2s]" />
-                <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:0.4s]" />
+              
+              <div className="flex flex-col gap-3">
+                <span
+                  className={`inline-flex items-center justify-center px-4 py-2 rounded-full font-bold uppercase tracking-wider text-xs w-fit ${
+                    analysis.score >= 75
+                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
+                      : analysis.score >= 50
+                        ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400"
+                        : "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400"
+                  }`}
+                >
+                  {analysis.score >= 75
+                    ? "Excellent Fit"
+                    : analysis.score >= 50
+                      ? "Moderate Fit"
+                      : "Weak Fit"}
+                </span>
+                {analysis.urgency && (
+                  <span className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <Target size={14} />
+                    {analysis.urgency}
+                  </span>
+                )}
               </div>
             </div>
           )}
-      </div>
 
-      {/* Anchor for auto-scroll */}
+          {/* Core Sections */}
+          {analysis.resume_quality && (
+            <Section title="Resume Quality" icon={<FileText size={20} />}>
+              <Markdown>{analysis.resume_quality}</Markdown>
+            </Section>
+          )}
+
+          {analysis.match_explanation && (
+            <Section title="Analysis Breakdown" icon={<ArrowRight size={20} />}>
+              <Markdown>{analysis.match_explanation}</Markdown>
+            </Section>
+          )}
+
+          {/* Missing Keywords Tag Cloud */}
+          {analysis.missing_keywords && analysis.missing_keywords.length > 0 && (
+            <Section title="Missing Keywords" icon={<Sparkles size={20} />}>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {analysis.missing_keywords.map((kw, idx) => (
+                  <span
+                    key={idx}
+                    className="text-sm font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700"
+                  >
+                    {kw}
+                  </span>
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {/* Highlighted Warning Cards */}
+          {analysis.negative_points && analysis.negative_points.length > 0 && (
+            <Section title="Critical Gaps" icon={<AlertTriangle size={20} className="text-red-500" />}>
+              <ul className="flex flex-col gap-3">
+                {analysis.negative_points.map((pt, idx) => {
+                  const content = pt.replace(/^[\-\*\•]\s*/, "");
+                  return (
+                    <li key={idx} className="flex items-start gap-3 p-4 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/50">
+                      <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <Markdown>{content}</Markdown>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Section>
+          )}
+
+          {/* Highlighted Suggestion Cards */}
+          {analysis.potential_improvements && analysis.potential_improvements.length > 0 && (
+            <Section title="Suggested Actions" icon={<Lightbulb size={20} className="text-amber-500" />}>
+              <ul className="flex flex-col gap-3">
+                {analysis.potential_improvements.map((pt, idx) => {
+                  const content = pt.replace(/^[\-\*\•]\s*/, "");
+                  return (
+                    <li key={idx} className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/50">
+                      <Lightbulb className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <Markdown>{content}</Markdown>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Section>
+          )}
+
+        </div>
+      ) : (
+        /* The traditional timeline stream while loading/processing */
+        <div className="flex flex-col gap-6 max-w-2xl mt-4">
+          {logs.map((log, i) => {
+            const isProgress = log.type === "progress";
+            const isError = log.type === "error";
+            const isSuccess = log.type === "success";
+
+            return (
+              <div key={i} className="flex items-start gap-4 animate-in fade-in duration-200">
+                <div className="mt-0.5">
+                  {isProgress ? (
+                    <Loader2 size={18} className="animate-spin text-primary" />
+                  ) : isError ? (
+                    <AlertCircle size={18} className="text-destructive" />
+                  ) : (
+                    <CheckCircle2 size={18} className="text-emerald-500" />
+                  )}
+                </div>
+                <span
+                  className={`text-base font-medium ${isError ? "text-destructive" : isSuccess ? "text-emerald-600 dark:text-emerald-500" : "text-slate-700 dark:text-slate-300"}`}
+                >
+                  {log.text}
+                </span>
+              </div>
+            );
+          })}
+
+          {running && logs.length > 0 && (
+            <div className="flex items-center gap-2 text-sm italic text-slate-400 ml-8 animate-pulse">
+              Generating insights...
+            </div>
+          )}
+        </div>
+      )}
+
       <div ref={scrollRef} />
     </div>
   );

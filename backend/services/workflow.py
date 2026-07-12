@@ -4,22 +4,23 @@ import json
 import logging
 import re
 import subprocess
-from typing import Literal
+from typing import Literal, Optional, cast
 
 import cloudconvert
-from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.constants import END, START
 from langgraph.graph import StateGraph
 
 from core.config import settings
-from schemas.schema import JudgeResume, ResumeAnalysis, ResumeState, RewriteResume
+from schemas.schema import Details, JudgeResume, ResumeAnalysis, ResumeState, RewriteResume
 from services.renderer import render_resume_template, render_resume_template_from_string
 from utils.prompts import (
     extract_details_prompt,
     resume_analysis_prompt,
     rewrite_content_prompt,
 )
+from utils.constants import MAX_REWRITE_ITERATIONS
+from services.llm_service import get_llm_client
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +50,7 @@ class ResumeWorkflowService:
     ) -> Literal["rewrite_resume", "rewrite_latex"]:
         iteration = int(state.get("iteration", 1))
         judgements = state.get("judgements", [])
-        if not judgements or iteration >= 5:
+        if not judgements or iteration >= MAX_REWRITE_ITERATIONS:
             logger.info(f"Proceeding to rewrite_latex. Iteration: {iteration}")
             return "rewrite_latex"
 
@@ -63,9 +64,11 @@ class ResumeWorkflowService:
             req_changes = getattr(judgement, "request_changes", [])
 
         if should_rewrite:
-            logger.info(
-                f"Judge rejected rewrite (iteration {iteration}). Requesting changes: {req_changes}"
-            )
+            logger.info(f"Judge rejected rewrite (iteration {iteration}). {len(req_changes)} changes requested:")
+            for idx, change in enumerate(req_changes):
+                change_str = str(change)
+                truncated = change_str[:150] + "..." if len(change_str) > 150 else change_str
+                logger.info(f"  - {truncated}")
         else:
             logger.info(
                 f"Judge approved rewrite (iteration {iteration}). Proceeding to LaTeX."
@@ -101,7 +104,8 @@ class ResumeWorkflowService:
             if response is None:
                 return {**state, "analysis": None}
 
-            analysis = response.model_dump()
+            analysis_response = cast(ResumeAnalysis, response)
+            analysis = analysis_response.model_dump()
         except Exception as e:
             logger.exception(f"Error in match_jd node: {e}")
             raise e
@@ -110,21 +114,11 @@ class ResumeWorkflowService:
 
     async def _get_llm(self, state: "ResumeState"):
         """Helper: build the LLM instance from state config."""
-        provider = state["provider"]  # type: ignore
-        provider_keys = {
-            "openai": settings.openai_api_key,
-            "anthropic": settings.anthropic_api_key,
-            "google_genai": settings.google_api_key,
-            "groq": settings.groq_api_key,
-            "mistralai": settings.mistral_api_key,
-            "openrouter": settings.openrouter_api_key,
-            "huggingface": settings.huggingface_api_key,
-        }
-        api_key = state.get("api_key") or provider_keys.get(provider)
-        llm_kwargs = {}
-        if api_key:
-            llm_kwargs["api_key"] = api_key
-        return init_chat_model(state["model"], model_provider=provider, **llm_kwargs)  # type: ignore
+        return await get_llm_client(
+            provider=state.get("provider"),
+            model=state.get("model"),
+            api_key=state.get("api_key")
+        )
 
     async def rewrite_resume(self, state: "ResumeState"):
         iteration = int(state.get("iteration", 0)) + 1
@@ -151,16 +145,15 @@ class ResumeWorkflowService:
 
             # ── Call 1: Extract personal details + links only ────────────────
             # Small, focused schema → models handle it reliably every time
-            details_obj = None
+            details_obj: Optional[Details] = None
             try:
-                from schemas.schema import Details
-
                 details_llm = llm.with_structured_output(Details)
                 details_messages = [
                     SystemMessage(content=extract_details_prompt),
                     HumanMessage(content=f"Resume text:\n{resume}"),
                 ]
-                details_obj = await details_llm.ainvoke(details_messages)
+                raw_details = await details_llm.ainvoke(details_messages)
+                details_obj: Optional["Details"] = cast("Details", raw_details)
             except Exception as details_err:
                 logger.warning(
                     f"Details extraction failed (will rely on validator fallback): {details_err}"
@@ -169,7 +162,7 @@ class ResumeWorkflowService:
             # Robust URL fallback extraction from the entire resume text
             import re
 
-            if details_obj:
+            if details_obj is not None and isinstance(details_obj, Details):
                 for full_url in re.findall(r"https?://[^\s\"\'\>]+", resume):
                     m = re.search(r"https?://(?:www\.)?([\w\-\.]+)", full_url)
                     if m:
@@ -190,7 +183,7 @@ class ResumeWorkflowService:
 
             # If Call 1 succeeded, tell the model the links are already known
             details_hint = ""
-            if details_obj:
+            if details_obj is not None and isinstance(details_obj, Details):
                 details_hint = (
                     f"\n\n[PRE-EXTRACTED CONTACT INFO — copy these exactly into profile_links, do not change]\n"
                     f"Name: {details_obj.name}\n"
@@ -234,13 +227,18 @@ class ResumeWorkflowService:
                 ),
             ]
 
-            response = await structured_llm.ainvoke(messages)
+            response = cast(RewriteResume, await structured_llm.ainvoke(messages))
 
             if response is None:
                 return {**state, "changes_content": None, "iteration": iteration}
 
             # If the response has empty profile_links but Call 1 gave us links, merge them
-            if details_obj and not response.details.profile_links:
+            if (
+                details_obj is not None
+                and isinstance(details_obj, Details)
+                and response.details is not None
+                and not response.details.profile_links
+            ):
                 response.details.profile_links = details_obj.profile_links
 
             return {**state, "changes_content": response, "iteration": iteration}

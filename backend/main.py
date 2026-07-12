@@ -12,6 +12,7 @@ from fastapi_limiter import FastAPILimiter
 from api.routes import router
 from core.config import settings
 from core.database import create_tables
+from utils.http_client import close_http_client
 
 load_dotenv()
 
@@ -37,8 +38,9 @@ async def lifespan(app: FastAPI):
     try:
         if "redis_conn" in locals():
             await redis_conn.close()  # type: ignore
-    except Exception:
-        pass
+        await close_http_client()
+    except Exception as e:
+        logger.error(f"Error during shutdown: {e}")
 
 
 app = FastAPI(title="ResumeReworker API", version="0.1.0", lifespan=lifespan)

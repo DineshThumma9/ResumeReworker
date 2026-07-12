@@ -1,14 +1,16 @@
-from typing import Annotated
+from typing import Annotated, Any, Dict, Optional, cast
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from core.database import get_session
 from core.security import decode_access_token
 from models import User
-from schemas.schema import MaskDetails, RewriteResume
+from schemas.schema import Details, MaskDetails, RewriteResume
+from utils.prompts import extract_details_prompt
 
 bearer = HTTPBearer(auto_error=False)
 
@@ -208,3 +210,189 @@ def mask_latex(latex_code: str, resume_content: dict, mask_details: MaskDetails)
 
 # Convenient shorthand for use in route signatures
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+_PARSE_RESUME_PROMPT = """
+You are an expert resume parser. Your ONLY job is to extract the candidate's resume content into the structured schema format.
+Do NOT invent details. Do NOT summarize or rewrite the content. Simply parse the sections verbatim into the appropriate fields.
+
+For each section:
+1. details: Extract candidate's name, profile summary, and contact/social links (phone, email, github, linkedin, website, location, etc.).
+2. experience: Extract all work experience entries. Join responsibilities into a list of strings (each bullet point is one list item).
+3. education: Extract all education entries.
+4. projects: Extract all projects.
+5. technical_skills: Extract technical skills categorized by category name and flat list of skills.
+6. achivements: Extract all achievements, certifications, coursework, open-source, or hackathons if they fit the schema.
+"""
+
+
+async def autofill_resume_profile(resume_text: str, user: User, db: AsyncSession) -> Dict[str, Any]:
+    """
+    Parse a resume's raw text into a structured profile dictionary using the LLM.
+    This is a pure resume-domain operation: it has no HTTP or authentication concerns.
+
+    Steps:
+      1. Call 1 — Extract personal Details (name, links) with high precision.
+      2. Call 2 — Parse full RewriteResume structure.
+      3. Merge Call 1 results into Call 2 to fill any gaps.
+
+    Returns a plain dict suitable for the autofill profile API response.
+    """
+    from services.llm_service import get_llm_client
+    from utils.mappers import map_llm_to_profile
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    llm = await get_llm_client(db, user=user)
+
+    # ── Call 1: Extract personal details + links with precision ──────────
+    details_obj: Optional[Details] = None
+    try:
+        details_llm = llm.with_structured_output(Details)
+        details_messages = [
+            SystemMessage(content=extract_details_prompt),
+            HumanMessage(content=f"Resume text:\n{resume_text}"),
+        ]
+        raw_details = await details_llm.ainvoke(details_messages)
+        details_obj = cast(Details, raw_details)
+    except Exception as details_err:
+        logger.warning(f"Autofill details extraction failed: {details_err}")
+
+    # ── Call 2: Parse full resume structure ──────────────────────────────
+    structured_llm = llm.with_structured_output(RewriteResume)
+    messages = [
+        SystemMessage(content=_PARSE_RESUME_PROMPT),
+        HumanMessage(content=f"Resume text:\n{resume_text}"),
+    ]
+    raw_parsed = await structured_llm.ainvoke(messages)
+    if not raw_parsed:
+        raise ValueError("LLM returned an empty parsed result.")
+
+    parsed = cast(RewriteResume, raw_parsed)
+    if isinstance(parsed, dict):
+        parsed = RewriteResume.model_validate(parsed)
+
+    # ── Merge Call 1 into Call 2 ─────────────────────────────────────────
+    if details_obj is not None and isinstance(details_obj, Details):
+        if parsed.details is not None:
+            if not parsed.details.name and details_obj.name:
+                parsed.details.name = details_obj.name
+            if details_obj.profile_links:
+                if not parsed.details.profile_links:
+                    parsed.details.profile_links = details_obj.profile_links
+                else:
+                    for k, v in details_obj.profile_links.items():
+                        if not parsed.details.profile_links.get(k) and v:
+                            parsed.details.profile_links[k] = v
+        else:
+            parsed.details = details_obj
+
+    return map_llm_to_profile(parsed)
+
+
+# ── Infrastructure helpers ────────────────────────────────────────────────────
+
+async def save_and_upload(
+    latex_code: str,
+    user: User,
+    resume_id: int,
+    pdf_base64: Optional[str] = None,
+) -> tuple[str, Optional[str]]:
+    """
+    Compile LaTeX source to PDF (if not already base64), upload to Cloudinary,
+    and return (pdf_url, preview_image_url).
+
+    If *pdf_base64* is a data-URI already containing base64-encoded PDF bytes,
+    the compilation step is skipped and the bytes are decoded directly.
+    """
+    import base64
+    from datetime import datetime, timezone
+    from services.storage import upload_pdf_to_cloudinary
+    from services.workflow import ResumeWorkflowService
+
+    if pdf_base64 and "base64," in pdf_base64:
+        b64_str = pdf_base64.split("base64,")[1]
+        pdf_bytes = base64.b64decode(b64_str)
+        pdf_url = pdf_base64
+    elif not latex_code or not latex_code.strip():
+        pdf_bytes = b""
+        pdf_url = ""
+    else:
+        service = ResumeWorkflowService()
+        pdf_bytes = await service.latex_to_pdf(latex_code, "resume.pdf")
+        import base64 as _b64
+        pdf_url = f"data:application/pdf;base64,{_b64.b64encode(pdf_bytes).decode()}"
+
+    preview_url = None
+    try:
+        ts = int(datetime.now(timezone.utc).timestamp())
+        filename = f"resume_{user.id}_{resume_id}_{ts}.pdf"
+        upload_res = await upload_pdf_to_cloudinary(pdf_bytes, filename)
+        if upload_res:
+            pdf_url = upload_res.get("pdf_url") or pdf_url
+            preview_url = upload_res.get("preview_image_url")
+    except Exception as err:
+        import logging as _log
+        _log.getLogger(__name__).error(f"Failed to upload resume: {err}")
+
+    return pdf_url, preview_url
+
+
+async def build_graph_state(
+    db: AsyncSession,
+    provider: str,
+    user: User,
+    template_id: str,
+    exclude_sections: str,
+    model: str,
+    tone: str,
+    jd: str,
+    resume_text: str,
+) -> dict:
+    """
+    Assemble the initial LangGraph state dict for the resume analysis workflow.
+    Resolves the user's API key for the requested provider and the LaTeX template
+    source (if a DB-backed template ID is given).
+
+    This replaces the ad-hoc `start_graph` helper that used to live in the route file.
+    """
+    import json
+    from sqlmodel import select as _select
+    from models.models import Template
+    from services.auth_service import AuthService
+
+    auth_service = AuthService(db)
+    api_key = ""
+    try:
+        api_key = await auth_service.get_api_key(provider, user)
+    except Exception:
+        pass  # fall through — workflow will fail gracefully with a clear error
+
+    template_source = None
+    db_template_id = None
+    if template_id and template_id.isdigit():
+        t_res = await db.execute(
+            _select(Template).where(Template.id == int(template_id))
+        )
+        template_obj = t_res.scalar_one_or_none()
+        if template_obj:
+            template_source = template_obj.tex_source
+            db_template_id = template_obj.id
+
+    return {
+        "jd": jd,
+        "resume": resume_text,
+        "tone": tone,
+        "provider": provider,
+        "model": model,
+        "api_key": api_key,
+        "exclude_sections": json.loads(exclude_sections),
+        "analysis": None,
+        "changes_content": None,
+        "latex_code": "",
+        "output_path": "/output",
+        "template_source": template_source or "",
+        "template_id": db_template_id,
+    }
+

@@ -80,3 +80,34 @@ _VALIDATION_URLS: dict[str, str] = {
 
 
 VALID_PROVIDERS = list(_VALIDATION_URLS.keys())
+
+
+STATIC_MODELS = {
+            "openai": ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"],
+            "anthropic": [
+                "claude-3-5-sonnet-20240620",
+                "claude-3-opus-20240229",
+                "claude-3-haiku-20240307",
+            ],
+            "google_genai": ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"],
+            "groq": ["llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768"],
+            "mistralai": [
+                "mistral-large-latest",
+                "mistral-small-latest",
+                "open-mixtral-8x7b",
+            ],
+            "openrouter": [
+                "anthropic/claude-3.5-sonnet",
+                "openai/gpt-4o",
+                "meta-llama/llama-3-70b-instruct",
+            ],
+            "huggingface": [
+                "meta-llama/Meta-Llama-3-70B-Instruct",
+                "mistralai/Mixtral-8x7B-Instruct-v0.1",
+            ],
+        }
+
+DEFAULT_TEMPLATE = "jakes1.tex"
+DEFAULT_LLM_PROVIDER = "groq"
+DEFAULT_LLM_MODEL = "llama-3.3-70b-versatile"
+MAX_REWRITE_ITERATIONS = 5

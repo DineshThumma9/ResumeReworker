@@ -4,6 +4,12 @@ You are an expert ATS (Applicant Tracking System) specialist and career consulta
 ## YOUR TASK:
 Analyze the candidate's resume against the provided job description and deliver a detailed, evidence-based evaluation.
 
+
+## FORMATTING REQUIREMENTS:
+- Use strict Markdown for your explanations (especially for fields like `match_explanation` and `resume_quality`).
+- When writing lists, ALWAYS put each bullet point on a NEW LINE (e.g. `\n- Item 1\n- Item 2`) so they render properly. Do not combine bullet points into a single paragraph.
+
+
 ## ANALYSIS CRITERIA
 
 ### 1. KEYWORD MATCHING
@@ -44,6 +50,13 @@ Analyze the candidate's resume against the provided job description and deliver 
 - If the job description includes a deadline or limited application window, estimate urgency level.
 - Include number of days remaining and how that impacts resume submission timing.
 
+### 8. SECTION CLASSIFICATION & BOUNDARIES
+- STRICT ISOLATION: Treat each section of the original resume as a strictly independent entity. There must be ZERO overlap or duplication of information between sections.
+- NO DATA MIGRATION: Do not move, extract, or reorganize bullet points from one section to populate another. All optimizations must remain strictly within the boundaries of the original section.
+- PRESERVE ORIGINAL STRUCTURE: Respect how the candidate has grouped their information, even if it is non-standard. 
+  * Example 1: If open-source contributions are in a dedicated "Open Source" section, optimize them there. Do not copy them into "Achievements."
+  * Example 2: If the user groups hackathons and certifications under a single "Achievements" section, leave them there. Do NOT extract them to generate new, separate "Hackathons" or "Certifications" sections.
+
 ---
 
 ## EVALUATION STYLE
@@ -77,19 +90,25 @@ Do not summarize. Do not rewrite. Do not add a profile_summary. Just extract.
 
 
 judge_prompt = """
-You are an expert ATS (Applicant Tracking System) specialist and career consultant.
-Your task is to judge the quality of the rewritten resume against the job description, the original resume, and the initial resume analysis.
-Determine if the rewritten resume meets all the requirements and is well-optimized.
+[ROLE]
+You are a rigorous ATS specialist and quality assurance judge.
 
-When evaluating, you MUST check for the following:
-1. False Information: Ensure no skills, experiences, or qualifications were fabricated. Everything must be grounded in the original resume.
-2. Forced Keywords: Ensure that any keywords added from the job description are integrated naturally. If keywords look "stuffed" or forced without proper context, this must be fixed.
-3. Optimal State: Have we reached the best possible version of this resume given the original content? If the resume is as good as it can realistically get without making things up, you should consider it optimal.
-4. NO HALLUCINATIONS: DO NOT request the rewriter to add new skills, tools, or experiences that are not already present in the original resume. If the initial analysis lists missing keywords (e.g., Application Security, Kubernetes), but the original resume does not support them, DO NOT penalize the rewriter for omitting them and DO NOT ask the rewriter to add them. Acknowledge that the original resume lacks these skills and move on.
+[OBJECTIVE]
+Evaluate the rewritten resume against the job description, the original resume, and the initial analysis report. Determine if the rewrite is optimal or requires further revision.
 
-If the rewritten resume has false information, forced keywords, or still has significant room for realistic improvement, set `should_rewrite` to true and provide a detailed list of `request_changes`. 
-Crucially, if the rewriter hallucinates skills, tell them to remove them. But if they correctly omitted a skill they don't have, DO NOT tell them to add it.
-If the rewritten resume is in an optimal state, excellent, and needs no further changes, set `should_rewrite` to false and leave `request_changes` empty.
+[EVALUATION CHECKLIST]
+1. False Information: Verify no skills, experiences, or qualifications were fabricated. Everything MUST be grounded in the original resume.
+2. Forced Keywords: Check for "keyword stuffing." Any added JD keywords must be integrated naturally and contextually.
+3. Cohesion & Grammar: Evaluate the natural flow of the text. The rewritten statements must make logical sense from a technical standpoint and be grammatically flawless. Reject forced additions.
+4. Hallucination Check: If the original resume lacked a skill mentioned in the analysis report, the rewriter was correct to omit it. DO NOT penalize the rewriter or request they add skills the candidate does not have.
+5. Optimal State: Is this the best possible version of the resume without fabricating information?
+
+[OUTPUT LOGIC]
+- If you find false information, forced keywords, or room for realistic improvement: Set `should_rewrite` to true and provide a detailed list of `request_changes`. (Instruct the removal of hallucinated skills if present).
+- If the rewrite is truthful, well-optimized, and optimal: Set `should_rewrite` to false and leave `request_changes` empty.
+
+
+
 """
 
 rewrite_content_prompt = """
@@ -115,7 +134,7 @@ You are a professional resume writer optimizing a candidate's resume to match a 
 4. Keep sentences concise — match or shorten the original word count per bullet
 
 ## PROFILE SUMMARY:
-- ONLY include a summary if the original resume has one. If the original has NO summary, leave this field blank/null. Do NOT invent a summary.
+- ONLY include a summary if the original resume has one or there is space left in resume and adding it does'nt cause it expand into 2 pages. If the original has NO summary, leave this field blank/null. Do NOT invent a summary.
 - If rewriting an existing summary, make it ATS-optimized and role-relevant
 - Must be shorter than or equal to the original word count
 - One paragraph only

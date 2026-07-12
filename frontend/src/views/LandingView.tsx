@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { authApi } from "../apis/auth";
 import { AuthForm } from "../components/AuthForm";
 import { useAuthStore } from "../store/authStore";
 import { BrandLogo } from "../components/BrandLogo";
@@ -98,6 +99,7 @@ export function LandingView({
   const [notification, setNotification] = useState<{
     title: string;
     message: string;
+    isNew?: boolean;
   } | null>(null);
 
   // Sync state if URL changes directly
@@ -110,32 +112,47 @@ export function LandingView({
     }
   }, [startMode]);
 
-  // Extract OAuth token on callback redirection
+  // Extract OAuth code on callback redirection
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
-    const isNew = params.get("new");
-    if (token) {
-      useAuthStore.getState().setToken(token);
-      if (isNew === "true") {
-        setNotification({
-          title: "Account Created",
-          message:
-            "Welcome! Your account has been successfully created via Google.",
+    const code = params.get("code");
+    
+    if (code) {
+      // Clear the code from the URL so we don't exchange it again on refresh
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      authApi
+        .googleExchange(code)
+        .then((res) => {
+          useAuthStore.getState().setToken(res.access_token);
+          if (res.new) {
+            setNotification({
+              title: "Account Created",
+              message: "Welcome! Your account has been successfully created via Google.",
+              isNew: true,
+            });
+          } else {
+            setNotification({
+              title: "Welcome Back",
+              message: "You have been successfully logged in via Google.",
+              isNew: false,
+            });
+          }
+        })
+        .catch((err) => {
+          console.error("Google authentication failed:", err);
+          setNotification({
+            title: "Authentication Failed",
+            message: "There was a problem signing in with Google. Please try again.",
+            isNew: false,
+          });
         });
-      } else {
-        setNotification({
-          title: "Welcome Back",
-          message: "You have been successfully logged in via Google.",
-        });
-      }
     }
   }, [navigate]);
 
   const handleNotificationDismiss = () => {
+    const isNew = notification?.isNew;
     setNotification(null);
-    const params = new URLSearchParams(window.location.search);
-    const isNew = params.get("new") === "true";
     if (isNew) {
       navigate("/onboarding", { replace: true });
     } else {
@@ -168,7 +185,7 @@ export function LandingView({
       <div className="pointer-events-none absolute bottom-[-16%] right-[14%] w-[26vw] h-[26vw] rounded-full bg-white/4 z-0" />
 
       {/* ── NAVBAR ── */}
-      <nav className="relative z-50 flex items-center justify-between px-10 pt-8 pb-2 shrink-0">
+      <nav className="relative z-50 flex items-center justify-between px-4 md:px-10 pt-8 pb-2 shrink-0">
         <div className="flex items-center gap-3 h-8 shrink-0">
           {expanded && (
             <button
@@ -218,11 +235,11 @@ export function LandingView({
           CLOSED STATE
       ════════════════════════════════════════════════════════════════ */}
       <div
-        className={`relative z-10 flex-1 flex items-center transition-all duration-300 ease-in-out
+        className={`relative z-10 flex-1 flex flex-col md:flex-row items-center transition-all duration-300 ease-in-out
           ${expanded ? "opacity-0 pointer-events-none" : "opacity-100"}`}
       >
-        {/* Hero — left column (moved more to center with pl-24 xl:pl-40) */}
-        <div className="pl-24 xl:pl-40 pr-4 w-[50%] flex flex-col justify-center">
+        {/* Hero — left column */}
+        <div className="px-6 md:px-0 md:pl-24 xl:pl-40 mt-8 md:mt-0 w-full md:w-[50%] flex flex-col justify-center items-center md:items-start text-center md:text-left">
           <h1 className="font-heading text-[clamp(3rem,5.8vw,5.2rem)] leading-[1.02] text-white mb-4">
             Your résumé,
             <br />
@@ -236,7 +253,7 @@ export function LandingView({
           </p>
           <button
             onClick={() => expand("signup")}
-            className="self-start font-sans text-[14px] font-semibold text-white
+            className="self-center md:self-start font-sans text-[14px] font-semibold text-white
               bg-white/15 border border-white/30 rounded-full px-8 py-3
               cursor-pointer hover:bg-white/25 transition-all duration-200"
           >
@@ -245,7 +262,7 @@ export function LandingView({
         </div>
 
         {/* Resume fan — right column, taller container */}
-        <div className="flex-1 relative h-[min(680px,85vh)] min-w-0">
+        <div className="w-full md:flex-1 relative h-[350px] md:h-[min(680px,85vh)] min-w-0 mt-8 md:mt-0">
           <ResumeCard card={CARDS[0]} exitLeft={expanded} />
           <ResumeCard card={CARDS[1]} />
           <ResumeCard card={CARDS[2]} exitRight={expanded} />
@@ -258,8 +275,9 @@ export function LandingView({
 
       {/* Editorial left — open state */}
       <div
-        className={`absolute inset-y-0 left-0 flex flex-col justify-center px-16 xl:px-28 z-10
-          w-[54%] transition-opacity duration-350 ease-in-out
+        className={`absolute inset-y-0 left-0 flex-col justify-center px-8 md:px-16 xl:px-28 z-10
+          w-full md:w-[54%] transition-opacity duration-350 ease-in-out
+          hidden md:flex
           ${expanded ? "opacity-100 pointer-events-auto delay-300" : "opacity-0 pointer-events-none"}`}
       >
         <h2 className="font-heading text-[clamp(2.8rem,4.8vw,4.4rem)] leading-[1.04] text-white mb-5">
@@ -299,14 +317,14 @@ export function LandingView({
         </p>
       </div>
 
-      {/* Auth panel (wider for proper real estate utilization) */}
+      {/* Auth panel */}
       <div
         className={`absolute inset-y-0 right-0 z-30 flex items-center justify-center
-          bg-[#2d3b28] transition-[width] duration-650 ease-in-out
-          ${expanded ? "w-[46%]" : "w-0"} overflow-hidden`}
+          bg-[#2d3b28] md:transition-[width] duration-650 ease-in-out
+          ${expanded ? "w-full md:w-[46%]" : "w-0"} overflow-hidden`}
       >
         <div
-          className={`w-[min(480px,95%)] bg-white rounded-xl shadow-2xl px-10 py-9 flex flex-col
+          className={`w-[min(480px,95%)] bg-white rounded-xl shadow-2xl px-6 md:px-10 py-8 md:py-9 flex flex-col
             transition-opacity duration-300 ${expanded ? "delay-500 opacity-100" : "opacity-0"}`}
         >
           <AuthForm

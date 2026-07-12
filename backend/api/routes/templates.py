@@ -1,30 +1,23 @@
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import func, or_, select
 
 from core.database import get_session
 from models.models import Template
-from schemas.schema import PaginatedTemplateResponse, TemplateOut
+from schemas.schema import (
+    PaginatedTemplateResponse,
+    TemplateOut,
+    TemplateCreate,
+    TemplateUpdate,
+)
 from services.preview import generate_template_preview_task
 from services.resume_service import CurrentUser
 
 router = APIRouter(prefix="/templates", tags=["templates"])
 
 DB = Annotated[AsyncSession, Depends(get_session)]
-
-
-class TemplateCreate(BaseModel):
-    name: str
-    tex_source: str
-
-
-class TemplateUpdate(BaseModel):
-    name: str
-    tex_source: str
-
 
 @router.get("", response_model=PaginatedTemplateResponse)
 async def list_templates(

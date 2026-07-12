@@ -2,12 +2,9 @@ import logging
 import secrets
 from typing import Annotated, Any, Dict
 
-import fitz
 from fastapi import APIRouter, Cookie, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import RedirectResponse, Response
-from fastapi_limiter.depends import RateLimiter
-from langchain.chat_models import init_chat_model
-from langchain_core.messages import HumanMessage, SystemMessage
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -21,10 +18,9 @@ from core.security import (
     verify_password,
 )
 from models import User
-from models.models import OAuthCode, UserLLMConfig, naive_utcnow
-
-logger = logging.getLogger(__name__)
+from models.models import OAuthCode, naive_utcnow
 from schemas.schema import (
+    GoogleExchangeBody,
     LoginBody,
     ProfileOut,
     ProfileUpdate,
@@ -32,20 +28,19 @@ from schemas.schema import (
     SignupBody,
 )
 from services.auth_service import AuthService
-from services.resume_service import CurrentUser
+from services.resume_service import CurrentUser, autofill_resume_profile
+from services.llm_service import get_llm_client
+from utils.pdf_extractor import extract_resume_text_and_links
+from utils.mappers import map_llm_to_profile
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 DB = Annotated[AsyncSession, Depends(get_session)]
 
 
-from pydantic import BaseModel
-
-class GoogleExchangeBody(BaseModel):
-    code: str
-
-
-@router.post("/signup", status_code=status.HTTP_201_CREATED, dependencies=[Depends(RateLimiter(times=5, seconds=60))])
+@router.post("/signup", status_code=status.HTTP_201_CREATED)
 async def signup(body: SignupBody, db: DB):
     existing = await db.execute(
         select(User).where(
@@ -68,7 +63,7 @@ async def signup(body: SignupBody, db: DB):
     return {"access_token": create_access_token(user.id), "token_type": "bearer"}  # type: ignore
 
 
-@router.post("/login", dependencies=[Depends(RateLimiter(times=10, seconds=60))])
+@router.post("/login")
 async def login(body: LoginBody, db: DB):
     result = await db.execute(
         select(User).where(
@@ -160,7 +155,7 @@ async def google_callback(
     )
 
 
-@router.post("/google/exchange", dependencies=[Depends(RateLimiter(times=10, seconds=60))])
+@router.post("/google/exchange")
 async def google_exchange(body: GoogleExchangeBody, db: DB):
     result = await db.execute(select(OAuthCode).where(OAuthCode.code == body.code))
     oauth_code = result.scalar_one_or_none()
@@ -211,161 +206,21 @@ async def update_profile(body: ProfileUpdate, user: CurrentUser, db: DB):
     return user
 
 
-def map_llm_to_profile(parsed: Any) -> Dict[str, Any]:
-    if isinstance(parsed, dict):
-        parsed = RewriteResume.model_validate(parsed)
-
-    details = getattr(parsed, "details", None)
-    links = getattr(details, "profile_links", {}) if details else {}
-    if links is None:
-        links = {}
-
-    profile_data = {
-        "name": getattr(details, "name", "") if details else "",
-        "phone": links.get("phone") or "",
-        "location": links.get("location") or "",
-        "github": links.get("github") or "",
-        "linkedin": links.get("linkedin") or "",
-        "website": links.get("website") or links.get("portfolio") or "",
-        "sections": {},
-    }
-
-    sections = {}
-
-    # Map Education
-    if parsed.education:
-        edu_list = []
-        for idx, edu in enumerate(parsed.education):
-            edu_list.append(
-                {
-                    "id": f"edu_{idx}",
-                    "title": edu.course or "",
-                    "subtitle": edu.institution or "",
-                    "date": edu.year or "",
-                    "description": f"GPA: {edu.gpa}" if edu.gpa else "",
-                }
-            )
-        if edu_list:
-            sections["education"] = edu_list
-
-    # Map Experience
-    if parsed.experience:
-        exp_list = []
-        for idx, exp in enumerate(parsed.experience):
-            resp_str = (
-                "\n".join([f"- {r}" for r in exp.responsibilities])
-                if exp.responsibilities
-                else ""
-            )
-            exp_list.append(
-                {
-                    "id": f"exp_{idx}",
-                    "title": exp.role or "",
-                    "subtitle": exp.company or "",
-                    "date": exp.duration or "",
-                    "description": resp_str,
-                }
-            )
-        if exp_list:
-            sections["experience"] = exp_list
-
-    # Map Projects
-    if parsed.projects:
-        proj_list = []
-        for idx, proj in enumerate(parsed.projects):
-            tech_str = ", ".join(proj.technologies) if proj.technologies else ""
-            desc_str = proj.description or ""
-            if proj.highlights:
-                desc_str += "\n" + "\n".join([f"- {h}" for h in proj.highlights])
-            proj_list.append(
-                {
-                    "id": f"proj_{idx}",
-                    "title": proj.name or "",
-                    "subtitle": "",
-                    "skills": tech_str,
-                    "link": proj.link or "",
-                    "description": desc_str.strip(),
-                }
-            )
-        if proj_list:
-            sections["projects"] = proj_list
-
-    # Map Skills
-    if parsed.technical_skills:
-        skills_list = []
-        for idx, sk in enumerate(parsed.technical_skills):
-            skills_list.append(
-                {
-                    "id": f"skill_{idx}",
-                    "title": sk.category or "",
-                    "skills": ", ".join(sk.skills) if sk.skills else "",
-                }
-            )
-        if skills_list:
-            sections["skills"] = skills_list
-
-    # Map Achievements
-    if parsed.achivements:
-        ach_list = []
-        for idx, ach in enumerate(parsed.achivements):
-            ach_list.append({"id": f"ach_{idx}", "title": ach, "description": ""})
-        if ach_list:
-            sections["achievements"] = ach_list
-
-    # Map Open Source
-    if parsed.open_source:
-        os_list = []
-        for idx, os_item in enumerate(parsed.open_source):
-            os_list.append({"id": f"os_{idx}", "description": os_item})
-        if os_list:
-            sections["open_source"] = os_list
-
-    # Map Certifications
-    if parsed.certifications:
-        cert_list = []
-        for idx, cert in enumerate(parsed.certifications):
-            cert_list.append({"id": f"cert_{idx}", "title": cert})
-        if cert_list:
-            sections["certifications"] = cert_list
-
-    # Map Hackathons
-    if parsed.hackathons:
-        hack_list = []
-        for idx, hack in enumerate(parsed.hackathons):
-            hack_list.append({"id": f"hack_{idx}", "title": hack})
-        if hack_list:
-            sections["hackathons"] = hack_list
-
-    # Map Coursework
-    if parsed.coursework:
-        course_list = []
-        for idx, course in enumerate(parsed.coursework):
-            course_list.append({"id": f"course_{idx}", "description": course})
-        if course_list:
-            sections["coursework"] = course_list
-
-    profile_data["sections"] = sections
-    return profile_data
 
 
-@router.post("/profile/autofill", response_model=Dict[str, Any], dependencies=[Depends(RateLimiter(times=10, seconds=60))])
+
+@router.post("/profile/autofill", response_model=Dict[str, Any])
 async def autofill_profile(
     user: CurrentUser,
     db: DB,
     file: UploadFile = File(...),
 ):
     try:
-        pdf_bytes = await file.read()
-        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-        resume_text = ""
-        for page in doc:
-            text = page.get_text()
-            if isinstance(text, str):
-                resume_text += text
+        resume_text = await extract_resume_text_and_links(file)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to read PDF file: {str(e)}",
+            detail=str(e),
         )
 
     if not resume_text.strip():
@@ -374,102 +229,8 @@ async def autofill_profile(
             detail="The uploaded PDF is empty or could not be parsed.",
         )
 
-    # Resolve LLM configuration and key
-    result = await db.execute(
-        select(UserLLMConfig).where(UserLLMConfig.user_id == user.id)
-    )
-    config = result.scalars().first()
-
-    provider = "groq"
-    model = "llama-3.3-70b-versatile"
-    if config:
-        provider = config.provider
-        model = config.model
-
-    api_key = None
     try:
-        auth_service = AuthService(db)
-        api_key = await auth_service.get_api_key(provider, user)
-    except Exception:
-        # Fallback to system settings keys if user has not configured their own
-        provider_keys = {
-            "openai": settings.openai_api_key,
-            "anthropic": settings.anthropic_api_key,
-            "google_genai": settings.google_api_key,
-            "groq": settings.groq_api_key,
-            "mistralai": settings.mistral_api_key,
-            "openrouter": settings.openrouter_api_key,
-            "huggingface": settings.huggingface_api_key,
-        }
-        api_key = provider_keys.get(provider)
-
-    try:
-        llm_kwargs = {}
-        if api_key:
-            llm_kwargs["api_key"] = api_key
-
-        llm = init_chat_model(model, model_provider=provider, **llm_kwargs)
-
-        # ── Call 1: Extract personal details + links only ────────────────
-        details_obj = None
-        try:
-            from schemas.schema import Details
-            from utils.prompts import extract_details_prompt
-
-            details_llm = llm.with_structured_output(Details)
-            details_messages = [
-                SystemMessage(content=extract_details_prompt),
-                HumanMessage(content=f"Resume text:\n{resume_text}"),
-            ]
-            details_obj = await details_llm.ainvoke(details_messages)
-        except Exception as details_err:
-            logger.warning(f"Autofill details extraction failed: {details_err}")
-
-        structured_llm = llm.with_structured_output(RewriteResume)
-
-        parse_resume_prompt = """
-        You are an expert resume parser. Your ONLY job is to extract the candidate's resume content into the structured schema format.
-        Do NOT invent details. Do NOT summarize or rewrite the content. Simply parse the sections verbatim into the appropriate fields.
-
-        For each section:
-        1. details: Extract candidate's name, profile summary, and contact/social links (phone, email, github, linkedin, website, location, etc.).
-        2. experience: Extract all work experience entries. Join responsibilities into a list of strings (each bullet point is one list item).
-        3. education: Extract all education entries.
-        4. projects: Extract all projects.
-        5. technical_skills: Extract technical skills categorized by category name and flat list of skills.
-        6. achivements: Extract all achievements, certifications, coursework, open-source, or hackathons if they fit the schema.
-        """
-
-        messages = [
-            SystemMessage(content=parse_resume_prompt),
-            HumanMessage(content=f"Resume text:\n{resume_text}"),
-        ]
-
-        parsed = await structured_llm.ainvoke(messages)
-        if not parsed:
-            raise Exception("LLM returned empty parsed result.")
-
-        if isinstance(parsed, dict):
-            parsed = RewriteResume.model_validate(parsed)
-
-        if details_obj:
-            if parsed.details is not None:
-                # Merge name
-                if not parsed.details.name and details_obj.name:
-                    parsed.details.name = details_obj.name
-
-                # Merge links
-                if details_obj.profile_links:
-                    if not parsed.details.profile_links:
-                        parsed.details.profile_links = details_obj.profile_links
-                    else:
-                        for k, v in details_obj.profile_links.items():
-                            if not parsed.details.profile_links.get(k) and v:
-                                parsed.details.profile_links[k] = v
-            else:
-                parsed.details = details_obj
-
-        return map_llm_to_profile(parsed)
+        return await autofill_resume_profile(resume_text, user=user, db=db)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

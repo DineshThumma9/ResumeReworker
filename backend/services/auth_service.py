@@ -1,5 +1,4 @@
-from collections import defaultdict
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import httpx
 from cryptography.fernet import Fernet
@@ -11,7 +10,9 @@ from sqlmodel import select
 from core.config import settings
 from models.models import APIKEYS, User
 from utils.constants import _VALIDATION_URLS
-
+from utils.constants import STATIC_MODELS
+from utils.constants import STATIC_MODELS
+from collections import defaultdict
 
 class CryptoService:
     def __init__(self):
@@ -43,6 +44,65 @@ class AuthService:
             )
         return self.crypto.decrypt(api_key.encrypted_key)
 
+    async def _validate_api_key(self, provider: str, api_key: str) -> Tuple[bool, str]:
+        from utils.http_client import get_http_client
+        url = _VALIDATION_URLS.get(provider)
+        if not url:
+            return True, ""  # Unknown provider — don't block
+
+        client = get_http_client()
+        try:
+            if provider == "google_genai":
+                r = await client.get(f"{url}?key={api_key}")
+            elif provider == "anthropic":
+                r = await client.get(
+                    url,
+                    headers={"x-api-key": api_key, "anthropic-version": "2023-06-01"},
+                )
+            else:
+                r = await client.get(url, headers={"Authorization": f"Bearer {api_key}"})
+        except httpx.TimeoutException:
+            logger.warning(f"Key validation timeout for {provider} (5s)")
+            return True, ""
+        except Exception as e:
+            logger.warning(f"Key validation network error for {provider}: {e}")
+            return True, ""
+
+        if r.status_code in (401, 403):
+            return False, f"API key rejected by {provider} (HTTP {r.status_code})"
+        return True, ""
+
+    async def save_api_key(self, provider: str, api_key: str, user: User):
+        is_valid, err_msg = await self._validate_api_key(provider, api_key)
+        if not is_valid:
+            logger.warning(f"Invalid API key rejected for {provider}: {err_msg}")
+            raise HTTPException(
+                status_code=422,
+                detail={"error_type": "invalid_api_key", "message": err_msg},
+            )
+
+        encrypted_key = self.crypto.encrypt(api_key)
+
+        existing_result = await self.db.execute(
+            select(APIKEYS).where(
+                APIKEYS.user_id == user.id,
+                APIKEYS.provider == provider,
+            )
+        )
+        existing = existing_result.scalars().first()
+
+        if existing:
+            existing.encrypted_key = encrypted_key
+        else:
+            new_key = APIKEYS(
+                user_id=int(user.id),  # type: ignore
+                provider=provider,
+                encrypted_key=encrypted_key,
+            )
+            self.db.add(new_key)
+            logger.info(f"Added new key for {provider}")
+        await self.db.commit()
+
     async def get_all_api_keys(self, user: User) -> Dict[str, str]:
         result = await self.db.execute(
             select(APIKEYS).where(APIKEYS.user_id == user.id)
@@ -56,30 +116,7 @@ class AuthService:
         """Return available models by fetching them dynamically from provider endpoints."""
         valid_models: Dict[str, List[str]] = defaultdict(list)
 
-        STATIC_MODELS = {
-            "openai": ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"],
-            "anthropic": [
-                "claude-3-5-sonnet-20240620",
-                "claude-3-opus-20240229",
-                "claude-3-haiku-20240307",
-            ],
-            "google_genai": ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"],
-            "groq": ["llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768"],
-            "mistralai": [
-                "mistral-large-latest",
-                "mistral-small-latest",
-                "open-mixtral-8x7b",
-            ],
-            "openrouter": [
-                "anthropic/claude-3.5-sonnet",
-                "openai/gpt-4o",
-                "meta-llama/llama-3-70b-instruct",
-            ],
-            "huggingface": [
-                "meta-llama/Meta-Llama-3-70B-Instruct",
-                "mistralai/Mixtral-8x7B-Instruct-v0.1",
-            ],
-        }
+
 
         # Check centralized environment keys
         provider_keys = {

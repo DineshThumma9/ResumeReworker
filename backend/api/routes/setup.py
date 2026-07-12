@@ -1,6 +1,6 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
-import httpx
+
 from dotenv import load_dotenv
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from loguru import logger
@@ -19,56 +19,7 @@ load_dotenv()
 router = APIRouter(prefix="/setup", tags=["setup"])
 crypto = CryptoService()
 
-# Global httpx client with connection pooling
-_http_client: httpx.AsyncClient | None = None
 
-
-def get_http_client() -> httpx.AsyncClient:
-    """Get or create a shared httpx async client with connection pooling."""
-    global _http_client
-    if _http_client is None:
-        _http_client = httpx.AsyncClient(
-            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
-            timeout=5.0,  # 5 second timeout (was 8)
-        )
-    return _http_client
-
-
-async def close_http_client():
-    """Close the shared httpx client (call on app shutdown)."""
-    global _http_client
-    if _http_client:
-        await _http_client.aclose()
-        _http_client = None
-
-
-async def _validate_api_key(provider: str, api_key: str) -> Tuple[bool, str]:
-    """Returns (is_valid, error_message)."""
-    url = _VALIDATION_URLS.get(provider)
-    if not url:
-        return True, ""  # Unknown provider — don't block
-
-    client = get_http_client()
-    try:
-        if provider == "google_genai":
-            r = await client.get(f"{url}?key={api_key}")
-        elif provider == "anthropic":
-            r = await client.get(
-                url,
-                headers={"x-api-key": api_key, "anthropic-version": "2023-06-01"},
-            )
-        else:
-            r = await client.get(url, headers={"Authorization": f"Bearer {api_key}"})
-    except httpx.TimeoutException:
-        logger.warning(f"Key validation timeout for {provider} (5s)")
-        return True, ""  # Timeout — don't block, assume valid
-    except Exception as e:
-        logger.warning(f"Key validation network error for {provider}: {e}")
-        return True, ""  # Network issue — don't block saving
-
-    if r.status_code in (401, 403):
-        return False, f"API key rejected by {provider} (HTTP {r.status_code})"
-    return True, ""
 
 
 @router.post("/init")
@@ -83,36 +34,8 @@ async def set_api_provider(
     if api_provider not in VALID_PROVIDERS:
         raise HTTPException(status_code=404, detail="api provider doesnt exists")
 
-    is_valid, err_msg = await _validate_api_key(api_provider, api_key)
-    if not is_valid:
-        logger.warning(f"Invalid API key rejected for {api_provider}: {err_msg}")
-        raise HTTPException(
-            status_code=422,
-            detail={"error_type": "invalid_api_key", "message": err_msg},
-        )
-
-    encrypted_key = crypto.encrypt(api_key)
-
-    existing_result = await db.execute(
-        select(APIKEYS).where(
-            APIKEYS.user_id == current_user.id,  # type: ignore
-            APIKEYS.provider == api_provider,  # type: ignore
-        )
-    )
-
-    existing = existing_result.scalars().first()
-
-    if existing:
-        existing.encrypted_key = encrypted_key
-    else:
-        new_key = APIKEYS(
-            user_id=current_user.id,  # type: ignore
-            provider=api_provider,
-            encrypted_key=encrypted_key,
-        )
-        db.add(new_key)
-        logger.info(f"Added new key for {api_provider}")
-    await db.commit()
+    auth_service = AuthService(db)
+    await auth_service.save_api_key(api_provider, api_key, current_user)
     return {"message": "Successfully key added", "status_code": 200}
 
 
