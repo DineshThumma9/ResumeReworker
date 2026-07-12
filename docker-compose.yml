@@ -32,6 +32,8 @@ services:
     restart: unless-stopped
     ports:
       - "8001:8000"
+    env_file:
+      - ./backend/.env
     environment:
       - ENV_FILE=.env
       # Database is reachable at the service name "db" inside Docker network,
