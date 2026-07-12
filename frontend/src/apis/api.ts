@@ -12,7 +12,7 @@ export class APIError extends Error {
   }
 }
 
-export const API_URL = "/api";
+export const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 export async function fetchJSON(url: string, options?: RequestInit) {
   const token = useAuthStore.getState().token;
