@@ -97,11 +97,13 @@ class ResumeWorkflowService:
     async def match_jd(self, state: ResumeState):
         jd = state["jd"]  # type: ignore
         resume = state["resume"]  # type: ignore
+        page_count = state.get("page_count")
+        pc_str = f"\nOriginal Resume Page Count: {page_count}" if page_count else ""
 
         messages = [
             SystemMessage(content=resume_analysis_prompt),
             HumanMessage(
-                content=f"Job Description:\n{jd}\n\nCandidate Resume:\n{resume}"
+                content=f"Job Description:\n{jd}\n\nCandidate Resume:\n{resume}{pc_str}"
             ),
         ]
 
@@ -135,6 +137,8 @@ class ResumeWorkflowService:
         resume = state["resume"]  # type: ignore
         jd = state["jd"]  # type: ignore
         tone = state["tone"]  # type: ignore
+        page_count = state.get("page_count")
+        pc_str = f"\nOriginal Resume Page Count: {page_count}" if page_count else ""
         exclude_sections = [
             sec for sec, sec_val in state.get("exclude_sections", {}).items() if sec_val
         ]
@@ -227,7 +231,7 @@ class ResumeWorkflowService:
                 HumanMessage(
                     content=(
                         f"Job Description:\n{jd}\n\n"
-                        f"Candidate Resume:\n{resume}"
+                        f"Candidate Resume:\n{resume}{pc_str}"
                         f"{details_hint}\n"
                         f"{judgement_hint}\n"
                         f"Analysis Report:\n{analysis_str}\n"
@@ -262,6 +266,8 @@ class ResumeWorkflowService:
             resume = state.get("resume")
             jd = state.get("jd")
             analysis = state.get("analysis")
+            page_count = state.get("page_count")
+            pc_str = f"\nOriginal Resume Page Count: {page_count}" if page_count else ""
 
             from utils.prompts import judge_prompt
 
@@ -319,7 +325,7 @@ class ResumeWorkflowService:
                 HumanMessage(
                     content=(
                         f"Job Description:\n{jd}\n\n"
-                        f"Candidate Resume:\n{resume}"
+                        f"Candidate Resume:\n{resume}{pc_str}"
                         f"{judgement_history}"
                         f"\n\nCandidate Changed Resume:\n{changes_str}"
                         f"\n\nCandidate Analysis:\n{analysis_str}"

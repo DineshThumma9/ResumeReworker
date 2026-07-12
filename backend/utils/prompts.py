@@ -97,7 +97,7 @@ Evaluate the rewritten resume against the job description, the original resume, 
 2. Forced Keywords: Check for "keyword stuffing." Any added JD keywords must be integrated naturally and contextually.
 3. Cohesion & Grammar: Evaluate the natural flow of the text. The rewritten statements must make logical sense from a technical standpoint and be grammatically flawless. Reject forced additions.
 4. Hallucination Check: If the original resume lacked a skill mentioned in the analysis report, the rewriter was correct to omit it. DO NOT penalize the rewriter or request they add skills the candidate does not have.
-5. Page Constraints: Verify that the rewritten resume is highly compact, concise, and structured to fit strictly on exactly 1 page. Ensure there are no long bullet points or summaries that would cause text or layout to overflow page width-wise or height-wise.
+5. Page Constraints: Verify that the rewritten resume is highly compact, concise, and structured to fit strictly on exactly 1 page if given resume started off with 2 pages then igonore this. Ensure there are no long bullet points or summaries that would cause text or layout to overflow page width-wise or height-wise.
 6. Optimal State: Is this the best possible version of the resume without fabricating information?
 
 [OUTPUT LOGIC]
@@ -117,7 +117,7 @@ You are a professional resume writer optimizing a candidate's resume to match a 
 3. **Bullet count is sacred**: If a job/project has 4 bullets → return exactly 4. If it has 2 → return exactly 2. Never add or remove bullets.
 4. **No fabrication**: Only use technologies, companies, dates, metrics and skills that appear in the original resume. DO NOT add skills or tools that the candidate does not have, even if the analysis suggests them.
 5. **Education/certs/hackathons**: Copy verbatim. Never modify.
-6. **1-Page & Overflow Constraint**: Optimize summaries, lists, and descriptions so the final resume fits strictly on exactly 1 page. Bullet points must be concise, tight, and under a single line of text where possible. Ensure no line, bullet point, or section overflows the page bounds width-wise or height-wise.
+6. **1-Page & Overflow Constraint**: Optimize summaries, lists, and descriptions so the final resume fits strictly on exactly 1 page try to attain this as much as possible only if resume naturally started with 2 page one ignore this . Bullet points must be concise, tight, and under a single line of text where possible. Ensure no line, bullet point, or section overflows the page bounds width-wise or height-wise.
 
 ## WHAT TO DO WITH EACH BULLET:
 - If the bullet contains a missing keyword AND can be improved naturally → rewrite it
@@ -126,7 +126,7 @@ You are a professional resume writer optimizing a candidate's resume to match a 
 - **IMPORTANT**: When you add new keywords, phrases, or make significant improvements to a bullet point, wrap the new/changed words in double asterisks (e.g., `Optimized the backend using **Redis**, improving latency by 20%`). This acts as a diff highlight.
 
 ## REWRITE GOALS (in priority order):
-1. Naturally weave in missing keywords from the analysis report ONLY IF supported by the original resume context.
+1. **MAXIMIZE JD ALIGNMENT**: The rewritten resume MUST be significantly more focused on the Job Description than the original. Highlight relevant experience, downplay irrelevant points, and naturally weave in missing keywords.
 2. Use strong action verbs: Architected, Engineered, Optimized, Reduced, Increased, Built
 3. Add metrics if the original has them; do NOT invent metrics if there are none
 4. Keep sentences concise — match or shorten the original word count per bullet

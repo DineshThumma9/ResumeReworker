@@ -257,8 +257,11 @@ async def analyze(
     async def event_stream():
         try:
             resume_text = ""
+            page_count = None
             if resume_file is not None:
-                resume_text += await extract_resume_text_and_links(resume_file)
+                text_extracted, p_count = await extract_resume_text_and_links(resume_file)
+                resume_text += text_extracted
+                page_count = p_count
             else:
                 raw_res = user.raw_resume
                 if isinstance(raw_res, (dict, list)):
@@ -285,6 +288,7 @@ async def analyze(
                 tone,
                 jd,
                 resume_text,
+                page_count,
             )
         except Exception as graph_err:
             tb = traceback.format_exc()

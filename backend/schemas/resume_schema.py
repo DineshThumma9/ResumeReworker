@@ -510,6 +510,7 @@ class JudgeResume(BaseModel):
 class ResumeState(TypedDict, total=False):
     jd: str
     resume: str
+    page_count: Optional[int]
     analysis: Optional[Any]
     changes_content: Optional[Any]
     latex_code: str

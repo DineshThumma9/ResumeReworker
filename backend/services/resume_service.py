@@ -356,6 +356,7 @@ async def build_graph_state(
     tone: str,
     jd: str,
     resume_text: str,
+    page_count: Optional[int] = None,
 ) -> dict:
     """
     Assemble the initial LangGraph state dict for the resume analysis workflow.
@@ -392,6 +393,7 @@ async def build_graph_state(
     return {
         "jd": jd,
         "resume": resume_text,
+        "page_count": page_count,
         "tone": tone,
         "provider": provider,
         "model": model,

@@ -204,7 +204,7 @@ async def autofill_profile(
     file: UploadFile = File(...),
 ):
     try:
-        resume_text = await extract_resume_text_and_links(file)
+        resume_text, _ = await extract_resume_text_and_links(file)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
