@@ -35,6 +35,9 @@ services:
       - "8000"
     environment:
       - ENV_FILE=.env
+      # Database is reachable at the service name "db" inside Docker network,
+      # not localhost. Set this so the backend picks it up.
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/resumereworker
       # Redis is reachable at the service name "redis" inside Docker network,
       # not localhost. Set this so the FastAPI lifespan picks it up.
       - REDIS_URL=redis://redis:6379

@@ -186,7 +186,7 @@ export const modifyResume = async (
 
   let res: Response;
   try {
-    res = await fetch("http://localhost:8000/api/resumes/modify", {
+    res = await fetch(`${API_URL}/resumes/modify`, {
       method: "POST",
       headers,
       body: JSON.stringify({

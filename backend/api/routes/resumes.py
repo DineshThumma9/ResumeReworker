@@ -259,7 +259,9 @@ async def analyze(
             resume_text = ""
             page_count = None
             if resume_file is not None:
-                text_extracted, p_count = await extract_resume_text_and_links(resume_file)
+                text_extracted, p_count = await extract_resume_text_and_links(
+                    resume_file
+                )
                 resume_text += text_extracted
                 page_count = p_count
             else:
