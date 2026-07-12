@@ -90,6 +90,7 @@ async def google_login(response: Response):
         value=state,
         httponly=True,
         samesite="lax",
+        secure=not settings.dev_mode,
         max_age=300,  # 5 minutes — enough time to complete the OAuth flow
     )
     return redirect
