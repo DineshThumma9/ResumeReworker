@@ -72,6 +72,12 @@ async def seed_templates(session: AsyncSession):
             await session.delete(tmpl)
         await session.flush()
 
+    preview_urls = {
+        "modern1": "/previews/template_1-1.jpg",
+        "mordern2": "/previews/template_2-1.jpg",
+        "mordern3": "/previews/template_3-1.jpg",
+    }
+
     # Seed / refresh the three canonical builtin templates
     for template_name in sorted(allowed_builtin_names):
         result = await session.execute(
@@ -86,6 +92,8 @@ async def seed_templates(session: AsyncSession):
         with open(template_path, "r", encoding="utf-8") as f:
             tex_source = f.read()
 
+        preview_url = preview_urls.get(template_name)
+
         if not existing:
             # First-time seed
             session.add(
@@ -93,12 +101,14 @@ async def seed_templates(session: AsyncSession):
                     name=template_name,
                     tex_source=tex_source,
                     is_builtin=True,
+                    preview_url=preview_url,
                 )
             )
             logger.info("Seeded builtin template: %s", template_name)
-        elif existing.tex_source != tex_source:
-            # File changed on disk (e.g. converted from hardcoded to Jinja) — update
+        elif existing.tex_source != tex_source or existing.preview_url != preview_url:
+            # File changed on disk or preview url missing — update
             existing.tex_source = tex_source
+            existing.preview_url = preview_url
             logger.info("Updated builtin template: %s", template_name)
 
     await session.commit()
