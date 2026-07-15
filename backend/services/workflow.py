@@ -109,9 +109,12 @@ class ResumeWorkflowService:
         pc_str = f"\nOriginal Resume Page Count: {page_count}" if page_count else ""
 
         from datetime import datetime
+
         current_date = datetime.now().strftime("%B %Y")
         messages = [
-            SystemMessage(content=f"Current Date: {current_date}\n\n{resume_analysis_prompt}"),
+            SystemMessage(
+                content=f"Current Date: {current_date}\n\n{resume_analysis_prompt}"
+            ),
             HumanMessage(
                 content=f"Job Description:\n{jd}\n\nCandidate Resume:\n{resume}{pc_str}"
             ),
@@ -255,9 +258,12 @@ class ResumeWorkflowService:
                     )
 
             from datetime import datetime
+
             current_date = datetime.now().strftime("%B %Y")
             messages = [
-                SystemMessage(content=f"Current Date: {current_date}\n\n{rewrite_content_prompt}"),
+                SystemMessage(
+                    content=f"Current Date: {current_date}\n\n{rewrite_content_prompt}"
+                ),
                 HumanMessage(
                     content=(
                         f"Job Description:\n{jd}\n\n"
@@ -355,9 +361,12 @@ class ResumeWorkflowService:
                 analysis_str = "None"
 
             from datetime import datetime
+
             current_date = datetime.now().strftime("%B %Y")
             messages = [
-                SystemMessage(content=f"Current Date: {current_date}\n\n{judge_prompt}"),
+                SystemMessage(
+                    content=f"Current Date: {current_date}\n\n{judge_prompt}"
+                ),
                 HumanMessage(
                     content=(
                         f"Job Description:\n{jd}\n\n"
@@ -638,7 +647,7 @@ class ResumeWorkflowService:
                 try:
                     diff_filename = f"{suggesting_changes.details.name.replace(' ', '_')}_resume_diff.pdf"
                     logger.info("Compiling LaTeX code to diff PDF...")
-                    
+
                     # Inject definitions for \added and \deleted macros if not already in preamble
                     diff_defs = (
                         "\n% Definitions for latexdiff-style tracking\n"

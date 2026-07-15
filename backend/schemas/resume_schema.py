@@ -30,14 +30,26 @@ class ResumeAnalysis(BaseModel):
         default="",
     )
     missing_keywords: List[str] = Field(
-        description="Keywords included in job description but not mentioned in resume",
+        description="Flat list of simple keyword strings included in job description but missing in resume.",
         default_factory=list,
     )
     negative_points: List[str] = Field(
-        description="Things which are holding the resume back", default_factory=list
+        description=(
+            "List of specific weaknesses holding the resume back. "
+            "Each item must be a flat, single-level text block. "
+            "DO NOT use nested lists, sub-bullets, or multi-level indentation. "
+            "Format sub-points as flat paragraphs or inline text."
+        ),
+        default_factory=list,
     )
     potential_improvements: List[str] = Field(
-        description="What can be done to improve this resume", default_factory=list
+        description=(
+            "List of specific suggestions to improve the resume. "
+            "Each item must be a flat, single-level text block. "
+            "DO NOT use nested lists, sub-bullets, or multi-level indentation. "
+            "Format examples, rewrites, or sub-points as flat paragraphs or inline text, or use blockquotes (starting with '>') for code/rewrites."
+        ),
+        default_factory=list,
     )
     resume_quality: str = Field(
         description="Overall quality of the resume in terms of structure, readability, and ATS-friendliness",
@@ -70,15 +82,25 @@ class ResumeAnalysis(BaseModel):
                         )
                     else:
                         val = str(item)
-                    
+
                     val_str = str(val).strip()
                     # Detect misplaced resume_quality block
-                    if val_str.startswith("resume_quality:") or "Structure & Readability" in val_str:
+                    if (
+                        val_str.startswith("resume_quality:")
+                        or "Structure & Readability" in val_str
+                    ):
                         if not data.get("resume_quality"):
                             # Strip the "resume_quality:" prefix and quotes if any
-                            cleaned_quality = re.sub(r"^resume_quality:\s*['\"]?\s*", "", val_str)
-                            if (cleaned_quality.startswith("'") and cleaned_quality.endswith("'")) or \
-                               (cleaned_quality.startswith('"') and cleaned_quality.endswith('"')):
+                            cleaned_quality = re.sub(
+                                r"^resume_quality:\s*['\"]?\s*", "", val_str
+                            )
+                            if (
+                                cleaned_quality.startswith("'")
+                                and cleaned_quality.endswith("'")
+                            ) or (
+                                cleaned_quality.startswith('"')
+                                and cleaned_quality.endswith('"')
+                            ):
                                 cleaned_quality = cleaned_quality[1:-1]
                             data["resume_quality"] = cleaned_quality.strip()
                         continue

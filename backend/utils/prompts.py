@@ -9,7 +9,7 @@ Analyze the candidate's resume against the provided job description and deliver 
 - Use strict Markdown for your explanations (especially for fields like `match_explanation` and `resume_quality`).
 - When writing lists, ALWAYS put each bullet point on a NEW LINE (e.g. `\n- Item 1\n- Item 2`) so they render properly. Do not combine bullet points into a single paragraph.
 - **NO TABLES**: Do NOT use markdown or HTML tables anywhere in your response. Structure comparative data as flat lists or standard paragraphs.
-- **NO NESTED BULLETS**: Do NOT use nested lists, sub-bullets, or multi-level indented lists. Keep all lists strictly single-level (flat) to ensure clean readability.
+- **NO NESTED BULLETS**: Do NOT use nested lists, sub-bullets, or multi-level indented lists anywhere in the entire response (including `potential_improvements`, `negative_points`, and other list fields). Keep all lists strictly single-level (flat) to ensure clean readability. If you need to write examples or sub-steps under an item, render them as **flat inline text** or as **flat paragraphs** directly under the heading, or wrap code/rewrites in flat blockquotes (`> Instead of: ... \n> Consider: ...`). Never use tabs, spaces, or dashes to create nested sub-bullets.
 - **CLEAN SECTIONING**: Use standard markdown headings (e.g. `### Section Title`) to structure sections. Do NOT use random dashes, equals signs, or text-dividers (e.g. `--`, `===`) as section headers or dividers.
 
 

@@ -93,7 +93,9 @@ const Markdown = ({
           {children}
         </ol>
       ),
-      li: ({ children }) => <li className="leading-relaxed pl-0.5">{children}</li>,
+      li: ({ children }) => (
+        <li className="leading-relaxed pl-0.5">{children}</li>
+      ),
       strong: ({ children }) => (
         <strong className="font-semibold text-foreground/95">{children}</strong>
       ),
@@ -113,19 +115,6 @@ const Markdown = ({
   </ReactMarkdown>
 );
 
-// ── Clean and split list helper ────────────────────────────────────────────────
-function cleanAndSplitList(list: string[]): string[] {
-  if (!list || list.length === 0) return [];
-  if (list.length === 1) {
-    const single = list[0];
-    const parts = single.split(/\n+(?=[-•*]|\d+\.)/);
-    if (parts.length > 1) {
-      return parts.map((p) => p.trim()).filter(Boolean);
-    }
-  }
-  return list;
-}
-
 // ── Judge event parser ────────────────────────────────────────────────────────
 function parseJudgeEvents(logs: StreamLine[]) {
   return logs
@@ -144,20 +133,22 @@ function parseJudgeEvents(logs: StreamLine[]) {
         lower.includes("requested changes") ||
         lower.includes("rewriting again") ||
         lower.includes("rejected");
-      
+
       const m = l.text.match(/iteration\s+(\d+)/i);
       const iteration = m ? parseInt(m[1]) : null;
-      
+
       let message = "Evaluating...";
       if (approved) {
         message = "Approved rewrite. Proceeding to PDF generation.";
       } else if (rejected) {
         const fbMatch = l.text.match(/Feedback:\s*(.*)$/i);
-        message = fbMatch ? `Changes requested: ${fbMatch[1]}` : "Changes requested. Rewriting again...";
+        message = fbMatch
+          ? `Changes requested: ${fbMatch[1]}`
+          : "Changes requested. Rewriting again...";
       } else {
         message = "Evaluating rewritten resume...";
       }
-      
+
       return { iteration, approved, rejected, message };
     });
 }
@@ -181,7 +172,7 @@ function formatLogLine(lineText: string) {
   }
 
   let textCls = "text-zinc-300 dark:text-zinc-300";
-  let bgCls = "";
+  const bgCls = "";
   let icon = "•";
 
   const lowerContent = content.toLowerCase();
@@ -189,10 +180,16 @@ function formatLogLine(lineText: string) {
   if (level === "ERROR" || lowerContent.includes("failed")) {
     textCls = "text-red-400 font-medium";
     icon = "✕";
-  } else if (lowerContent.includes("judge approved") || lowerContent.includes("approved rewrite")) {
+  } else if (
+    lowerContent.includes("judge approved") ||
+    lowerContent.includes("approved rewrite")
+  ) {
     textCls = "text-emerald-400 font-semibold";
     icon = "✓";
-  } else if (lowerContent.includes("judge rejected") || lowerContent.includes("rejected rewrite")) {
+  } else if (
+    lowerContent.includes("judge rejected") ||
+    lowerContent.includes("rejected rewrite")
+  ) {
     textCls = "text-amber-400 font-medium";
     icon = "⚠";
   } else if (lowerContent.includes("compiling latex")) {
@@ -215,7 +212,11 @@ interface ProgressStreamProps {
   onReset?: () => void;
 }
 
-export function ProgressStream({ logs, running, onReset }: ProgressStreamProps) {
+export function ProgressStream({
+  logs,
+  running,
+  onReset,
+}: ProgressStreamProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -235,7 +236,10 @@ export function ProgressStream({ logs, running, onReset }: ProgressStreamProps) 
     // Dedupe consecutive identical lines (retries / re-emitted status lines
     // otherwise clutter the terminal and make it harder to scan).
     const steps = logs
-      .filter((l) => l.type === "progress" || l.type === "success" || l.type === "error")
+      .filter(
+        (l) =>
+          l.type === "progress" || l.type === "success" || l.type === "error",
+      )
       .filter((l, idx, arr) => idx === 0 || l.text !== arr[idx - 1].text);
 
     return (
@@ -255,7 +259,8 @@ export function ProgressStream({ logs, running, onReset }: ProgressStreamProps) 
               AI Rework Pipeline
             </h3>
             <p className="text-xs text-muted-foreground max-w-sm">
-              Analyzing candidate resume against JD and performing iterative self-correction loops.
+              Analyzing candidate resume against JD and performing iterative
+              self-correction loops.
             </p>
           </div>
         </div>
@@ -303,11 +308,15 @@ export function ProgressStream({ logs, running, onReset }: ProgressStreamProps) 
                     </span>
                   )}
                   {formatted.icon && (
-                    <span className={`shrink-0 select-none font-bold ${formatted.textCls}`}>
+                    <span
+                      className={`shrink-0 select-none font-bold ${formatted.textCls}`}
+                    >
                       {formatted.icon}
                     </span>
                   )}
-                  <span className={`flex-1 break-all whitespace-pre-wrap ${formatted.textCls}`}>
+                  <span
+                    className={`flex-1 break-all whitespace-pre-wrap ${formatted.textCls}`}
+                  >
                     {formatted.content}
                   </span>
                 </div>
@@ -341,7 +350,11 @@ export function ProgressStream({ logs, running, onReset }: ProgressStreamProps) 
     : isMid
       ? "from-amber-500 to-yellow-400"
       : "from-red-500 to-rose-400";
-  const fitLabel = isHigh ? "Excellent Fit" : isMid ? "Moderate Fit" : "Weak Fit";
+  const fitLabel = isHigh
+    ? "Excellent Fit"
+    : isMid
+      ? "Moderate Fit"
+      : "Weak Fit";
   const fitCls = isHigh
     ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
     : isMid
@@ -392,7 +405,9 @@ export function ProgressStream({ logs, running, onReset }: ProgressStreamProps) 
               <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/60">
                 ATS Match Score
               </span>
-              <span className={`ml-auto text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border ${fitCls}`}>
+              <span
+                className={`ml-auto text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border ${fitCls}`}
+              >
                 {fitLabel}
               </span>
             </div>
@@ -420,7 +435,9 @@ export function ProgressStream({ logs, running, onReset }: ProgressStreamProps) 
 
             {analysis.urgency && (
               <p className="text-xs text-foreground/75 border-t border-border/40 pt-4 leading-relaxed">
-                <strong className="font-semibold text-foreground/90">Urgency: </strong>
+                <strong className="font-semibold text-foreground/90">
+                  Urgency:{" "}
+                </strong>
                 {analysis.urgency}
               </p>
             )}
@@ -453,8 +470,16 @@ export function ProgressStream({ logs, running, onReset }: ProgressStreamProps) 
                         : "bg-muted border-border/50 text-muted-foreground"
                   }`}
                 >
-                  {ev.approved ? <ThumbsUp size={14} className="shrink-0" /> : <RefreshCw size={14} className="shrink-0" />}
-                  <span>{ev.iteration !== null ? `Iteration ${ev.iteration}` : "Round"}</span>
+                  {ev.approved ? (
+                    <ThumbsUp size={14} className="shrink-0" />
+                  ) : (
+                    <RefreshCw size={14} className="shrink-0" />
+                  )}
+                  <span>
+                    {ev.iteration !== null
+                      ? `Iteration ${ev.iteration}`
+                      : "Round"}
+                  </span>
                   <span
                     className={`ml-auto text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                       ev.approved
@@ -464,7 +489,11 @@ export function ProgressStream({ logs, running, onReset }: ProgressStreamProps) 
                           : "bg-muted-foreground/10 text-muted-foreground"
                     }`}
                   >
-                    {ev.approved ? "Approved ✓" : ev.rejected ? "Revised ↺" : "Pending"}
+                    {ev.approved
+                      ? "Approved ✓"
+                      : ev.rejected
+                        ? "Revised ↺"
+                        : "Pending"}
                   </span>
                 </div>
               ))}
@@ -473,11 +502,18 @@ export function ProgressStream({ logs, running, onReset }: ProgressStreamProps) 
             <div className="p-5 flex flex-col items-center justify-center gap-2 text-center min-h-[100px]">
               {running ? (
                 <>
-                  <Loader2 size={18} className="animate-spin text-muted-foreground/50" />
-                  <p className="text-xs text-muted-foreground">Judge evaluation in progress…</p>
+                  <Loader2
+                    size={18}
+                    className="animate-spin text-muted-foreground/50"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Judge evaluation in progress…
+                  </p>
                 </>
               ) : (
-                <p className="text-xs text-muted-foreground">No judge iterations recorded.</p>
+                <p className="text-xs text-muted-foreground">
+                  No judge iterations recorded.
+                </p>
               )}
             </div>
           )}
@@ -491,7 +527,9 @@ export function ProgressStream({ logs, running, onReset }: ProgressStreamProps) 
             <div className="p-1.5 bg-primary/10 rounded-md text-primary">
               <FileText size={14} />
             </div>
-            <h2 className="font-sans text-base font-bold text-foreground">Executive Summary</h2>
+            <h2 className="font-sans text-base font-bold text-foreground">
+              Executive Summary
+            </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border/40">
@@ -516,7 +554,8 @@ export function ProgressStream({ logs, running, onReset }: ProgressStreamProps) 
       )}
 
       {/* ROW 3 — Critical Gaps | Missing Keywords */}
-      {((analysis.negative_points?.length ?? 0) > 0 || (analysis.missing_keywords?.length ?? 0) > 0) && (
+      {((analysis.negative_points?.length ?? 0) > 0 ||
+        (analysis.missing_keywords?.length ?? 0) > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-in slide-in-from-bottom-3 duration-500 delay-75">
           {analysis.negative_points && analysis.negative_points.length > 0 && (
             <div className="rounded-2xl border border-red-500/15 bg-red-500/5 dark:bg-red-500/10 shadow-xs overflow-hidden">
@@ -531,7 +570,10 @@ export function ProgressStream({ logs, running, onReset }: ProgressStreamProps) 
               </div>
               <ul className="p-6 space-y-4">
                 {analysis.negative_points.map((pt, idx) => (
-                  <li key={idx} className="flex items-start gap-3 text-sm text-foreground/90 leading-relaxed">
+                  <li
+                    key={idx}
+                    className="flex items-start gap-3 text-sm text-foreground/90 leading-relaxed"
+                  >
                     <span className="mt-[6px] w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
                     <div className="flex-1">
                       <Markdown variant="tight" allowBlocks={false}>
@@ -544,55 +586,58 @@ export function ProgressStream({ logs, running, onReset }: ProgressStreamProps) 
             </div>
           )}
 
-          {analysis.missing_keywords && analysis.missing_keywords.length > 0 && (
-            <div className="rounded-2xl border border-border bg-card shadow-xs overflow-hidden">
-              <div className="flex items-center gap-2.5 px-6 py-4 border-b border-border/50">
-                <div className="p-1.5 bg-primary/10 rounded-md text-primary">
-                  <Sparkles size={13} />
+          {analysis.missing_keywords &&
+            analysis.missing_keywords.length > 0 && (
+              <div className="rounded-2xl border border-border bg-card shadow-xs overflow-hidden">
+                <div className="flex items-center gap-2.5 px-6 py-4 border-b border-border/50">
+                  <div className="p-1.5 bg-primary/10 rounded-md text-primary">
+                    <Sparkles size={13} />
+                  </div>
+                  <h2 className="font-sans text-sm font-bold uppercase tracking-wider text-foreground">
+                    Missing Keywords
+                  </h2>
+                  <span className="ml-auto text-[11px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                    {analysis.missing_keywords.length}
+                  </span>
                 </div>
-                <h2 className="font-sans text-sm font-bold uppercase tracking-wider text-foreground">
-                  Missing Keywords
-                </h2>
-                <span className="ml-auto text-[11px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                  {analysis.missing_keywords.length}
-                </span>
-              </div>
-              <div className="p-6">
-                <p className="text-xs text-foreground/75 mb-3 leading-relaxed">
-                  Integrate these naturally into your bullets to improve ATS ranking:
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {analysis.missing_keywords.map((kw, idx) => (
-                    <span
-                      key={idx}
-                      className="text-xs font-semibold bg-primary/5 text-primary border border-primary/20 dark:bg-primary/10 dark:text-emerald-400 dark:border-emerald-500/25 px-2.5 py-1 rounded-full hover:bg-primary/10 transition-colors cursor-default"
-                    >
-                      {kw}
-                    </span>
-                  ))}
+                <div className="p-6">
+                  <p className="text-xs text-foreground/75 mb-3 leading-relaxed">
+                    Integrate these naturally into your bullets to improve ATS
+                    ranking:
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {analysis.missing_keywords.map((kw, idx) => (
+                      <span
+                        key={idx}
+                        className="text-xs font-semibold bg-primary/5 text-primary border border-primary/20 dark:bg-primary/10 dark:text-emerald-400 dark:border-emerald-500/25 px-2.5 py-1 rounded-full hover:bg-primary/10 transition-colors cursor-default"
+                      >
+                        {kw}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
         </div>
       )}
 
       {/* ROW 4 — Suggested Improvements */}
-      {analysis.potential_improvements && analysis.potential_improvements.length > 0 && (
-        <div className="rounded-2xl border border-amber-500/15 bg-amber-500/5 dark:bg-amber-500/10 shadow-xs overflow-hidden animate-in slide-in-from-bottom-3 duration-500 delay-150">
-          <div className="flex items-center gap-2.5 px-6 py-4 border-b border-amber-500/10">
-            <Lightbulb size={15} className="text-amber-500 shrink-0" />
-            <h2 className="font-sans text-base font-bold text-amber-600 dark:text-amber-400">
-              Suggested Improvements
-            </h2>
+      {analysis.potential_improvements &&
+        analysis.potential_improvements.length > 0 && (
+          <div className="rounded-2xl border border-amber-500/15 bg-amber-500/5 dark:bg-amber-500/10 shadow-xs overflow-hidden animate-in slide-in-from-bottom-3 duration-500 delay-150">
+            <div className="flex items-center gap-2.5 px-6 py-4 border-b border-amber-500/10">
+              <Lightbulb size={15} className="text-amber-500 shrink-0" />
+              <h2 className="font-sans text-base font-bold text-amber-600 dark:text-amber-400">
+                Suggested Improvements
+              </h2>
+            </div>
+            <div className="p-6 min-w-0 max-w-none">
+              <Markdown>
+                {analysis.potential_improvements.join("\n\n")}
+              </Markdown>
+            </div>
           </div>
-          <div className="p-6 min-w-0 max-w-none">
-            <Markdown>
-              {analysis.potential_improvements.join("\n\n")}
-            </Markdown>
-          </div>
-        </div>
-      )}
+        )}
 
       <div ref={scrollRef} />
     </div>
