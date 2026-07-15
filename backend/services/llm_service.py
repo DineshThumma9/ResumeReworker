@@ -20,6 +20,7 @@ async def get_llm_client(
     provider: Optional[str] = None,
     model: Optional[str] = None,
     api_key: Optional[str] = None,
+    temperature: Optional[float] = None,
 ) -> BaseChatModel:
     """
     Initializes and returns a LangChain chat model.
@@ -68,6 +69,8 @@ async def get_llm_client(
     llm_kwargs = {}
     if resolved_api_key:
         llm_kwargs["api_key"] = resolved_api_key
+    if temperature is not None:
+        llm_kwargs["temperature"] = temperature
 
     try:
         llm = init_chat_model(

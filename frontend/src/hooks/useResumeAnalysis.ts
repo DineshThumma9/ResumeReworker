@@ -301,7 +301,6 @@ export function useResumeAnalysis() {
             n[last] = {
               ...n[last],
               type: isError ? "error" : "success",
-              text: isError ? "Failed." : "LaTeX compilation successful.",
             };
           return [
             ...n,

@@ -63,6 +63,12 @@ async def generate_template_preview_task(template_id: int):
 
             # 2. Render LaTeX
             tex_source = template.tex_source
+            if latest_resume and latest_resume.jd_snippet:
+                if isinstance(resume_data, dict):
+                    import copy
+
+                    resume_data = copy.deepcopy(resume_data)
+                    resume_data["jd"] = latest_resume.jd_snippet
             latex_code = render_resume_template_from_string(tex_source, resume_data)
 
             # 3. Compile to PDF

@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     openrouter_api_key: str | None = None
     huggingface_api_key: str | None = None
 
+    # LangSmith Observability
+    langchain_tracing_v2: str = "false"
+    langchain_api_key: str | None = None
+    langchain_project: str = "resumereworker"
+
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )

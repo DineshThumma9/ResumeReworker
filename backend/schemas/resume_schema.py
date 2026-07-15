@@ -60,6 +60,7 @@ class ResumeAnalysis(BaseModel):
             if isinstance(pi, list):
                 cleaned = []
                 for item in pi:
+                    val = ""
                     if isinstance(item, dict):
                         val = (
                             item.get("action")
@@ -67,14 +68,27 @@ class ResumeAnalysis(BaseModel):
                             or item.get("text")
                             or (list(item.values())[0] if item.values() else "")
                         )
-                        cleaned.append(str(val))
                     else:
-                        cleaned.append(str(item))
+                        val = str(item)
+                    
+                    val_str = str(val).strip()
+                    # Detect misplaced resume_quality block
+                    if val_str.startswith("resume_quality:") or "Structure & Readability" in val_str:
+                        if not data.get("resume_quality"):
+                            # Strip the "resume_quality:" prefix and quotes if any
+                            cleaned_quality = re.sub(r"^resume_quality:\s*['\"]?\s*", "", val_str)
+                            if (cleaned_quality.startswith("'") and cleaned_quality.endswith("'")) or \
+                               (cleaned_quality.startswith('"') and cleaned_quality.endswith('"')):
+                                cleaned_quality = cleaned_quality[1:-1]
+                            data["resume_quality"] = cleaned_quality.strip()
+                        continue
+                    cleaned.append(val_str)
                 data["potential_improvements"] = cleaned
             np = data.get("negative_points")
             if isinstance(np, list):
                 cleaned = []
                 for item in np:
+                    val = ""
                     if isinstance(item, dict):
                         val = (
                             item.get("point")
@@ -82,9 +96,9 @@ class ResumeAnalysis(BaseModel):
                             or item.get("text")
                             or (list(item.values())[0] if item.values() else "")
                         )
-                        cleaned.append(str(val))
                     else:
-                        cleaned.append(str(item))
+                        val = str(item)
+                    cleaned.append(str(val).strip())
                 data["negative_points"] = cleaned
         return data
 

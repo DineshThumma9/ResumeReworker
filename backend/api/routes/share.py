@@ -50,6 +50,8 @@ async def download_anonymous(
     try:
         masked_content_json = await mask_resume(content, mask_details)
         masked_content = json.loads(masked_content_json)
+        if masked_content is not None and isinstance(masked_content, dict):
+            masked_content["jd"] = resume.jd_snippet
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

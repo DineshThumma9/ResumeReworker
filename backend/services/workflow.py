@@ -56,33 +56,41 @@ class ResumeWorkflowService:
     ) -> Literal["rewrite_resume", "rewrite_latex"]:
         iteration = int(state.get("iteration", 1))
         judgements = state.get("judgements", [])
-        if not judgements or iteration >= MAX_REWRITE_ITERATIONS:
-            logger.info(f"Proceeding to rewrite_latex. Iteration: {iteration}")
-            return "rewrite_latex"
 
-        judgement = judgements[-1]
+        # Process and log the last judgement details if available (important for UI status updates)
+        judgement = judgements[-1] if judgements else None
+        should_rewrite = False
+        req_changes = []
+        if judgement:
+            if isinstance(judgement, dict):
+                should_rewrite = judgement.get("should_rewrite", False)
+                req_changes = judgement.get("request_changes", [])
+            else:
+                should_rewrite = getattr(judgement, "should_rewrite", False)
+                req_changes = getattr(judgement, "request_changes", [])
 
-        if isinstance(judgement, dict):
-            should_rewrite = judgement.get("should_rewrite", False)
-            req_changes = judgement.get("request_changes", [])
-        else:
-            should_rewrite = getattr(judgement, "should_rewrite", False)
-            req_changes = getattr(judgement, "request_changes", [])
-
-        if should_rewrite:
-            logger.info(
-                f"Judge rejected rewrite (iteration {iteration}). {len(req_changes)} changes requested:"
-            )
-            for idx, change in enumerate(req_changes):
-                change_str = str(change)
-                truncated = (
-                    change_str[:150] + "..." if len(change_str) > 150 else change_str
+            if should_rewrite:
+                logger.info(
+                    f"Judge rejected rewrite (iteration {iteration}). {len(req_changes)} changes requested:"
                 )
-                logger.info(f"  - {truncated}")
-        else:
+                for idx, change in enumerate(req_changes):
+                    change_str = str(change)
+                    truncated = (
+                        change_str[:150] + "..."
+                        if len(change_str) > 150
+                        else change_str
+                    )
+                    logger.info(f"  - {truncated}")
+            else:
+                logger.info(
+                    f"Judge approved rewrite (iteration {iteration}). Proceeding to LaTeX."
+                )
+
+        if not judgements or iteration >= MAX_REWRITE_ITERATIONS:
             logger.info(
-                f"Judge approved rewrite (iteration {iteration}). Proceeding to LaTeX."
+                f"Proceeding to rewrite_latex. Iteration: {iteration} (max iterations reached or no judgements)."
             )
+            return "rewrite_latex"
 
         return "rewrite_resume" if should_rewrite else "rewrite_latex"
 
@@ -100,8 +108,10 @@ class ResumeWorkflowService:
         page_count = state.get("page_count")
         pc_str = f"\nOriginal Resume Page Count: {page_count}" if page_count else ""
 
+        from datetime import datetime
+        current_date = datetime.now().strftime("%B %Y")
         messages = [
-            SystemMessage(content=resume_analysis_prompt),
+            SystemMessage(content=f"Current Date: {current_date}\n\n{resume_analysis_prompt}"),
             HumanMessage(
                 content=f"Job Description:\n{jd}\n\nCandidate Resume:\n{resume}{pc_str}"
             ),
@@ -111,9 +121,10 @@ class ResumeWorkflowService:
             llm = await self._get_llm(state)  # type: ignore
             structured_llm = llm.with_structured_output(ResumeAnalysis)
 
-            response = await structured_llm.ainvoke(messages)
-
-            if response is None:
+            try:
+                response = await self._invoke_with_retry(structured_llm, messages)
+            except Exception as e:
+                logger.error(f"match_jd structured output failed after retries: {e}")
                 return {**state, "analysis": None}
 
             analysis_response = cast(ResumeAnalysis, response)
@@ -124,13 +135,28 @@ class ResumeWorkflowService:
 
         return {**state, "analysis": analysis}
 
-    async def _get_llm(self, state: "ResumeState"):
+    async def _get_llm(self, state: "ResumeState", temperature: Optional[float] = None):
         """Helper: build the LLM instance from state config."""
         return await get_llm_client(
             provider=state.get("provider"),
             model=state.get("model"),
             api_key=state.get("api_key"),
+            temperature=temperature,
         )
+
+    async def _invoke_with_retry(self, structured_llm, messages, max_attempts=3):
+        from tenacity import AsyncRetrying, stop_after_attempt, wait_exponential
+
+        async for attempt in AsyncRetrying(
+            stop=stop_after_attempt(max_attempts),
+            wait=wait_exponential(multiplier=1, min=2, max=10),
+            reraise=True,
+        ):
+            with attempt:
+                result = await structured_llm.ainvoke(messages)
+                if result is None:
+                    raise ValueError("LLM returned None for structured output")
+                return result
 
     async def rewrite_resume(self, state: "ResumeState"):
         iteration = int(state.get("iteration", 0)) + 1
@@ -144,7 +170,7 @@ class ResumeWorkflowService:
         ]
 
         if state.get("analysis") is None:
-            return {**state, "changes_content": None}
+            return {**state, "changes_content": None, "iteration": iteration}
 
         try:
             analysis = state["analysis"]  # type: ignore
@@ -166,7 +192,9 @@ class ResumeWorkflowService:
                     SystemMessage(content=extract_details_prompt),
                     HumanMessage(content=f"Resume text:\n{resume}"),
                 ]
-                raw_details = await details_llm.ainvoke(details_messages)
+                raw_details = await self._invoke_with_retry(
+                    details_llm, details_messages
+                )
                 details_obj: Optional["Details"] = cast("Details", raw_details)
             except Exception as details_err:
                 logger.warning(
@@ -226,8 +254,10 @@ class ResumeWorkflowService:
                         f"Ensure you address ALL unresolved feedback from previous iterations.\n"
                     )
 
+            from datetime import datetime
+            current_date = datetime.now().strftime("%B %Y")
             messages = [
-                SystemMessage(content=rewrite_content_prompt),
+                SystemMessage(content=f"Current Date: {current_date}\n\n{rewrite_content_prompt}"),
                 HumanMessage(
                     content=(
                         f"Job Description:\n{jd}\n\n"
@@ -241,9 +271,13 @@ class ResumeWorkflowService:
                 ),
             ]
 
-            response = cast(RewriteResume, await structured_llm.ainvoke(messages))
-
-            if response is None:
+            try:
+                raw_response = await self._invoke_with_retry(structured_llm, messages)
+                response = cast(RewriteResume, raw_response)
+            except Exception as e:
+                logger.error(
+                    f"rewrite_resume structured output failed after retries: {e}"
+                )
                 return {**state, "changes_content": None, "iteration": iteration}
 
             # If the response has empty profile_links but Call 1 gave us links, merge them
@@ -320,8 +354,10 @@ class ResumeWorkflowService:
             else:
                 analysis_str = "None"
 
+            from datetime import datetime
+            current_date = datetime.now().strftime("%B %Y")
             messages = [
-                SystemMessage(content=judge_prompt),
+                SystemMessage(content=f"Current Date: {current_date}\n\n{judge_prompt}"),
                 HumanMessage(
                     content=(
                         f"Job Description:\n{jd}\n\n"
@@ -334,10 +370,14 @@ class ResumeWorkflowService:
                 ),
             ]
 
-            llm = await self._get_llm(state)
+            llm = await self._get_llm(state, temperature=0.0)
             structured_llm = llm.with_structured_output(JudgeResume)
-            response = await structured_llm.ainvoke(messages)
-            if response is None:
+            try:
+                response = await self._invoke_with_retry(structured_llm, messages)
+            except Exception as e:
+                logger.error(
+                    f"judge_rewrite structured output failed after retries: {e}"
+                )
                 return {**state}
 
             new_judgements = judgements.copy()
@@ -514,9 +554,19 @@ class ResumeWorkflowService:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            pdf_bytes, stderr = await process.communicate(
-                input=latex_string.encode("utf-8")
-            )
+            # Add a 30-second timeout to prevent compilation from hanging indefinitely
+            try:
+                pdf_bytes, stderr = await asyncio.wait_for(
+                    process.communicate(input=latex_string.encode("utf-8")),
+                    timeout=30.0,
+                )
+            except asyncio.TimeoutError:
+                try:
+                    process.kill()
+                except Exception:
+                    pass
+                raise Exception("LaTeX compilation timed out after 30.0 seconds")
+
             if process.returncode != 0:
                 raise Exception(
                     f"Container compilation error: {stderr.decode('utf-8', errors='ignore')}"
@@ -553,6 +603,12 @@ class ResumeWorkflowService:
                     if section in diff_data_dict:
                         diff_data_dict[section] = None
 
+            # Inject Job Description for project skills optimization/relevance sorting
+            jd_text = state.get("jd")
+            if jd_text:
+                clean_data_dict["jd"] = jd_text
+                diff_data_dict["jd"] = jd_text
+
             template_source = state.get("template_source")
             if template_source and template_source.strip():
                 latex_code = render_resume_template_from_string(
@@ -574,12 +630,27 @@ class ResumeWorkflowService:
                     f"{suggesting_changes.details.name.replace(' ', '_')}_resume.pdf"
                 )
                 # Compile clean latex_code
+                logger.info("Compiling LaTeX code to clean PDF...")
                 pdf_bytes = await self.latex_to_pdf(latex_code, filename)
 
                 diff_pdf_base64_str = ""
                 # Compile diff latex_code
                 try:
                     diff_filename = f"{suggesting_changes.details.name.replace(' ', '_')}_resume_diff.pdf"
+                    logger.info("Compiling LaTeX code to diff PDF...")
+                    
+                    # Inject definitions for \added and \deleted macros if not already in preamble
+                    diff_defs = (
+                        "\n% Definitions for latexdiff-style tracking\n"
+                        "\\usepackage[normalem]{ulem}\n"
+                        "\\providecommand{\\added}[1]{{\\color{blue}#1}}\n"
+                        "\\providecommand{\\deleted}[1]{{\\color{red}\\sout{#1}}}\n"
+                    )
+                    if "\\begin{document}" in diff_latex_code:
+                        diff_latex_code = diff_latex_code.replace(
+                            "\\begin{document}", f"{diff_defs}\\begin{{document}}"
+                        )
+
                     diff_pdf_bytes = await self.latex_to_pdf(
                         diff_latex_code, diff_filename
                     )

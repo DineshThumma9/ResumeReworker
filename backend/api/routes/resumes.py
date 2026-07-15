@@ -211,6 +211,12 @@ async def render_resume(
 
     try:
         data_dict = resume.content
+        if data_dict is not None and isinstance(data_dict, dict):
+            import copy
+
+            data_dict = copy.deepcopy(data_dict)
+            data_dict["jd"] = resume.jd_snippet
+
         if template_source and template_source.strip():
             latex_code = render_resume_template_from_string(template_source, data_dict)
         else:

@@ -1,3 +1,7 @@
+import base64
+import json
+import logging
+from datetime import datetime, timezone
 from typing import Annotated, Any, Dict, Optional, cast
 
 from fastapi import Depends, HTTPException, Request, status
@@ -5,12 +9,21 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
+from sqlmodel import select as _select
 
 from core.database import get_session
 from core.security import decode_access_token
 from models import User
+from models.models import Template
 from schemas.schema import Details, MaskDetails, RewriteResume
-from utils.prompts import extract_details_prompt
+from services.auth_service import AuthService
+from services.llm_service import get_llm_client
+from services.storage import upload_pdf_to_cloudinary
+from services.workflow import ResumeWorkflowService
+from utils.mappers import map_llm_to_profile
+from utils.prompts import extract_details_prompt, parse_resume_prompt
+
+logger = logging.getLogger(__name__)
 
 bearer = HTTPBearer(auto_error=False)
 
@@ -212,20 +225,6 @@ def mask_latex(latex_code: str, resume_content: dict, mask_details: MaskDetails)
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
-_PARSE_RESUME_PROMPT = """
-You are an expert resume parser. Your ONLY job is to extract the candidate's resume content into the structured schema format.
-Do NOT invent details. Do NOT summarize or rewrite the content. Simply parse the sections verbatim into the appropriate fields.
-
-For each section:
-1. details: Extract candidate's name, profile summary, and contact/social links (phone, email, github, linkedin, website, location, etc.).
-2. experience: Extract all work experience entries. Join responsibilities into a list of strings (each bullet point is one list item).
-3. education: Extract all education entries.
-4. projects: Extract all projects.
-5. technical_skills: Extract technical skills categorized by category name and flat list of skills.
-6. achivements: Extract all achievements, certifications, coursework, open-source, or hackathons if they fit the schema.
-"""
-
-
 async def autofill_resume_profile(
     resume_text: str, user: User, db: AsyncSession
 ) -> Dict[str, Any]:
@@ -240,12 +239,6 @@ async def autofill_resume_profile(
 
     Returns a plain dict suitable for the autofill profile API response.
     """
-    import logging
-
-    from services.llm_service import get_llm_client
-    from utils.mappers import map_llm_to_profile
-
-    logger = logging.getLogger(__name__)
 
     llm = await get_llm_client(db, user=user)
 
@@ -265,7 +258,7 @@ async def autofill_resume_profile(
     # ── Call 2: Parse full resume structure ──────────────────────────────
     structured_llm = llm.with_structured_output(RewriteResume)
     messages = [
-        SystemMessage(content=_PARSE_RESUME_PROMPT),
+        SystemMessage(content=parse_resume_prompt),
         HumanMessage(content=f"Resume text:\n{resume_text}"),
     ]
     raw_parsed = await structured_llm.ainvoke(messages)
@@ -310,11 +303,6 @@ async def save_and_upload(
     If *pdf_base64* is a data-URI already containing base64-encoded PDF bytes,
     the compilation step is skipped and the bytes are decoded directly.
     """
-    import base64
-    from datetime import datetime, timezone
-
-    from services.storage import upload_pdf_to_cloudinary
-    from services.workflow import ResumeWorkflowService
 
     if pdf_base64 and "base64," in pdf_base64:
         b64_str = pdf_base64.split("base64,")[1]
@@ -365,12 +353,6 @@ async def build_graph_state(
 
     This replaces the ad-hoc `start_graph` helper that used to live in the route file.
     """
-    import json
-
-    from sqlmodel import select as _select
-
-    from models.models import Template
-    from services.auth_service import AuthService
 
     auth_service = AuthService(db)
     api_key = ""

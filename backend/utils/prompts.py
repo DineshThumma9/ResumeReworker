@@ -8,6 +8,9 @@ Analyze the candidate's resume against the provided job description and deliver 
 ## FORMATTING REQUIREMENTS:
 - Use strict Markdown for your explanations (especially for fields like `match_explanation` and `resume_quality`).
 - When writing lists, ALWAYS put each bullet point on a NEW LINE (e.g. `\n- Item 1\n- Item 2`) so they render properly. Do not combine bullet points into a single paragraph.
+- **NO TABLES**: Do NOT use markdown or HTML tables anywhere in your response. Structure comparative data as flat lists or standard paragraphs.
+- **NO NESTED BULLETS**: Do NOT use nested lists, sub-bullets, or multi-level indented lists. Keep all lists strictly single-level (flat) to ensure clean readability.
+- **CLEAN SECTIONING**: Use standard markdown headings (e.g. `### Section Title`) to structure sections. Do NOT use random dashes, equals signs, or text-dividers (e.g. `--`, `===`) as section headers or dividers.
 
 
 ## ANALYSIS CRITERIA
@@ -133,7 +136,7 @@ You are a professional resume writer optimizing a candidate's resume to match a 
 5. Do no Fabricate any metric or claim which does'nt exists
 
 ## PROFILE SUMMARY:
-- ONLY include a summary if the original resume has one or there is space left in resume and adding it does'nt cause it expand into 2 pages. If the original has NO summary, leave this field blank/null. Do NOT invent a summary.
+- ONLY include a summary if the original resume has one (look for sections titled 'Objective', 'Career Objective', 'Profile', 'Summary', 'Professional Summary', or similar) or there is space left in resume and adding it does'nt cause it expand into 2 pages. If the original has NO summary, leave this field blank/null. Do NOT invent a summary.
 - If rewriting an existing summary, make it ATS-optimized and role-relevant
 - Must be shorter than or equal to the original word count
 - One paragraph only
@@ -145,14 +148,31 @@ You are a professional resume writer optimizing a candidate's resume to match a 
 
 
 ### SECTION CLASSIFICATION & BOUNDARIES
-- STRICT ISOLATION: Treat each section of the original resume as a strictly independent entity. There must be ZERO overlap or duplication of information between sections.
+- STRICT ISOLATION & DEDUPLICATION: Treat each section of the original resume as a strictly independent entity. There must be ZERO overlap or duplication of information between sections.
+- If the input resume has duplicated an item across multiple fields (e.g., a hackathon listed in both 'achivements' and 'hackathons'), you MUST deduplicate it:
+  * If the original resume had separate sections, keep the item only in the specific field ('hackathons') and remove it from 'achivements'.
+  * If the original resume grouped them under a single 'Achievements' section, keep the items unified in 'achivements' and ensure 'hackathons' and 'certifications' remain empty/null.
 - NO DATA MIGRATION: Do not move, extract, or reorganize bullet points from one section to populate another. All optimizations must remain strictly within the boundaries of the original section.
 - PRESERVE ORIGINAL STRUCTURE: Respect how the candidate has grouped their information, even if it is non-standard. 
   * Example 1: If open-source contributions are in a dedicated "Open Source" section, optimize them there. Do not copy them into "Achievements."
   * Example 2: If the user groups hackathons and certifications under a single "Achievements" section, leave them there. Do NOT extract them to generate new, separate "Hackathons" or "Certifications" sections.
 
+## FEW-SHOT DEDUPLICATION EXAMPLES:
 
-
+### Example 1 (Deduplicating achievements and hackathons):
+Input Resume Content:
+{
+  "achivements": ["Bharatiya Antariksh Hackathon 2025: Developed...", "LeetCode Max Rating 1800"],
+  "hackathons": ["Bharatiya Antariksh Hackathon 2025: Developed..."],
+  "certifications": ["AWS Certified Cloud Practitioner"]
+}
+Rewritten Output Content:
+{
+  "achivements": ["LeetCode Max Rating 1800"],
+  "hackathons": ["Bharatiya Antariksh Hackathon 2025: Developed..."],
+  "certifications": ["AWS Certified Cloud Practitioner"]
+}
+(Explanation: The hackathon was duplicated in 'achivements' and 'hackathons'. It is kept in 'hackathons' and removed from 'achivements' to ensure zero overlap.)
 
 You will receive: the original resume, the job description, and the analysis report (missing keywords, negative points).
 Output the complete structured resume. Every field matters.
@@ -181,4 +201,65 @@ Your task is to optimize the provided candidate resume content to better align w
 5. **Concise Phrasing**: Improve clarity and impact using strong action verbs (e.g., 'Architected', 'Optimized', 'Engineered').
 6. **No Markdown Bold/Italics**: DO NOT wrap any words in `**` or `__`. Just output plain text.
 7. **1-Page & Overflow Constraint**: Keep rewritten text concise and compact. Keep bullets under a single line where possible to ensure the resume fits cleanly on exactly 1 page, with zero width-wise or height-wise overflows.
+"""
+
+parse_resume_prompt = """
+You are an expert resume parser. Your ONLY job is to extract the candidate's resume content into the structured schema format.
+Do NOT invent details. Do NOT summarize or rewrite the content. Simply parse the sections verbatim into the appropriate fields.
+
+For each section:
+1. details: Extract candidate's name, profile summary (which may be titled 'Objective', 'Career Objective', 'Profile', 'Summary', 'Professional Summary', or similar), and contact/social links (phone, email, github, linkedin, website, location, etc.). Do NOT leave this empty if the original resume has a summary or objective.
+2. experience: Extract all work experience entries. Join responsibilities into a list of strings (each bullet point is one list item).
+3. education: Extract all education entries.
+4. projects: Extract all projects.
+5. technical_skills: Extract technical skills categorized by category name and flat list of skills.
+6. coursework: Extract relevant coursework or academic projects as strings.
+7. open_source: Extract open-source contributions only. Each entry is one contribution string.
+8. hackathons: Extract hackathons participated as strings.
+9. certifications: Extract certifications obtained as strings.
+10. achivements: Extract achievements, awards, and competitive programming stats that do NOT fit into coursework, open_source, hackathons, or certifications.
+
+## SECTION CLASSIFICATION & ISOLATION RULES:
+- Every parsed item must belong to exactly ONE field in the schema. Do NOT duplicate any item across multiple fields.
+- Respect the original resume's grouping structure:
+  * If certifications and hackathons are listed under a single unified "Achievements" section in the original resume, place them in the 'achivements' field ONLY. Do NOT extract them to populate 'certifications' or 'hackathons'.
+  * Only populate 'certifications' or 'hackathons' if they exist as separate, dedicated sections in the original resume.
+
+### FEW-SHOT PARSING EXAMPLES:
+
+#### Case A: Separate Sections in Original Resume
+Original Resume text:
+"ACHIEVEMENTS
+- CodeChef 3-Star Coder (Rating: 1684)
+
+HACKATHONS
+- Bharatiya Antariksh Hackathon 2025
+
+CERTIFICATIONS
+- Oracle Certified DBMS"
+
+Structured Parsed Output:
+{
+  "achivements": ["CodeChef 3-Star Coder (Rating: 1684)"],
+  "hackathons": ["Bharatiya Antariksh Hackathon 2025"],
+  "certifications": ["Oracle Certified DBMS"]
+}
+
+#### Case B: Grouped Achievements Section in Original Resume
+Original Resume text:
+"ACHIEVEMENTS & CERTIFICATIONS
+- Oracle Certified DBMS (Dec '24)
+- Bharatiya Antariksh Hackathon 2025
+- CodeChef 3-Star Coder (Rating: 1684)"
+
+Structured Parsed Output:
+{
+  "achivements": [
+    "Oracle Certified DBMS (Dec '24)",
+    "Bharatiya Antariksh Hackathon 2025",
+    "CodeChef 3-Star Coder (Rating: 1684)"
+  ],
+  "hackathons": null,
+  "certifications": null
+}
 """
