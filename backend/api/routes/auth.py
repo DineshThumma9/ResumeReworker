@@ -2,13 +2,23 @@ import logging
 import secrets
 from typing import Annotated, Any, Dict
 
-from fastapi import APIRouter, Cookie, Depends, File, HTTPException, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Cookie,
+    Depends,
+    File,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.responses import RedirectResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from core.config import settings
 from core.database import get_session
+from core.rate_limit import limiter
 from core.security import (
     create_access_token,
     exchange_google_code,
@@ -36,7 +46,8 @@ DB = Annotated[AsyncSession, Depends(get_session)]
 
 
 @router.post("/signup", status_code=status.HTTP_201_CREATED)
-async def signup(body: SignupBody, db: DB):
+@limiter.limit("5/minute")
+async def signup(request: Request, response: Response, body: SignupBody, db: DB):
     existing = await db.execute(
         select(User).where(
             (User.email == body.email) | (User.username == body.username)
@@ -55,11 +66,20 @@ async def signup(body: SignupBody, db: DB):
     await db.flush()
     await db.refresh(user)
 
-    return {"access_token": create_access_token(user.id), "token_type": "bearer"}  # type: ignore
+    access_token = create_access_token(user.id)
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        samesite="lax",
+        max_age=3600 * 24 * 7,
+    )
+    return {"message": "Signup successful"}
 
 
 @router.post("/login")
-async def login(body: LoginBody, db: DB):
+@limiter.limit("5/minute")
+async def login(request: Request, response: Response, body: LoginBody, db: DB):
     result = await db.execute(
         select(User).where(
             (User.email == body.email_or_username)
@@ -71,12 +91,22 @@ async def login(body: LoginBody, db: DB):
     if not user or not verify_password(body.password, user.hashed_password):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid email or password")
 
-    return {"access_token": create_access_token(user.id), "token_type": "bearer"}  # type: ignore
+    access_token = create_access_token(user.id)
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        samesite="lax",
+        max_age=3600 * 24 * 7,
+    )
+
+    return {"new": False}
 
 
 @router.post("/logout")
-async def logout():
-    return {"message": "Logged out"}
+async def logout(response: Response):
+    response.delete_cookie(key="access_token")
+    return {"message": "Logged out successfully"}
 
 
 @router.get("/google")
@@ -151,7 +181,10 @@ async def google_callback(
 
 
 @router.post("/google/exchange")
-async def google_exchange(body: GoogleExchangeBody, db: DB):
+@limiter.limit("5/minute")
+async def exchange_google(
+    request: Request, response: Response, body: GoogleExchangeBody, db: DB
+):
     result = await db.execute(select(OAuthCode).where(OAuthCode.code == body.code))
     oauth_code = result.scalar_one_or_none()
     if not oauth_code:
@@ -166,14 +199,22 @@ async def google_exchange(body: GoogleExchangeBody, db: DB):
         await db.commit()
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Authorization code expired")
 
-    token = create_access_token(oauth_code.user_id)
+    access_token = create_access_token(oauth_code.user_id)
     is_new = oauth_code.is_new
 
     # Delete code to prevent reuse
     await db.delete(oauth_code)
     await db.commit()
 
-    return {"access_token": token, "token_type": "bearer", "new": is_new}
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        samesite="lax",
+        max_age=3600 * 24 * 7,
+    )
+
+    return {"new": is_new}
 
 
 @router.get("/profile", response_model=ProfileOut)

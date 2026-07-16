@@ -6,7 +6,16 @@ import traceback
 from datetime import datetime, timezone
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy import func
@@ -15,6 +24,7 @@ from sqlmodel import select
 
 from core.config import settings
 from core.database import get_session
+from core.rate_limit import user_limiter
 from models.models import Resume, Template
 from schemas.schema import (
     CompileRequest,
@@ -243,7 +253,9 @@ async def render_resume(
 
 
 @router.post("/analyze")
+@user_limiter.limit("20/minute")
 async def analyze(
+    request: Request,
     user: CurrentUser,
     db: DB,
     jd: str = Form(...),
@@ -416,9 +428,11 @@ async def analyze(
                                     label=resolved_label,
                                     tex_source=latex_code,
                                     jd_snippet=jd,
-                                    template_id=int(template_id_val)
-                                    if template_id_val is not None
-                                    else None,
+                                    template_id=(
+                                        int(template_id_val)
+                                        if template_id_val is not None
+                                        else None
+                                    ),
                                     pdf_url=pdf_base64,
                                     content=content_dict,
                                 )
@@ -460,7 +474,9 @@ async def analyze(
 
 
 @router.post("/modify")
+@user_limiter.limit("20/minute")
 async def modify_latex(
+    request: Request,
     req: ModifyRequest,
     user: CurrentUser,
     db: DB,

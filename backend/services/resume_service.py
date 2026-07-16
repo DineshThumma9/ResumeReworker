@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Annotated, Any, Dict, Optional, cast
 
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import HTTPBearer
 from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -30,21 +30,20 @@ bearer = HTTPBearer(auto_error=False)
 
 async def get_current_user(
     request: Request,
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)] = None,
     db: AsyncSession = Depends(get_session),
 ) -> User:
     """
     FastAPI dependency that resolves the authenticated user by validating
-    the JWT token and fetching the user from the database.
+    the JWT token from the httpOnly cookie and fetching the user from the database.
     """
-    if credentials is None:
+    token = request.cookies.get("access_token")
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
-            headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user_id = decode_access_token(credentials.credentials)
+    user_id = decode_access_token(token)
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

@@ -7,11 +7,13 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi_limiter import FastAPILimiter
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from api.routes import router
 from core.config import settings
 from core.database import create_tables
+from core.rate_limit import limiter
 from utils.http_client import close_http_client
 
 load_dotenv()
@@ -36,10 +38,9 @@ async def lifespan(app: FastAPI):
         redis_conn = redis.from_url(
             settings.redis_url, encoding="utf-8", decode_responses=True
         )
-        await FastAPILimiter.init(redis_conn)
-        logger.info("Connected to Redis and initialized FastAPILimiter")
+        logger.info("Connected to Redis successfully")
     except Exception as e:
-        logger.error(f"Failed to initialize Redis/FastAPILimiter: {e}")
+        logger.error(f"Failed to initialize Redis: {e}")
     yield
     try:
         if "redis_conn" in locals():
@@ -50,6 +51,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="ResumeReworker API", version="0.1.0", lifespan=lifespan)
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore
 
 app.add_middleware(
     CORSMiddleware,

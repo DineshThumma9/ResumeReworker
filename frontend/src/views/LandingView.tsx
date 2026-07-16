@@ -124,7 +124,7 @@ export function LandingView({
       authApi
         .googleExchange(code)
         .then((res) => {
-          useAuthStore.getState().setToken(res.access_token);
+          useAuthStore.getState().setAuthenticated(true);
           if (res.new) {
             setNotification({
               title: "Account Created",

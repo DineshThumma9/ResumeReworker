@@ -23,11 +23,11 @@ export function AuthForm({
     setLoading(true);
     try {
       if (mode === "signup") {
-        const res = await authApi.signup(name, email, password);
-        useAuthStore.getState().setToken(res.access_token);
+        await authApi.signup(name, email, password);
+        useAuthStore.getState().setAuthenticated(true);
       } else {
-        const res = await authApi.login(email, password);
-        useAuthStore.getState().setToken(res.access_token);
+        await authApi.login(email, password);
+        useAuthStore.getState().setAuthenticated(true);
       }
       onSuccess(mode);
     } catch (err: unknown) {

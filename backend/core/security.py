@@ -71,7 +71,9 @@ async def exchange_google_code(code: str) -> dict:
                 "grant_type": "authorization_code",
             },
         )
-        token_resp.raise_for_status()
+        if token_resp.status_code != 200:
+            logger.error(f"Google exchange failed: {token_resp.text}")
+            token_resp.raise_for_status()
         tokens = token_resp.json()
 
         user_resp = await client.get(

@@ -24,8 +24,8 @@ export function AuthView() {
       setLoading(true);
       authApi
         .googleExchange(code)
-        .then((res) => {
-          useAuthStore.getState().setToken(res.access_token);
+        .then(() => {
+          useAuthStore.getState().setAuthenticated(true);
           navigate("/analyze");
         })
         .catch((err) => {
@@ -45,12 +45,12 @@ export function AuthView() {
     setLoading(true);
     try {
       if (mode === "signup") {
-        const res = await authApi.signup(name, email, password);
-        useAuthStore.getState().setToken(res.access_token);
+        await authApi.signup(name, email, password);
+        useAuthStore.getState().setAuthenticated(true);
         navigate("/analyze");
       } else {
-        const res = await authApi.login(email, password);
-        useAuthStore.getState().setToken(res.access_token);
+        await authApi.login(email, password);
+        useAuthStore.getState().setAuthenticated(true);
         navigate("/analyze");
       }
     } catch (err: unknown) {

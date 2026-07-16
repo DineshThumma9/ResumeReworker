@@ -7,11 +7,11 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: resumereworker
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -20,7 +20,7 @@ services:
     image: redis:6.2-alpine
     restart: unless-stopped
     ports:
-      - "6380:6379"
+      - "127.0.0.1:6380:6379"
     volumes:
       - redis_data:/data
 
@@ -76,7 +76,7 @@ services:
     # This service builds and tags the image for the host docker daemon.
     # It does not need to run continuously in compose.
     restart: "no"
-    entrypoint: ["echo", "LaTeX compiler image built and tagged successfully"]
+    entrypoint: [ "echo", "LaTeX compiler image built and tagged successfully" ]
 
   frontend:
     build:

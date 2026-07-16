@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { useAuthStore } from "../store/authStore";
 export * from "../schemas/index";
 
 export class APIError extends Error {
@@ -15,18 +14,15 @@ export class APIError extends Error {
 export const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 export async function fetchJSON(url: string, options?: RequestInit) {
-  const token = useAuthStore.getState().token;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...((options?.headers as Record<string, string>) || {}),
   };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
 
   const res = await fetch(`${API_URL}${url}`, {
     ...options,
     headers,
+    credentials: "include",
   });
   if (!res.ok) {
     let msg = res.statusText;
