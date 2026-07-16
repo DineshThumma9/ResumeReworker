@@ -6,7 +6,6 @@ import {
   type AnalyzeEvent,
   API_URL,
 } from "./api";
-import { useAuthStore } from "../store/authStore";
 
 export const resumeApi = {
   list: async (): Promise<Resume[]> => {
@@ -80,11 +79,7 @@ export const analyzeResume = async (
   formData: FormData,
   onEvent: (event: AnalyzeEvent) => void,
 ) => {
-  const token = useAuthStore.getState().token;
   const headers: Record<string, string> = {};
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
 
   let res: Response;
   try {
@@ -176,13 +171,9 @@ export const modifyResume = async (
   model: string,
   onEvent: (event: ModifyEvent) => void,
 ) => {
-  const token = useAuthStore.getState().token;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
 
   let res: Response;
   try {

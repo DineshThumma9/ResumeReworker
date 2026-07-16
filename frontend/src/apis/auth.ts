@@ -1,5 +1,4 @@
 import { fetchJSON, API_URL } from "./api";
-import { useAuthStore } from "../store/authStore";
 
 export const authApi = {
   signup: async (name: string, email: string, password: string) => {
@@ -54,11 +53,7 @@ export const authApi = {
     website: string;
     sections: any;
   }> => {
-    const token = useAuthStore.getState().token;
     const headers: Record<string, string> = {};
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
     const formData = new FormData();
     formData.append("file", file);
 

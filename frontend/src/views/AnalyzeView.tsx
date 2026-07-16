@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation } from "react-router-dom";
 import Editor from "@monaco-editor/react";
 import { useResumeStore } from "../store/resumeStore";
-import { useAuthStore } from "../store/authStore";
+
 import { useResumeAnalysis } from "../hooks/useResumeAnalysis";
 import { API_URL } from "../apis/api";
 import { resumeApi } from "../apis/resumes";
@@ -121,14 +121,12 @@ export function AnalyzeView() {
     if (!resumeId) return;
     setIsDownloadingAnonymous(true);
     try {
-      const token = useAuthStore.getState().token;
       const response = await fetch(
         `${API_URL}/share/${resumeId}/download-anonymous`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ ...maskOptions, latex_code: latexCode }),
         },
