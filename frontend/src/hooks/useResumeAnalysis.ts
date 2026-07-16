@@ -84,7 +84,7 @@ export function useResumeAnalysis() {
         }
       })
       .catch(console.error);
-  }, []);
+  }, [setResumeState]);
 
   const handleProviderChange = (p: string) => {
     if (!p) return;

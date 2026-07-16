@@ -137,7 +137,7 @@ function parseJudgeEvents(logs: StreamLine[]) {
       const m = l.text.match(/iteration\s+(\d+)/i);
       const iteration = m ? parseInt(m[1]) : null;
 
-      let message = "Evaluating...";
+      let message: string;
       if (approved) {
         message = "Approved rewrite. Proceeding to PDF generation.";
       } else if (rejected) {
