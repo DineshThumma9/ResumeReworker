@@ -61,6 +61,7 @@ export const authApi = {
       method: "POST",
       headers,
       body: formData,
+      credentials: "include",
     });
     if (!res.ok) {
       let msg = res.statusText;

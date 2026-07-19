@@ -81,4 +81,4 @@ jobs:
           script: |
             cd /home/ubuntu/ResumeReworker
             git pull origin main
-            docker compose up -d db redis web latex-compiler
+            docker compose up -d --build db redis web frontend latex-compiler
