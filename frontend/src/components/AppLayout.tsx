@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { mutate } from "swr";
 import { useTheme } from "next-themes";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 import { authApi } from "../apis/auth";
 import { useAuthStore } from "../store/authStore";
+import { useResumeStore } from "../store/resumeStore";
 import { AnalyzeView } from "../views/AnalyzeView";
 
 import { AnimatePresence, motion } from "framer-motion";
@@ -34,7 +36,13 @@ export function AppLayout() {
     } catch (e) {
       // Ignore errors on logout
     }
+    // Clear local Zustand state
     useAuthStore.getState().logout();
+    useResumeStore.getState().resetResumeState();
+
+    // Clear all SWR caches (profiles, library, api keys)
+    mutate(() => true, undefined, { revalidate: false });
+
     navigate("/login");
   };
 

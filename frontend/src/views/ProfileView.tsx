@@ -96,7 +96,10 @@ export function ProfileView() {
   const navigate = useNavigate();
   const isOnboarding = searchParams.get("onboarding") === "true";
 
-  const { data: profileData, isLoading: loading } = useSWR("profile", authApi.getProfile);
+  const { data: profileData, isLoading: loading } = useSWR(
+    "profile",
+    authApi.getProfile,
+  );
   const [hasInitialized, setHasInitialized] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
