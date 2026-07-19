@@ -33,14 +33,12 @@ EXPOSE 8000
 
 # Give appuser ownership of the app dir (including .venv) and
 # pre-create a uv cache dir it can write to at runtime.
-RUN chown -R appuser:appuser /app && \
-    mkdir -p /app/.cache/uv && \
-    chown -R appuser:appuser /app/.cache
+RUN chown -R appuser:appuser /app
 
 USER appuser
 
-# Point uv's cache to a directory appuser owns (system users have no $HOME)
-ENV UV_CACHE_DIR=/app/.cache/uv
+# Add the virtual environment to the system PATH globally
+ENV PATH="/app/.venv/bin:$PATH"
 
-# Use uvicorn via uv run so the venv is activated automatically
-CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
+# Call gunicorn directly, which now resolves from the updated PATH
+CMD ["gunicorn", "main:app", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--forwarded-allow-ips", "*"]
