@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { mutate } from "swr";
+import useSWR, { mutate } from "swr";
 import { Trash, Edit, Copy, Check, Loader2 } from "lucide-react";
 import { getApiConfigs, setApiProvider } from "../apis/setup";
 import type { ApiConfig } from "../apis/setup";
@@ -24,8 +24,7 @@ const PROVIDERS_CONFIG: Record<string, { id: string; displayName: string }> = {
 };
 
 const ApiKeysPage = () => {
-  const [keys, setKeys] = useState<ApiConfig[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: keys = [], isLoading: loading, mutate: mutateKeys } = useSWR<ApiConfig[]>("api-configs", getApiConfigs);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Form state
@@ -35,21 +34,7 @@ const ApiKeysPage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
 
-  const fetchKeys = async () => {
-    try {
-      setLoading(true);
-      const data = await getApiConfigs();
-      setKeys(data);
-    } catch (err) {
-      console.error("Failed to load API keys:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  useEffect(() => {
-    fetchKeys();
-  }, []);
 
   const handleSave = async () => {
     if (!selectedProvider) return;
@@ -57,7 +42,7 @@ const ApiKeysPage = () => {
     try {
       setIsSubmitting(true);
       await setApiProvider(selectedProvider, apiKeyInput);
-      await fetchKeys();
+      await mutateKeys();
       // Clear SWR model caches immediately
       mutate("/setup/api-models");
       mutate("/setup/current-model");
@@ -82,7 +67,7 @@ const ApiKeysPage = () => {
     try {
       setLoading(true);
       await setApiProvider(provider, "");
-      await fetchKeys();
+      await mutateKeys();
       // Clear SWR model caches immediately
       mutate("/setup/api-models");
       mutate("/setup/current-model");
@@ -93,8 +78,6 @@ const ApiKeysPage = () => {
       }
     } catch (err) {
       console.error("Failed to delete key:", err);
-    } finally {
-      setLoading(false);
     }
   };
 

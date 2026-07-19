@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, Save, Trash2, Plus } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import useSWR from "swr";
 import { authApi } from "../apis/auth";
 
 interface SectionItem {
@@ -95,7 +96,8 @@ export function ProfileView() {
   const navigate = useNavigate();
   const isOnboarding = searchParams.get("onboarding") === "true";
 
-  const [loading, setLoading] = useState(true);
+  const { data: profileData, isLoading: loading } = useSWR("profile", authApi.getProfile);
+  const [hasInitialized, setHasInitialized] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -157,51 +159,38 @@ export function ProfileView() {
     }
   };
 
-  const fetchProfile = async () => {
-    try {
-      setLoading(true);
-      const data = await authApi.getProfile();
-      setUsername(data.username || "");
-      setEmail(data.email || "");
-      setName(data.name || "");
-      setPhone(data.phone || "");
-      setLocation(data.location || "");
-      setGithub(data.github || "");
-      setLinkedin(data.linkedin || "");
-      setWebsite(data.website || "");
+  useEffect(() => {
+    if (profileData && !hasInitialized) {
+      setUsername(profileData.username || "");
+      setEmail(profileData.email || "");
+      setName(profileData.name || "");
+      setPhone(profileData.phone || "");
+      setLocation(profileData.location || "");
+      setGithub(profileData.github || "");
+      setLinkedin(profileData.linkedin || "");
+      setWebsite(profileData.website || "");
 
-      // Parse structured sections if it's JSON
-      if (data.raw_resume) {
+      if (profileData.raw_resume) {
         try {
-          const parsed = JSON.parse(data.raw_resume);
+          const parsed = JSON.parse(profileData.raw_resume);
           if (typeof parsed === "object" && parsed !== null) {
             setSections(parsed);
           } else {
-            // Fallback if plain text
             setSections({
-              experience: [{ id: "1", description: data.raw_resume }],
+              experience: [{ id: "1", description: profileData.raw_resume }],
             });
           }
         } catch {
-          // Fallback if raw_resume is just raw text
           setSections({
-            experience: [{ id: "1", description: data.raw_resume }],
+            experience: [{ id: "1", description: profileData.raw_resume }],
           });
         }
       } else {
         setSections({});
       }
-    } catch (err) {
-      console.error("Failed to fetch profile:", err);
-      setError("Failed to load profile details.");
-    } finally {
-      setLoading(false);
+      setHasInitialized(true);
     }
-  };
-
-  useEffect(() => {
-    fetchProfile();
-  }, []);
+  }, [profileData, hasInitialized]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -297,7 +286,7 @@ export function ProfileView() {
     return AVAILABLE_SECTIONS.filter((s) => sections[s.id] === undefined);
   };
 
-  if (loading) {
+  if (loading && !profileData) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-24 text-center text-muted-foreground h-full w-full">
         <Loader2 size={24} className="animate-spin text-primary" />
