@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import useSWR, { mutate } from "swr";
 import { Trash, Edit, Copy, Check, Loader2 } from "lucide-react";
 import { getApiConfigs, setApiProvider } from "../apis/setup";
@@ -24,7 +24,11 @@ const PROVIDERS_CONFIG: Record<string, { id: string; displayName: string }> = {
 };
 
 const ApiKeysPage = () => {
-  const { data: keys = [], isLoading: loading, mutate: mutateKeys } = useSWR<ApiConfig[]>("api-configs", getApiConfigs);
+  const {
+    data: keys = [],
+    isLoading: loading,
+    mutate: mutateKeys,
+  } = useSWR<ApiConfig[]>("api-configs", getApiConfigs);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Form state
@@ -33,8 +37,6 @@ const ApiKeysPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
-
-
 
   const handleSave = async () => {
     if (!selectedProvider) return;
@@ -65,7 +67,6 @@ const ApiKeysPage = () => {
 
   const handleDelete = async (provider: string) => {
     try {
-      setLoading(true);
       await setApiProvider(provider, "");
       await mutateKeys();
       // Clear SWR model caches immediately
