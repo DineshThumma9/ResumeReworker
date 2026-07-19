@@ -12,7 +12,7 @@ from fastapi import (
     UploadFile,
     status,
 )
-from fastapi.responses import JSONResponse, RedirectResponse, Response
+from fastapi.responses import RedirectResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -47,7 +47,7 @@ DB = Annotated[AsyncSession, Depends(get_session)]
 
 @router.post("/signup", status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
-async def signup(request: Request, body: SignupBody, db: DB):
+async def signup(request: Request, response: Response, body: SignupBody, db: DB):
     existing = await db.execute(
         select(User).where(
             (User.email == body.email) | (User.username == body.username)
@@ -67,7 +67,6 @@ async def signup(request: Request, body: SignupBody, db: DB):
     await db.refresh(user)
 
     access_token = create_access_token(user.id)
-    response = JSONResponse(content={"message": "Signup successful"}, status_code=201)
     response.set_cookie(
         key="access_token",
         value=access_token,
@@ -76,12 +75,12 @@ async def signup(request: Request, body: SignupBody, db: DB):
         secure=not settings.dev_mode,
         max_age=3600 * 24 * 7,
     )
-    return response
+    return {"message": "Signup successful"}
 
 
 @router.post("/login")
 @limiter.limit("5/minute")
-async def login(request: Request, body: LoginBody, db: DB):
+async def login(request: Request, response: Response, body: LoginBody, db: DB):
     result = await db.execute(
         select(User).where(
             (User.email == body.email_or_username)
@@ -94,7 +93,6 @@ async def login(request: Request, body: LoginBody, db: DB):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid email or password")
 
     access_token = create_access_token(user.id)
-    response = JSONResponse(content={"new": False})
     response.set_cookie(
         key="access_token",
         value=access_token,
@@ -103,19 +101,19 @@ async def login(request: Request, body: LoginBody, db: DB):
         secure=not settings.dev_mode,
         max_age=3600 * 24 * 7,
     )
-    return response
+
+    return {"new": False}
 
 
 @router.post("/logout")
-async def logout():
-    response = JSONResponse(content={"message": "Logged out successfully"})
+async def logout(response: Response):
     response.delete_cookie(
         key="access_token",
         httponly=True,
         samesite="lax" if settings.dev_mode else "none",
         secure=not settings.dev_mode,
     )
-    return response
+    return {"message": "Logged out successfully"}
 
 
 @router.get("/google")
@@ -192,7 +190,7 @@ async def google_callback(
 @router.post("/google/exchange")
 @limiter.limit("5/minute")
 async def exchange_google(
-    request: Request, body: GoogleExchangeBody, db: DB
+    request: Request, response: Response, body: GoogleExchangeBody, db: DB
 ):
     result = await db.execute(select(OAuthCode).where(OAuthCode.code == body.code))
     oauth_code = result.scalar_one_or_none()
@@ -215,7 +213,6 @@ async def exchange_google(
     await db.delete(oauth_code)
     await db.commit()
 
-    response = JSONResponse(content={"new": is_new})
     response.set_cookie(
         key="access_token",
         value=access_token,
@@ -224,7 +221,8 @@ async def exchange_google(
         secure=not settings.dev_mode,
         max_age=3600 * 24 * 7,
     )
-    return response
+
+    return {"new": is_new}
 
 
 @router.get("/profile", response_model=ProfileOut)
