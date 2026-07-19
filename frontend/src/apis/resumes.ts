@@ -87,6 +87,7 @@ export const analyzeResume = async (
       method: "POST",
       body: formData,
       headers,
+      credentials: "include",
     });
   } catch (err) {
     if (err instanceof TypeError) {
@@ -186,6 +187,7 @@ export const modifyResume = async (
         provider,
         model,
       }),
+      credentials: "include",
     });
   } catch (err) {
     if (err instanceof TypeError) {
