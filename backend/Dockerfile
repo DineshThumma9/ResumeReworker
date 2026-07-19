@@ -31,8 +31,16 @@ COPY . .
 # Expose the port the app runs on
 EXPOSE 8000
 
-RUN chown -R appuser:appuser /app
+# Give appuser ownership of the app dir (including .venv) and
+# pre-create a uv cache dir it can write to at runtime.
+RUN chown -R appuser:appuser /app && \
+    mkdir -p /app/.cache/uv && \
+    chown -R appuser:appuser /app/.cache
+
 USER appuser
+
+# Point uv's cache to a directory appuser owns (system users have no $HOME)
+ENV UV_CACHE_DIR=/app/.cache/uv
 
 # Use uvicorn via uv run so the venv is activated automatically
 CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
