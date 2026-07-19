@@ -71,7 +71,8 @@ async def signup(request: Request, response: Response, body: SignupBody, db: DB)
         key="access_token",
         value=access_token,
         httponly=True,
-        samesite="lax",
+        samesite="lax" if settings.dev_mode else "none",
+        secure=not settings.dev_mode,
         max_age=3600 * 24 * 7,
     )
     return {"message": "Signup successful"}
@@ -96,7 +97,8 @@ async def login(request: Request, response: Response, body: LoginBody, db: DB):
         key="access_token",
         value=access_token,
         httponly=True,
-        samesite="lax",
+        samesite="lax" if settings.dev_mode else "none",
+        secure=not settings.dev_mode,
         max_age=3600 * 24 * 7,
     )
 
@@ -210,7 +212,8 @@ async def exchange_google(
         key="access_token",
         value=access_token,
         httponly=True,
-        samesite="lax",
+        samesite="lax" if settings.dev_mode else "none",
+        secure=not settings.dev_mode,
         max_age=3600 * 24 * 7,
     )
 
