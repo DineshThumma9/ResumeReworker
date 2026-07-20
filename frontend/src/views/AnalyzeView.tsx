@@ -128,6 +128,7 @@ export function AnalyzeView() {
           headers: {
             "Content-Type": "application/json",
           },
+          credentials: "include",
           body: JSON.stringify({ ...maskOptions, latex_code: latexCode }),
         },
       );
